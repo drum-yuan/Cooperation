@@ -3,7 +3,7 @@
 
 static CCapture *s_pCapture = NULL;
 
-void xt_start_capture_screen(int monitor_id, FrameCallback on_frame, void* param)
+void cap_start_capture_screen(int monitor_id, FrameCallback on_frame, void* param)
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->stop();
@@ -15,7 +15,7 @@ void xt_start_capture_screen(int monitor_id, FrameCallback on_frame, void* param
 	s_pCapture->start();
 }
 
-void xt_stop_capture_screen()
+void cap_stop_capture_screen()
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->stop();
@@ -25,35 +25,35 @@ void xt_stop_capture_screen()
 	}
 }
 
-void xt_pause_capture_screen()
+void cap_pause_capture_screen()
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->pause();
 	}
 }
 
-void xt_resume_capture_screen()
+void cap_resume_capture_screen()
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->resume();
 	}
 }
 
-void xt_set_drop_interval(unsigned int count)
+void cap_set_drop_interval(unsigned int count)
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->set_drop_interval(count);
 	}
 }
 
-void xt_set_ack_sequence(unsigned int seq)
+void cap_set_ack_sequence(unsigned int seq)
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->set_ack_sequence(seq);
 	}
 }
 
-unsigned int xt_get_capture_sequence()
+unsigned int cap_get_capture_sequence()
 {
 	if (s_pCapture == NULL) {
 		return 0;
@@ -61,7 +61,7 @@ unsigned int xt_get_capture_sequence()
 	return s_pCapture->get_capture_sequence();
 }
 
-void xt_reset_sequence()
+void cap_reset_sequence()
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->reset_sequence();

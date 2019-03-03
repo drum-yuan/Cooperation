@@ -74,12 +74,6 @@ struct __gdi_cap_t
 	byte*      buffer;
 };
 
-struct __tbuf_t
-{
-	int    size;
-	void*  buf;
-};
-
 typedef HRESULT(WINAPI *fnD3D11CreateDevice)(
 	_In_opt_ IDXGIAdapter* pAdapter,
 	D3D_DRIVER_TYPE DriverType,
@@ -130,23 +124,22 @@ private:
 	BOOL active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp);
 	LPSTR GetDispCode(INT code);
 
-	int              grab_type;   // 抓屏方法: 0 自动选择，1 mirror，2 DX抓屏，3 GDI抓屏
-	int				 monitor_id;
-	char			 disp_name[32];
-	BOOL             quit;
-	BOOL             pause_grab;
-	__mirror_cap_t   mirror;
-	__d3d_cap_t      directx;
-	__gdi_cap_t      gdi;
-	long             sleep_msec;
-	HWND             hMessageWnd;
-	HANDLE           h_thread;
-	HANDLE           hEvt;
-	__tbuf_t         t_arr[2];
+	int              m_GrabType;   // 抓屏方法: 0 自动选择，1 mirror，2 DX抓屏，3 GDI抓屏
+	int				 m_MonitorID;
+	char			 m_DispName[32];
+	BOOL             m_Quit;
+	BOOL             m_Pause;
+	__mirror_cap_t   m_Mirror;
+	__d3d_cap_t      m_Directx;
+	__gdi_cap_t      m_GDI;
+	long             m_SleepMsec;
+	HWND             m_hMessageWnd;
+	HANDLE           m_hThread;
+	HANDLE           m_hEvent;
 
-	unsigned int	 interval_count;
-	unsigned int	 ack_seq;
-	unsigned int	 capture_seq;
+	unsigned int	 m_IntervalCnt;
+	unsigned int	 m_AckSeq;
+	unsigned int	 m_CaptureSeq;
 	FrameCallback	 onFrame;
 	void*			 onframe_param;
 
@@ -172,8 +165,8 @@ private:
 #define SAFE_FREE(a) if(a){ free(a); (a)=NULL; }
 
 #ifdef DMF_MIRROR
-#define MIRROR_DRIVER   "XieTong Mirror Display Driver"
+#define MIRROR_DRIVER   "Drumjun Mirror Display Driver"
 #else
-#define MIRROR_DRIVER   "XietongHF Mirror Display Driver"
-#define VIRTUAL_DRIVER  "XietongHF Virtual Display Driver (XPDM for WinXP Only)"
+#define MIRROR_DRIVER   "DrumjunHF Mirror Display Driver"
+#define VIRTUAL_DRIVER  "DrumjunHF Virtual Display Driver (XPDM for WinXP Only)"
 #endif
