@@ -68,7 +68,7 @@ void cap_reset_sequence()
 	}
 }
 
-void xt_set_frame_rate(unsigned int rate)
+void cap_set_frame_rate(unsigned int rate)
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->set_frame_rate(rate);
