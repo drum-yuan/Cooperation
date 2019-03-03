@@ -6,6 +6,10 @@
 *.lo
 *.o
 *.obj
+*.pdb
+*.iobj
+*.ipdb
+*.tlog
 
 # Precompiled Headers
 *.gch
@@ -30,3 +34,7 @@
 *.exe
 *.out
 *.app
+
+# Project
+*.db
+*.user
