@@ -17,7 +17,7 @@ struct CallbackFrameInfo
 typedef void (*FrameCallback)(CallbackFrameInfo* frame, void* param);
 
 
-CAPTURE_API void xt_start_capture_screen(FrameCallback on_frame, void* param);
+CAPTURE_API void xt_start_capture_screen(int monitor_id, FrameCallback on_frame, void* param);
 
 CAPTURE_API void xt_stop_capture_screen();
 

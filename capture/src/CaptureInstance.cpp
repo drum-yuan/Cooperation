@@ -3,7 +3,7 @@
 
 static CCapture *s_pCapture = NULL;
 
-void xt_start_capture_screen(FrameCallback on_frame, void* param)
+void xt_start_capture_screen(int monitor_id, FrameCallback on_frame, void* param)
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->stop();
@@ -11,7 +11,7 @@ void xt_start_capture_screen(FrameCallback on_frame, void* param)
 		delete s_pCapture;
 	}
 	printf("new Capture\n");
-	s_pCapture = new CCapture(on_frame, param);
+	s_pCapture = new CCapture(monitor_id, on_frame, param);
 	s_pCapture->start();
 }
 

@@ -9,19 +9,15 @@ static LPSTR dispCode[7] = {
 	"Bad Mode",
 	"Not Updated" };
 
-static LARGE_INTEGER counter;
-static LARGE_INTEGER frame_begin;
-static LARGE_INTEGER frame_end;
-//static LARGE_INTEGER last;
-
-CCapture::CCapture(FrameCallback on_frame, void* param)
+CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 {
 	grab_type = 0;
+	monitor_id = id;
 	onFrame = on_frame;
 	onframe_param = param;
 
 	quit = FALSE;
-	is_pause_grab = FALSE;
+	pause_grab = FALSE;
 
 	memset(&mirror, 0, sizeof(mirror));
 	memset(&directx, 0, sizeof(directx));
@@ -67,24 +63,22 @@ void CCapture::stop()
 
 void CCapture::pause()
 {
-	is_pause_grab = TRUE;
+	pause_grab = TRUE;
 }
 
 void CCapture::resume()
 {
-	is_pause_grab = FALSE;
+	pause_grab = FALSE;
 }
 
 DWORD CALLBACK CCapture::__loop_msg(void* _p)
 {
 	CCapture* dp = (CCapture*)_p;
-
-	dp->id_thread = GetCurrentThreadId();
 	::CoInitialize(0);
 
 	int grab_type = dp->grab_type;
 	BOOL is_ok = FALSE;
-	if (grab_type == GRAB_TYPE_AUTO) { //自动选择
+	if (grab_type == GRAB_TYPE_AUTO) {
 		is_ok = dp->__init_mirror(TRUE);
 		if (is_ok) grab_type = GRAB_TYPE_MIRROR;
 		else {
@@ -101,7 +95,6 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 		is_ok = dp->__init_mirror(TRUE);
 	}
 	else if (grab_type == GRAB_TYPE_DIRECTX) {
-		//不支持的话，直接采用 mirror or GDI抓图
 		is_ok = dp->__init_directx(TRUE);
 		if (!is_ok) {
 			is_ok = dp->__init_mirror(TRUE);
@@ -150,7 +143,7 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 
 	MSG msg;
 	BOOL bQuit = FALSE;
-	QueryPerformanceFrequency(&counter);
+	QueryPerformanceFrequency(&dp->counter);
 	while (!dp->quit) {	
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			if (msg.message == WM_QUIT) {
@@ -164,7 +157,7 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 		if (bQuit)break;
 
 		sleep_msec = dp->sleep_msec;
-		if (!dp->is_pause_grab) {
+		if (!dp->pause_grab) {
 			while ((!dp->quit) && (dp->capture_seq - dp->ack_seq > dp->interval_count)) {
 				//printf("Sequence D-value %d\n", dp->capture_seq - dp->ack_seq);
 				SleepEx(10, TRUE);
@@ -173,9 +166,7 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 			if (dp->quit) {
 				goto End;
 			}
-			//last = frame_begin;
-			QueryPerformanceCounter(&frame_begin);
-			//printf("capture interval %d\n", (frame_begin.QuadPart - last.QuadPart) * 1000 / counter.QuadPart);
+			QueryPerformanceCounter(&dp->frame_begin);
 			if (grab_type == GRAB_TYPE_MIRROR) {
 				dp->capture_mirror();
 			}
@@ -186,9 +177,9 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 				dp->capture_gdi();
 			}
 			dp->capture_seq++;
-			QueryPerformanceCounter(&frame_end);
+			QueryPerformanceCounter(&dp->frame_end);
 
-			LONGLONG dt = (frame_end.QuadPart - frame_begin.QuadPart) * 1000 / counter.QuadPart;
+			LONGLONG dt = (dp->frame_end.QuadPart - dp->frame_begin.QuadPart) * 1000 / dp->counter.QuadPart;
 			if (dt >= dp->sleep_msec) {
 				sleep_msec = 0;
 			}
@@ -287,7 +278,7 @@ void CCapture::change_display(int w, int h, int bits)
 	memset(&devmode, 0, sizeof(DEVMODE));
 	devmode.dmSize = sizeof(DEVMODE);
 	devmode.dmDriverExtra = 0;
-	BOOL bRet = EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devmode);
+	BOOL bRet = EnumDisplaySettings(disp_name, ENUM_CURRENT_SETTINGS, &devmode);
 	devmode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
 	strcpy((char*)devmode.dmDeviceName, "xietong_mirror");
 	devmode.dmPelsWidth = w;
@@ -297,6 +288,7 @@ void CCapture::change_display(int w, int h, int bits)
 	INT code = ChangeDisplaySettingsEx(mirror.disp.DeviceName, &devmode, NULL, CDS_UPDATEREGISTRY, NULL);
 	printf("Change_display Update Registry on device mode: %s\n", GetDispCode(code));
 }
+
 void CCapture::set_drop_interval(unsigned int count)
 {
 	interval_count = count;
@@ -396,7 +388,7 @@ void CCapture::map_and_unmap_buffer(const char* dev_name, BOOL is_map, draw_buff
 	DeleteDC(hdc);
 }
 
-BOOL CCapture::find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_primary, BOOL is_mirror)
+BOOL CCapture::find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_primary, int id)
 {
 	DISPLAY_DEVICE dispDevice;
 	memset(&dispDevice, 0, sizeof(DISPLAY_DEVICE));
@@ -404,38 +396,53 @@ BOOL CCapture::find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_
 	int num = 0; 
 	BOOL find = FALSE;
 
-	while (EnumDisplayDevices(NULL, num, &dispDevice, NULL)) {
-		printf("devName=[%s], desc=[%s], id=[%s], key[%s],flags=0x%X\n", dispDevice.DeviceName, dispDevice.DeviceString, dispDevice.DeviceID, dispDevice.DeviceKey, dispDevice.StateFlags );
-		if (is_primary) {
-			if (dispDevice.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) {//主显示器
-				find = TRUE;
-				break;
-			}
+	if (id >= 0) {
+		if (EnumDisplayDevices(NULL, id, &dispDevice, NULL)) {
+			find = TRUE;
 		}
-		else {
-			const char* desc = MIRROR_DRIVER; 
-#ifndef DMF_MIRROR
-			if (!is_mirror)
+	}
+	else {
+		while (EnumDisplayDevices(NULL, num, &dispDevice, NULL)) {
+			/*printf("devName=[%s], desc=[%s], id=[%s], key[%s],flags=0x%X\n",
+				dispDevice.DeviceName, dispDevice.DeviceString, dispDevice.DeviceID, dispDevice.DeviceKey, dispDevice.StateFlags);*/
+			if (is_primary) {
+				if (dispDevice.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) {//主显示器
+					find = TRUE;
+					break;
+				}
+			}
+			else {
+				const char* desc = MIRROR_DRIVER;
+#if (WINVER < 0x0601)
 				desc = VIRTUAL_DRIVER;
 #endif
-			if (_stricmp(dispDevice.DeviceString, desc) == 0) {
-				find = TRUE;
-				break;
+				if (_stricmp(dispDevice.DeviceString, desc) == 0) {
+					find = TRUE;
+					break;
+				}
 			}
+			++num;
 		}
-		++num;
 	}
 	if (!find) {
 		return FALSE;
 	}
-	BOOL bRet = EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, mode);
+	BOOL bRet = FALSE;
+	if (id >= 0) {
+		strcpy_s(disp_name, dispDevice.DeviceName);
+		bRet = EnumDisplaySettings(disp_name, ENUM_CURRENT_SETTINGS, mode);
+	}
+	else {
+		bRet = EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, mode);
+	}
 	if (!bRet) {
 		printf("not get current display information\n");
 		return FALSE;
 	}
 
 	*disp = dispDevice;
-	printf("Found devName=[%s], desc=[%s], id=[%s], key[%s],flags=0x%X\n", dispDevice.DeviceName, dispDevice.DeviceString, dispDevice.DeviceID, dispDevice.DeviceKey, dispDevice.StateFlags);
+	printf("Found devName=[%s], desc=[%s], id=[%s], key[%s], flags=0x%X\n", 
+		dispDevice.DeviceName, dispDevice.DeviceString, dispDevice.DeviceID, dispDevice.DeviceKey, dispDevice.StateFlags);
 	return TRUE;
 }
 
@@ -450,7 +457,7 @@ BOOL CCapture::active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp)
 	devmode.dmSize = sizeof(DEVMODE);
 	devmode.dmDriverExtra = 0;
 	if (is_active || !dp) {
-		BOOL b = find_display_device(&dispDevice, &devmode, FALSE, TRUE);
+		BOOL b = find_display_device(&dispDevice, &devmode, FALSE, -1);
 		if (!b) {
 			printf("not found Mirror Driver maybe not install.\n");
 			return FALSE;
@@ -656,7 +663,7 @@ void CCapture::capture_gdi()
 {
 	if (!gdi.buffer || !gdi.hbmp)return;
 
-	HDC hdc = GetDC(NULL);
+	HDC hdc = CreateDC(NULL, disp_name, NULL, NULL);
 	BitBlt(gdi.memdc, 0, 0, gdi.cx, gdi.cy, hdc, 0, 0, SRCCOPY | CAPTUREBLT);
 	ReleaseDC(NULL, hdc);
 
@@ -711,18 +718,6 @@ BOOL CCapture::__init_mirror(BOOL is_init)
 	}
 }
 
-typedef HRESULT(WINAPI *fnD3D11CreateDevice)(
-	_In_opt_ IDXGIAdapter* pAdapter,
-	D3D_DRIVER_TYPE DriverType,
-	HMODULE Software,
-	UINT Flags,
-	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
-	UINT FeatureLevels,
-	UINT SDKVersion,
-	_Out_opt_ ID3D11Device** ppDevice,
-	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
-	_Out_opt_ ID3D11DeviceContext** ppImmediateContext);
-
 BOOL CCapture::__init_dxgi()
 {
 	HRESULT hr;
@@ -773,12 +768,12 @@ BOOL CCapture::__init_dxgi()
 		printf("DXGI init: IDXGIAdapter Error hr=0x%X\n", hr);
 		return FALSE;
 	}
-	INT nOutput = 0; 
+	INT nOutput = monitor_id;
 	IDXGIOutput* DxgiOutput = 0;
 	hr = DxgiAdapter->EnumOutputs(nOutput, &DxgiOutput);
 	SAFE_RELEASE(DxgiAdapter);
 	if (FAILED(hr)) {
-		__init_directx(FALSE); 
+		__init_directx(FALSE);
 		printf("DXGI init: IDXGIOutput Error hr=0x%X\n", hr);
 		return FALSE;
 	}
@@ -804,12 +799,14 @@ BOOL CCapture::__init_dxgi()
 BOOL CCapture::__init_directx(BOOL is_init)
 {
 	if (is_init) {
+		DISPLAY_DEVICE dispDevice;
 		DEVMODE devmode;
 		memset(&devmode, 0, sizeof(DEVMODE));
 		devmode.dmSize = sizeof(DEVMODE);
 		devmode.dmDriverExtra = 0;
-		BOOL bRet = EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devmode);
+		BOOL bRet = find_display_device(&dispDevice, &devmode, FALSE, monitor_id);
 		if (!bRet)return FALSE;
+
 		directx.cx = devmode.dmPelsWidth;
 		directx.cy = devmode.dmPelsHeight;
 		directx.bitcount = devmode.dmBitsPerPel;
@@ -850,12 +847,14 @@ BOOL CCapture::__init_directx(BOOL is_init)
 BOOL CCapture::__init_gdi(BOOL is_init)
 {
 	if (is_init) {
+		DISPLAY_DEVICE dispDevice;
 		DEVMODE devmode;
 		memset(&devmode, 0, sizeof(DEVMODE));
 		devmode.dmSize = sizeof(DEVMODE);
 		devmode.dmDriverExtra = 0;
-		BOOL bRet = EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devmode);
+		BOOL bRet = find_display_device(&dispDevice, &devmode, FALSE, monitor_id);
 		if (!bRet)return FALSE;
+
 		gdi.cx = devmode.dmPelsWidth;
 		gdi.cy = devmode.dmPelsHeight;
 		gdi.bitcount = devmode.dmBitsPerPel;
@@ -875,7 +874,7 @@ BOOL CCapture::__init_gdi(BOOL is_init)
 		bi.biSizeImage = 0;
 		BYTE bb[sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * 256];
 		memcpy(bb, &bi, sizeof(bi));
-		HDC hdc = GetDC(NULL); //屏幕DC
+		HDC hdc = CreateDC(NULL, disp_name, NULL, NULL); //屏幕DC
 		if (gdi.bitcount == 8) {//系统调色板
 			PALETTEENTRY pal[256]; memset(pal, 0, sizeof(pal));
 			GetSystemPaletteEntries(hdc, 0, 256, pal); //获取系统调色板

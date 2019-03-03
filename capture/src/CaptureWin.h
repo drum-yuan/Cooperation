@@ -61,7 +61,7 @@ struct __d3d_cap_t
 
 	byte*                     buffer;
 };
-///GDI 抓屏
+//GDI 抓屏
 struct __gdi_cap_t
 {
 	int        cx;
@@ -80,10 +80,22 @@ struct __tbuf_t
 	void*  buf;
 };
 
+typedef HRESULT(WINAPI *fnD3D11CreateDevice)(
+	_In_opt_ IDXGIAdapter* pAdapter,
+	D3D_DRIVER_TYPE DriverType,
+	HMODULE Software,
+	UINT Flags,
+	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
+	UINT FeatureLevels,
+	UINT SDKVersion,
+	_Out_opt_ ID3D11Device** ppDevice,
+	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
+	_Out_opt_ ID3D11DeviceContext** ppImmediateContext);
+
 class CCapture
 {
 public:
-	CCapture(FrameCallback on_frame, void* param);
+	CCapture(int id, FrameCallback on_frame, void* param);
 	~CCapture();
 	void start();
 	void stop();
@@ -103,8 +115,8 @@ private:
 	void capture_dxgi();
 	void capture_gdi();
 	BOOL __init_mirror(BOOL is_init);
-	BOOL __init_directx(BOOL is_init);
 	BOOL __init_dxgi();
+	BOOL __init_directx(BOOL is_init);
 	BOOL __init_gdi(BOOL is_init);
 
 	HWND CreateMsgWnd();
@@ -114,21 +126,21 @@ private:
 #else
 	void map_and_unmap_buffer(const char* dev_name, BOOL is_map, draw_buffer_t** p_buf);
 #endif
-	BOOL find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_primary, BOOL is_mirror);
+	BOOL find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_primary, int id);
 	BOOL active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp);
 	LPSTR GetDispCode(INT code);
 
 	int              grab_type;   // 抓屏方法: 0 自动选择，1 mirror，2 DX抓屏，3 GDI抓屏
-
+	int				 monitor_id;
+	char			 disp_name[32];
 	BOOL             quit;
-	BOOL             is_pause_grab;
+	BOOL             pause_grab;
 	__mirror_cap_t   mirror;
 	__d3d_cap_t      directx;
 	__gdi_cap_t      gdi;
 	long             sleep_msec;
 	HWND             hMessageWnd;
 	HANDLE           h_thread;
-	DWORD            id_thread;
 	HANDLE           hEvt;
 	__tbuf_t         t_arr[2];
 
@@ -137,6 +149,10 @@ private:
 	unsigned int	 capture_seq;
 	FrameCallback	 onFrame;
 	void*			 onframe_param;
+
+	LARGE_INTEGER	 counter;
+	LARGE_INTEGER	 frame_begin;
+	LARGE_INTEGER	 frame_end;
 };
 
 #define USE_MIRROR_DIRTY_RECT   1   //使用mirror镜像驱动自己生成的脏矩形区域

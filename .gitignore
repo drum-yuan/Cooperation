@@ -39,3 +39,6 @@
 *.db
 *.user
 *.opendb
+*.suo
+*.exp
+*.log
