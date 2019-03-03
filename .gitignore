@@ -38,3 +38,4 @@
 # Project
 *.db
 *.user
+*.opendb
