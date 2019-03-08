@@ -222,6 +222,13 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		uint8_t* u = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH;
 		uint8_t* v = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH + (video->m_iFrameH + 1) / 2 * uv_stride;
 		libyuv::ARGBToI420((uint8_t*)frame->buffer, frame->line_stride, y, video->m_iFrameW, u, uv_stride, v, uv_stride, video->m_iFrameW, video->m_iFrameH);
+		/*static int cnt = 0;
+		if (cnt < 10) {
+		m_pFile = fopen("yuv_data.yuv", "ab");
+		fwrite(m_pYUVData, 1, video->m_iFrameW * video->m_iFrameH * 3 / 2, m_pFile);
+		fclose(m_pFile);
+		cnt++;
+		}*/
 	}
 	video->Encode();
 }

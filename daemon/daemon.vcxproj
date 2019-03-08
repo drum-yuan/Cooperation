@@ -115,12 +115,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\Daemon.cpp" />
+    <ClCompile Include="src\DaemonInstance.cpp" />
     <ClCompile Include="src\SocketsClient.cpp" />
     <ClCompile Include="src\Video.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\Daemon.h" />
+    <ClInclude Include="src\DaemonApi.h" />
+    <ClInclude Include="src\Protocol.h" />
     <ClInclude Include="src\SocketsClient.h" />
     <ClInclude Include="src\Video.h" />
   </ItemGroup>
