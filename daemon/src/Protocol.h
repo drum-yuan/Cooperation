@@ -2,8 +2,8 @@
 
 typedef struct tagWebSocketHeader
 {
-	unsigned char	major;
-	unsigned char	minor;
+	unsigned char	version;
+	unsigned char	mask;
 	unsigned short	type;
 	unsigned int	length;
 } WebSocketHeader;
