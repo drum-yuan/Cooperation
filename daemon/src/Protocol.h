@@ -3,7 +3,7 @@
 typedef struct tagWebSocketHeader
 {
 	unsigned char	version;
-	unsigned char	mask;
+	unsigned char	magic;
 	unsigned short	type;
 	unsigned int	length;
 } WebSocketHeader;
@@ -27,6 +27,3 @@ typedef enum tagMsgType
 #define Swap16IfLE(s) \
 	((unsigned short)((((s)& 0xff) << 8) | (((s) >> 8) & 0xff)))
 
-
-const char CONST_ProtocolMajor = 1;
-const char CONST_ProtocolMinor = 1;

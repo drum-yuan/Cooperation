@@ -73,8 +73,8 @@ void Daemon::onVideoEncoded(void* data)
 		return;
 
 	WebSocketHeader header;
-	header.major = CONST_ProtocolMajor;
-	header.minor = CONST_ProtocolMinor;
+	header.version = 1;
+	header.magic = 0;
 	header.length = Swap32IfLE(sizeof(VideoDataHeader) + iFrameSize);
 	header.type = Swap16IfLE(kMsgTypeVideoData);
 	m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
