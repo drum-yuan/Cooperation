@@ -19,12 +19,12 @@ void daemon_stop()
 	}
 }
 
-int daemon_send_proxy_msg()
+int daemon_send_proxy_msg(const char* buffer, int size)
 {
 	return 0;
 }
 
-int daemon_recv_proxy_msg()
+int daemon_recv_proxy_msg(char* buffer, int size)
 {
 	return 0;
 }
@@ -45,11 +45,6 @@ void daemon_show_stream()
 }
 
 void daemon_send_picture()
-{
-
-}
-
-void daemon_get_picture()
 {
 
 }
