@@ -5,16 +5,19 @@
 #include "CaptureApi.h"
 #include <functional>
 
-typedef std::function<void(void* data)> onEncoded_fp;
+typedef std::function<void(void* data)> onCodec_fp;
 class Video
 {
 public:
 	Video();
 	~Video();
 
-	void setonEncoded(onEncoded_fp fp);
+	void setonEncoded(onCodec_fp fp);
+	void setonDecoded(onCodec_fp fp);
 	void start();
 	void stop();
+	void show(unsigned char* buffer, unsigned int len);
+	unsigned char* get_yuvdata();
 	void pause();
 	void resume();
 	void reset_keyframe(bool reset_ack);
@@ -22,9 +25,11 @@ public:
 
 private:
 	bool initEncoder(int w, int h);
+	bool initDecoder();
 	void closeEncoder();
 	void FillSpecificParameters(SEncParamExt &sParam);
 	void Encode();
+	void Decode(unsigned char* buffer, unsigned int len);
 
 	unsigned char* m_pYUVData;
 	int m_iFrameW;
@@ -35,5 +40,7 @@ private:
 	bool m_bForceKeyframe;
 	int m_iFrameRate;
 	ISVCEncoder* m_pEncoder;
-	onEncoded_fp onEncoded;
+	ISVCDecoder* m_pDecoder;
+	onCodec_fp onEncoded;
+	onCodec_fp onDecoded;
 };

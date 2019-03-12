@@ -1,11 +1,12 @@
 #include "Protocol.h"
 #include "Daemon.h"
 
-#define DEFAULT_SEND_BUF_SIZE (1024 * 1024)
+#define DEFAULT_BUFFER_SIZE (1024 * 1024)
 
 Daemon::Daemon()
 {
-	m_SendBuf = new Buffer(DEFAULT_SEND_BUF_SIZE);
+	m_SendBuf = new Buffer(DEFAULT_BUFFER_SIZE);
+	m_RecvBuf = new Buffer(DEFAULT_BUFFER_SIZE);
 }
 
 Daemon::~Daemon()
@@ -32,6 +33,12 @@ void Daemon::start_stream()
 void Daemon::stop_stream()
 {
 	m_Video.stop();
+}
+
+void Daemon::show_stream()
+{
+	m_Video.setonDecoded(std::bind(&Daemon::onVideoDecoded, this, std::placeholders::_1));
+	m_PlayID = new thread(&Daemon::playStreamProc, this);
 }
 
 unsigned int Daemon::CalcFrameSize(void* data)
@@ -110,4 +117,32 @@ void Daemon::onVideoEncoded(void* data)
 		printf("send msg failed\n");
 	}
 	m_SendBuf->reset();
+}
+
+void Daemon::playStreamProc(void* param)
+{
+	Daemon* daemon = (Daemon*)param;
+	Buffer* buffer = daemon->m_RecvBuf;
+	int ret = 0;
+	while (ret >= 0) {
+		ret = daemon->m_McuClient.recv_msg((unsigned char*)buffer->getbuf(), sizeof(WebSocketHeader));
+		if (ret > 0) {
+			WebSocketHeader* pWebHeader = (WebSocketHeader*)(buffer->getbuf());
+			unsigned int nPayloadLen = Swap32IfLE(pWebHeader->length);
+			ret = daemon->m_McuClient.recv_msg((unsigned char*)buffer->getbuf(), nPayloadLen);
+			buffer->setdatapos(ret);
+			VideoDataHeader* pVideoHeader = (VideoDataHeader*)(buffer->getbuf());
+			unsigned int sequence = Swap32IfLE(pVideoHeader->sequence);
+			buffer->popfront(sizeof(VideoDataHeader));
+			daemon->m_Video.show((unsigned char*)buffer->getbuf(), buffer->getdatalength());
+		}
+		else {
+			Sleep(10);
+		}
+	}
+}
+
+void Daemon::onVideoDecoded(void* data)
+{
+	//fullscreen render
 }

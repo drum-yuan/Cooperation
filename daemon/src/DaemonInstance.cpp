@@ -3,12 +3,13 @@
 
 static Daemon *s_pDaemon = NULL;
 
-void daemon_start()
+void daemon_start(const char* url)
 {
 	if (s_pDaemon != NULL) {
 		delete s_pDaemon;
 	}
 	s_pDaemon = new Daemon();
+	s_pDaemon->connect_mcu(string(url));
 }
 
 void daemon_stop()

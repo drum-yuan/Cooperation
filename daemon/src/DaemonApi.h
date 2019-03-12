@@ -2,7 +2,7 @@
 
 #define DAEMON_API __declspec(dllexport)
 
-DAEMON_API void daemon_start();
+DAEMON_API void daemon_start(const char* url);
 
 DAEMON_API void daemon_stop();
 

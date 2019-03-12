@@ -53,3 +53,15 @@ unsigned int Buffer::append(void* buf, unsigned int size)
 
 	return size;
 }
+
+void Buffer::setdatapos(unsigned int pos)
+{
+	m_pos = LWS_PRE + pos;
+}
+
+void Buffer::popfront(unsigned int size)
+{
+	m_buf = (unsigned char*)m_buf + size;
+	m_pos -= size;
+	m_size -= size;
+}

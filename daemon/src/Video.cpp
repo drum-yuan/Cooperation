@@ -12,6 +12,7 @@ Video::Video():m_iFrameW(0),
 {
 	m_pYUVData = NULL;
 	m_pEncoder = NULL;
+	m_pDecoder = NULL;
 }
 
 Video::~Video()
@@ -19,15 +20,20 @@ Video::~Video()
 	closeEncoder();
 }
 
-void Video::setonEncoded(onEncoded_fp fp)
+void Video::setonEncoded(onCodec_fp fp)
 {
 	onEncoded = fp;
 }
 
+void Video::setonDecoded(onCodec_fp fp)
+{
+	onDecoded = fp;
+}
+
 bool Video::initEncoder(int w, int h)
 {
-	m_iFrameH = w;
-	m_iFrameW = h;
+	m_iFrameW = w;
+	m_iFrameH = h;
 	if (!m_pEncoder)
 	{
 		if (WelsCreateSVCEncoder(&m_pEncoder) || (NULL == m_pEncoder))
@@ -43,6 +49,30 @@ bool Video::initEncoder(int w, int h)
 		if (nRet != 0)
 		{
 			printf("init encoder failed, this = %p, error = %d", this, nRet);
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Video::initDecoder()
+{
+	if (!m_pDecoder)
+	{
+		if (WelsCreateDecoder(&m_pDecoder) || (NULL == m_pDecoder))
+		{
+			printf("Create decoder failed, this = %p", this);
+			return false;
+		}
+		SDecodingParam tParam;
+		memset(&tParam, 0, sizeof(SDecodingParam));
+		tParam.uiTargetDqLayer = UCHAR_MAX;
+		tParam.eEcActiveIdc = ERROR_CON_FRAME_COPY_CROSS_IDR;
+		tParam.sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_DEFAULT;
+		int nRet = m_pDecoder->Initialize(&tParam);
+		if (nRet != 0)
+		{
+			printf("init decoder failed, this = %p, error = %d", this, nRet);
 			return false;
 		}
 	}
@@ -162,6 +192,13 @@ void Video::Encode()
 	}
 }
 
+void Video::Decode(unsigned char* buffer, unsigned int len)
+{
+	SBufferInfo tDstInfo;
+	m_pDecoder->DecodeFrame2(buffer, len, &m_pYUVData, &tDstInfo);
+	onDecoded(&tDstInfo);
+}
+
 void Video::start()
 {
 	cap_start_capture_screen(0, Video::onFrame, this);
@@ -172,6 +209,17 @@ void Video::start()
 void Video::stop()
 {
 	cap_stop_capture_screen();
+}
+
+void Video::show(unsigned char* buffer, unsigned int len)
+{
+	initDecoder();
+	Decode(buffer, len);
+}
+
+unsigned char* Video::get_yuvdata()
+{
+	return m_pYUVData;
 }
 
 void Video::pause()
