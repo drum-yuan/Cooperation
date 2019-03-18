@@ -2,13 +2,13 @@
 
 #define DAEMON_API __declspec(dllexport)
 
+typedef void (*RecvCallback)(const void* data, int len);
+
 DAEMON_API void daemon_start(const char* url);
 
 DAEMON_API void daemon_stop();
 
-DAEMON_API int daemon_send_proxy_msg(const char* buffer, int size);
-
-DAEMON_API int daemon_recv_proxy_msg(char* buffer, int size);
+DAEMON_API void daemon_set_recv_callback(RecvCallback on_recv);
 
 DAEMON_API void daemon_start_stream();
 

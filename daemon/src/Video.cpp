@@ -10,27 +10,112 @@ Video::Video():m_iFrameW(0),
 				m_bForceKeyframe(false),
 				m_iFrameRate(25)
 {
-	m_pYUVData = NULL;
 	m_pEncoder = NULL;
+	m_pYUVData = NULL;
 	m_pDecoder = NULL;
+	m_hRenderWin = NULL;
+	m_hD3DHandle = NULL;
+	m_pDecData[0] = NULL;
+	m_pDecData[1] = NULL;
+	m_pDecData[2] = NULL;
+	m_pRenderData = new unsigned char[4096 * 2160 * 3 / 2];
+	OpenDecoder();
 }
 
 Video::~Video()
 {
-	closeEncoder();
+	CloseEncoder();
+	CloseDecoder();
+	delete[] m_pRenderData;
 }
 
-void Video::setonEncoded(onCodec_fp fp)
+void Video::SetRenderWin(HWND hWnd)
+{
+	m_hRenderWin = hWnd;
+}
+
+void Video::show(unsigned char* buffer, unsigned int len)
+{
+	Decode(buffer, len);
+}
+
+void Video::SetOnEncoded(onEncode_fp fp)
 {
 	onEncoded = fp;
 }
 
-void Video::setonDecoded(onCodec_fp fp)
+void Video::start()
 {
-	onDecoded = fp;
+	cap_start_capture_screen(0, Video::onFrame, this);
+	cap_set_drop_interval(25);
+	cap_set_frame_rate(m_iFrameRate);
 }
 
-bool Video::initEncoder(int w, int h)
+void Video::stop()
+{
+	cap_stop_capture_screen();
+}
+
+void Video::pause()
+{
+	cap_pause_capture_screen();
+}
+
+void Video::resume()
+{
+	cap_resume_capture_screen();
+}
+
+void Video::reset_keyframe(bool reset_ack)
+{
+	m_bForceKeyframe = true;
+	if (reset_ack) {
+		cap_reset_sequence();
+	}
+}
+
+void Video::onFrame(CallbackFrameInfo* frame, void* param)
+{
+	Video* video = (Video*)param;
+
+	if (video->m_iFrameW != frame->width || video->m_iFrameH != frame->height || video->m_pYUVData == NULL) {
+		video->CloseEncoder();
+		if (video->m_pYUVData)
+			delete[] video->m_pYUVData;
+		video->m_pYUVData = new unsigned char[frame->width * frame->height * 3 / 2];
+		video->OpenEncoder(frame->width, frame->height);
+		cap_reset_sequence();
+		return;
+	}
+
+	if (frame->bitcount == 8) {
+		return;
+	}
+	else if (frame->bitcount == 16) {
+		printf("capture 16bit\n");
+	}
+	else if (frame->bitcount == 24) {
+		//libyuv::RGB24ToI420();
+		printf("capture 24bit\n");
+	}
+	else if (frame->bitcount == 32) {
+		int uv_stride = (video->m_iFrameW + 1) / 2;
+		uint8_t* y = video->m_pYUVData;
+		uint8_t* u = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH;
+		uint8_t* v = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH + (video->m_iFrameH + 1) / 2 * uv_stride;
+		libyuv::ARGBToI420((uint8_t*)frame->buffer, frame->line_stride, y, video->m_iFrameW, u, uv_stride, v, uv_stride, video->m_iFrameW, video->m_iFrameH);
+		/*static int cnt = 0;
+		if (cnt < 10) {
+		m_pFile = fopen("yuv_data.yuv", "ab");
+		fwrite(m_pYUVData, 1, video->m_iFrameW * video->m_iFrameH * 3 / 2, m_pFile);
+		fclose(m_pFile);
+		cnt++;
+		}*/
+	}
+	video->Encode();
+}
+
+bool Video::OpenEncoder(int w, int h)
 {
 	m_iFrameW = w;
 	m_iFrameH = h;
@@ -55,31 +140,7 @@ bool Video::initEncoder(int w, int h)
 	return true;
 }
 
-bool Video::initDecoder()
-{
-	if (!m_pDecoder)
-	{
-		if (WelsCreateDecoder(&m_pDecoder) || (NULL == m_pDecoder))
-		{
-			printf("Create decoder failed, this = %p", this);
-			return false;
-		}
-		SDecodingParam tParam;
-		memset(&tParam, 0, sizeof(SDecodingParam));
-		tParam.uiTargetDqLayer = UCHAR_MAX;
-		tParam.eEcActiveIdc = ERROR_CON_FRAME_COPY_CROSS_IDR;
-		tParam.sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_DEFAULT;
-		int nRet = m_pDecoder->Initialize(&tParam);
-		if (nRet != 0)
-		{
-			printf("init decoder failed, this = %p, error = %d", this, nRet);
-			return false;
-		}
-	}
-	return true;
-}
-
-void Video::closeEncoder()
+void Video::CloseEncoder()
 {
 	if (m_pEncoder)
 	{
@@ -192,91 +253,91 @@ void Video::Encode()
 	}
 }
 
+bool Video::OpenDecoder()
+{
+	if (!m_pDecoder)
+	{
+		if (WelsCreateDecoder(&m_pDecoder) || (NULL == m_pDecoder))
+		{
+			printf("Create decoder failed, this = %p", this);
+			return false;
+		}
+		SDecodingParam tParam;
+		memset(&tParam, 0, sizeof(SDecodingParam));
+		tParam.uiTargetDqLayer = UCHAR_MAX;
+		tParam.eEcActiveIdc = ERROR_CON_FRAME_COPY_CROSS_IDR;
+		tParam.sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_DEFAULT;
+		int nRet = m_pDecoder->Initialize(&tParam);
+		if (nRet != 0)
+		{
+			printf("init decoder failed, this = %p, error = %d", this, nRet);
+			return false;
+		}
+	}
+	return true;
+}
+
+void Video::CloseDecoder()
+{
+	if (m_pDecoder)
+	{
+		WelsDestroyDecoder(m_pDecoder);
+		m_pDecoder = NULL;
+	}
+}
+
+void Video::WriteYUVBuffer(int iStride[2], int iWidth, int iHeight)
+{
+	int   i;
+	unsigned char* pYUV = NULL;
+	unsigned char* pData = NULL;
+
+	pData = m_pRenderData;
+	pYUV = m_pDecData[0];
+	for (i = 0; i < iHeight; i++) {
+		memcpy(pData, pYUV, iWidth);
+		pYUV += iStride[0];
+		pData += iWidth;
+	}
+	pYUV = m_pDecData[1];
+	for (i = 0; i < iHeight / 2; i++) {
+		memcpy(pData, pYUV, iWidth / 2);
+		pYUV += iStride[1];
+		pData += iWidth / 2;
+	}
+	pYUV = m_pDecData[2];
+	for (i = 0; i < iHeight / 2; i++) {
+		memcpy(pData, pYUV, iWidth / 2);
+		pYUV += iStride[1];
+		pData += iWidth / 2;
+	}
+}
+
 void Video::Decode(unsigned char* buffer, unsigned int len)
 {
 	SBufferInfo tDstInfo;
-	m_pDecoder->DecodeFrame2(buffer, len, &m_pYUVData, &tDstInfo);
-	onDecoded(&tDstInfo);
-}
-
-void Video::start()
-{
-	cap_start_capture_screen(0, Video::onFrame, this);
-	cap_set_drop_interval(25);
-	cap_set_frame_rate(m_iFrameRate);
-}
-
-void Video::stop()
-{
-	cap_stop_capture_screen();
-}
-
-void Video::show(unsigned char* buffer, unsigned int len)
-{
-	initDecoder();
-	Decode(buffer, len);
-}
-
-unsigned char* Video::get_yuvdata()
-{
-	return m_pYUVData;
-}
-
-void Video::pause()
-{
-	cap_pause_capture_screen();
-}
-
-void Video::resume()
-{
-	cap_resume_capture_screen();
-}
-
-void Video::reset_keyframe(bool reset_ack)
-{
-	m_bForceKeyframe = true;
-	if (reset_ack) {
-		cap_reset_sequence();
+	if (m_pDecoder->DecodeFrame2(buffer, len, m_pDecData, &tDstInfo) == 0) {
+		Render(&tDstInfo);
 	}
 }
 
-void Video::onFrame(CallbackFrameInfo* frame, void* param)
+void Video::Render(SBufferInfo* pInfo)
 {
-	Video* video = (Video*)param;
-
-	if (video->m_iFrameW != frame->width || video->m_iFrameH != frame->height || video->m_pYUVData == NULL) {
-		video->closeEncoder();
-		if (video->m_pYUVData)
-			delete[] video->m_pYUVData;
-		video->m_pYUVData = new unsigned char[frame->width * frame->height * 3 / 2];
-		video->initEncoder(frame->width, frame->height);
-		cap_reset_sequence();
+	if (pInfo->iBufferStatus != 1 || m_hRenderWin == NULL) {
 		return;
 	}
 
-	if (frame->bitcount == 8) {
-		return;
+	int width = pInfo->UsrData.sSystemBuffer.iWidth;
+	int height = pInfo->UsrData.sSystemBuffer.iHeight;
+
+	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, width, height);
+	if (m_hD3DHandle == NULL) {
+		D3D_Initial(&m_hD3DHandle, m_hRenderWin, width, height, 0, 1, D3D_FORMAT_YV12);
 	}
-	else if (frame->bitcount == 16) {
-		printf("capture 16bit\n");
-	}
-	else if (frame->bitcount == 24) {
-		//libyuv::RGB24ToI420();
-		printf("capture 24bit\n");
-	}
-	else if (frame->bitcount == 32) {
-		int uv_stride = (video->m_iFrameW + 1) / 2;
-		uint8_t* y = video->m_pYUVData;
-		uint8_t* u = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH;
-		uint8_t* v = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH + (video->m_iFrameH + 1) / 2 * uv_stride;
-		libyuv::ARGBToI420((uint8_t*)frame->buffer, frame->line_stride, y, video->m_iFrameW, u, uv_stride, v, uv_stride, video->m_iFrameW, video->m_iFrameH);
-		/*static int cnt = 0;
-		if (cnt < 10) {
-		m_pFile = fopen("yuv_data.yuv", "ab");
-		fwrite(m_pYUVData, 1, video->m_iFrameW * video->m_iFrameH * 3 / 2, m_pFile);
-		fclose(m_pFile);
-		cnt++;
-		}*/
-	}
-	video->Encode();
+	RECT rcSrc = { 0, 0, width, height };
+	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, width, height, &rcSrc, NULL);
+	RECT rcDst;
+	GetClientRect(m_hRenderWin, &rcDst);
+	D3D_Render(m_hD3DHandle, m_hRenderWin, 1, &rcDst);
 }
+

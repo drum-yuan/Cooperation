@@ -1,7 +1,12 @@
 #include "SocketsClient.h"
+#include "Protocol.h"
+#include "proto.hpp"
+#include "autojsoncxx/autojsoncxx.hpp"
 
-#define WEBSOCKET_MAX_BUFFER_SIZE 1048576
+#define WEBSOCKET_MAX_BUFFER_SIZE (1024*1024)
 #define CONNECT_TIMEOUT 5000  //ms
+
+using namespace MCUProtocol;
 
 enum ClientConnState {
 	ConnectStateUnConnected = 0,
@@ -44,6 +49,8 @@ SocketsClient::SocketsClient() : m_Exit(false),
 		m_exts[0].callback = NULL;
 		m_exts[0].client_offer = NULL;
 	}
+
+	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
 }
 
 SocketsClient::~SocketsClient()
@@ -59,6 +66,8 @@ SocketsClient::~SocketsClient()
 		free(m_exts);
 		m_exts = NULL;
 	}
+
+	delete m_SendBuf;
 }
 
 void SocketsClient::NotifyForceExit()
@@ -79,7 +88,6 @@ int SocketsClient::RunWebSocketClient()
 	int use_ssl = 0;
 	const char *prot, *p, *address;
 	struct lws_context *context;
-	const char *interface = NULL;
 	struct lws_context_creation_info info;
 	char uri[256] = "/";
 	char ads_port[256 + 30];
@@ -106,7 +114,7 @@ int SocketsClient::RunWebSocketClient()
 	i.path = uri;
 
 	info.port = CONTEXT_PORT_NO_LISTEN;
-	info.iface = interface;
+	info.iface = NULL;
 	info.protocols = m_protocols;
 	info.keepalive_timeout = PENDING_TIMEOUT_HTTP_KEEPALIVE_IDLE;
 
@@ -164,6 +172,11 @@ fail:
 	lwsl_notice("websocket client exited cleanly\n");
 
 	return 0;
+}
+
+void SocketsClient::set_video_event(Video* pEvent)
+{
+	m_pVideo = pEvent;
 }
 
 bool SocketsClient::connect(std::string url, bool blocking, bool ssl)
@@ -226,22 +239,127 @@ int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 		return -1;
 	}
 
-	return lws_write(m_wsi, payload, msglen, LWS_WRITE_BINARY);
+	int ret = lws_write(m_wsi, payload, msglen, LWS_WRITE_BINARY);
+	if (ret < 0) {
+		printf("send msg error\n");
+	}
+	return ret;
 }
 
-int SocketsClient::recv_msg(unsigned char* payload, unsigned int msglen)
+void SocketsClient::set_recv_callback(RecvCallback on_recv)
 {
-	if (m_State != ConnectStateEstablished)
-	{
-		return -1;
-	}
-
-	return lws_read(m_wsi, payload, msglen);
+	m_CallbackRecv = on_recv;
 }
 
 void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 {
+	WebSocketHeader* pWebHeader = (WebSocketHeader*)in;
+	unsigned short uType = Swap16IfLE(pWebHeader->type);
+	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
+	switch (uType)
+	{
+	case kMsgTypeVideoData:
+	{
+		VideoDataHeader* pVideoHeader = (VideoDataHeader*)((uint8_t*)in + sizeof(WebSocketHeader));
+		unsigned int sequence = Swap32IfLE(pVideoHeader->sequence);
+		unsigned int len = uPayloadLen - sizeof(VideoDataHeader);
+		send_video_ack(sequence);
+		m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len);
+	}
+		break;
+	default:
+		m_CallbackRecv(in, len);
+		break;
+	}
+}
 
+void SocketsClient::send_connect()
+{
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeConnect);
+	header.length = 0;
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_video_data(void* data)
+{
+	if (data == NULL)
+		return;
+	int iFrameSize = CalcFrameSize(data);
+	if (!iFrameSize)
+		return;
+
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.length = Swap32IfLE(sizeof(VideoDataHeader) + iFrameSize);
+	header.type = Swap16IfLE(kMsgTypeVideoData);
+	m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
+
+	SFrameBSInfo* sFbi = (SFrameBSInfo*)data;
+	VideoDataHeader videoheader;
+	videoheader.eFrameType = Swap32IfLE(sFbi->eFrameType);
+	unsigned int sequence = cap_get_capture_sequence();
+	videoheader.sequence = Swap32IfLE(sequence);
+	m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
+
+	int iLayer = 0;
+	while (iLayer < sFbi->iLayerNum) {
+		SLayerBSInfo* pLayerBsInfo = &(sFbi->sLayerInfo[iLayer]);
+		if (pLayerBsInfo != NULL) {
+			int iLayerSize = 0;
+			int iNalIdx = pLayerBsInfo->iNalCount - 1;
+			do {
+				iLayerSize += pLayerBsInfo->pNalLengthInByte[iNalIdx];
+				--iNalIdx;
+			} while (iNalIdx >= 0);
+
+			if (iLayerSize)
+			{
+				m_SendBuf->append((unsigned char*)pLayerBsInfo->pBsBuf, iLayerSize);
+			}
+		}
+		++iLayer;
+	}
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_video_ack(unsigned int sequence)
+{
+	VideoAck_C2S tVideoAck;
+	tVideoAck.sequence = sequence;
+	string str = autojsoncxx::to_json_string(tVideoAck);
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeVideoAck);
+	header.length = Swap32IfLE(str.size());
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_keyframe_request(bool reset_seq)
+{
+	RequestKeyFrame tRequest;
+	tRequest.resetMcuBuf = false;
+	tRequest.resetSequence = reset_seq;
+	string str = autojsoncxx::to_json_string(tRequest);
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeRequestKeyFrame);
+	header.length = Swap32IfLE(str.size());
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
 }
 
 int SocketsClient::callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user,
@@ -284,4 +402,33 @@ int SocketsClient::callback_client(struct lws *wsi, enum lws_callback_reasons re
 	}
 
 	return 0;
+}
+
+unsigned int SocketsClient::CalcFrameSize(void* data)
+{
+	int iLayer = 0;
+	int iFrameSize = 0;
+
+	if (!data)
+		return 0;
+
+	SFrameBSInfo* sFbi = (SFrameBSInfo*)data;
+	while (iLayer < sFbi->iLayerNum) {
+		SLayerBSInfo* pLayerBsInfo = &(sFbi->sLayerInfo[iLayer]);
+		if (pLayerBsInfo != NULL) {
+			int iLayerSize = 0;
+			int iNalIdx = pLayerBsInfo->iNalCount - 1;
+			do {
+				iLayerSize += pLayerBsInfo->pNalLengthInByte[iNalIdx];
+				--iNalIdx;
+			} while (iNalIdx >= 0);
+
+			if (iLayerSize)
+			{
+				iFrameSize += iLayerSize;
+			}
+		}
+		++iLayer;
+	}
+	return iFrameSize;
 }

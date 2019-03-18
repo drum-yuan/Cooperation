@@ -20,14 +20,9 @@ void daemon_stop()
 	}
 }
 
-int daemon_send_proxy_msg(const char* buffer, int size)
+void daemon_set_recv_callback(RecvCallback on_recv)
 {
-	return 0;
-}
-
-int daemon_recv_proxy_msg(char* buffer, int size)
-{
-	return 0;
+	s_pDaemon->set_recv_callback(on_recv);
 }
 
 void daemon_start_stream()
@@ -42,7 +37,7 @@ void daemon_stop_stream()
 
 void daemon_show_stream()
 {
-
+	s_pDaemon->show_stream(GetDesktopWindow());
 }
 
 void daemon_send_picture()

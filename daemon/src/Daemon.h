@@ -1,36 +1,23 @@
 #pragma once
-
 #include "SocketsClient.h"
-#include "Video.h"
-#include "Buffer.h"
 #include <string>
 
-using namespace std;
 class Daemon
 {
 public:
 	Daemon();
 	~Daemon();
 
-	void connect_mcu(const string& url);
-	void connect_proxy(const string& url);
 	void start_stream();
 	void stop_stream();
-	void show_stream();
-
-	static void playStreamProc(void* param);
+	void show_stream(HWND hWnd);
+	bool connect_mcu(const string& url);
+	void set_recv_callback(RecvCallback on_recv);
 
 private:
-	unsigned int CalcFrameSize(void* data);
-	void onVideoEncoded(void* data);
-	void onVideoDecoded(void* data);
+	void OnVideoEncoded(void* data);
 
 	SocketsClient m_McuClient;
-	SocketsClient m_ProxyClient;
 	Video m_Video;
-	Buffer* m_SendBuf;
-	Buffer* m_RecvBuf;
-	int m_McuUserID;
-	int m_ProxyUserID;
-	thread* m_PlayID;
+	string m_McuUrl;
 };

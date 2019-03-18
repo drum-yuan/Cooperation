@@ -1,8 +1,6 @@
 #pragma once
 #include <memory>
 
-using namespace std;
-
 class Buffer 
 {
 public:

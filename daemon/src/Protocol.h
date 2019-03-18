@@ -15,7 +15,17 @@ typedef struct tagVideoDataHeader {
 
 typedef enum tagMsgType
 {
-	kMsgTypeVideoData = 1000
+	kMsgTypeConnect = 1000,
+	kMsgTypePublish = 1001,
+	kMsgTypePublishAck = 1002,
+	kMsgTypeVideoData = 1003,
+	kMsgTypeVideoAck = 1004,
+	kMsgTypeRequestKeyFrame = 1005,
+	kMsgTypePicture = 1006,
+	kMsgTypeOperate = 1007,
+	kMsgTypeOperateAck = 1008,
+	kMsgTypeMouseEvent = 1009,
+	kMsgTypeKeyboardEvent = 1010
 } MsgType;
 
 #define Swap32IfLE(l) \
