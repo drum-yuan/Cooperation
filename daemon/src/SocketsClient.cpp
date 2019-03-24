@@ -51,6 +51,7 @@ SocketsClient::SocketsClient() : m_Exit(false),
 	}
 
 	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
+	m_CallbackRecv = NULL;
 }
 
 SocketsClient::~SocketsClient()
@@ -258,17 +259,51 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
 	switch (uType)
 	{
+	case kMsgTypePublishAck:
+		break;
 	case kMsgTypeVideoData:
 	{
 		VideoDataHeader* pVideoHeader = (VideoDataHeader*)((uint8_t*)in + sizeof(WebSocketHeader));
 		unsigned int sequence = Swap32IfLE(pVideoHeader->sequence);
 		unsigned int len = uPayloadLen - sizeof(VideoDataHeader);
 		send_video_ack(sequence);
-		m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len);
+		if (m_pVideo) {
+			m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len);
+		}
 	}
 		break;
+	case kMsgTypeVideoAck:
+	{
+		VideoAck_C2S* pVideoAck = (VideoAck_C2S*)((uint8_t*)in + sizeof(WebSocketHeader));
+		unsigned int sequence = pVideoAck->sequence;
+		if (m_pVideo) {
+			m_pVideo->set_ackseq(sequence);
+		}
+	}
+		break;
+	case kMsgTypeRequestKeyFrame:
+	{
+		RequestKeyFrame* pRequestKeyFrame = (RequestKeyFrame*)((uint8_t*)in + sizeof(WebSocketHeader));
+		bool is_reset = pRequestKeyFrame->resetSequence;
+		if (m_pVideo) {
+			m_pVideo->reset_keyframe(is_reset);
+		}
+	}
+		break;
+	case kMsgTypeOperate:
+		if (m_pVideo) {
+			m_pVideo->start_input_monitor();
+		}
+		break;
+	case kMsgTypeOperateAck:
+		if (m_pVideo) {
+			m_pVideo->stop_input_monitor();
+		}
+		break;
 	default:
-		m_CallbackRecv(in, len);
+		if (m_CallbackRecv) {
+			m_CallbackRecv(in, len);
+		}
 		break;
 	}
 }
@@ -279,6 +314,18 @@ void SocketsClient::send_connect()
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypeConnect);
+	header.length = 0;
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_publish()
+{
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypePublish);
 	header.length = 0;
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
@@ -355,6 +402,75 @@ void SocketsClient::send_keyframe_request(bool reset_seq)
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypeRequestKeyFrame);
+	header.length = Swap32IfLE(str.size());
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_picture_data(unsigned char* data, int len)
+{
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypePicture);
+	header.length = Swap32IfLE(len);
+
+	int send_len = 0;
+	while (send_len + WEBSOCKET_MAX_BUFFER_SIZE < len) {
+		m_SendBuf->append(&header, sizeof(WebSocketHeader));
+		m_SendBuf->append(data + send_len, WEBSOCKET_MAX_BUFFER_SIZE);
+		send_len += send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+		m_SendBuf->reset();
+	}
+	header.magic = 1;
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append(data + send_len, len - send_len);
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_operate()
+{
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeOperate);
+	header.length = 0;
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask)
+{
+	MouseInput_C2S tMouseInput;
+	tMouseInput.posX = x;
+	tMouseInput.posY = y;
+	tMouseInput.buttonMask = button_mask;
+	string str = autojsoncxx::to_json_string(tMouseInput);
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeMouseEvent);
+	header.length = Swap32IfLE(str.size());
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_key_event(unsigned int key_val, bool is_pressed)
+{
+	KeyboardInput_C2S tKeyInput;
+	tKeyInput.keyValue = key_val;
+	tKeyInput.isPressed = is_pressed;
+	string str = autojsoncxx::to_json_string(tKeyInput);
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeKeyboardEvent);
 	header.length = Swap32IfLE(str.size());
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
 	m_SendBuf->append((unsigned char*)str.c_str(), str.size());

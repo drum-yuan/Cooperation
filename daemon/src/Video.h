@@ -7,6 +7,7 @@
 #include <functional>
 
 typedef std::function<void(void* data)> onEncode_fp;
+typedef std::function<void(unsigned char* data, int len)> onLockScreen_fp;
 class Video
 {
 public:
@@ -17,11 +18,15 @@ public:
 	void show(unsigned char* buffer, unsigned int len);
 
 	void SetOnEncoded(onEncode_fp fp);
+	void SetOnLockScreen(onLockScreen_fp fp);
 	void start();
 	void stop();
 	void pause();
 	void resume();
 	void reset_keyframe(bool reset_ack);
+	void set_ackseq(unsigned int sequence);
+	void start_input_monitor();
+	void stop_input_monitor();
 	static void onFrame(CallbackFrameInfo* frame, void* param);
 
 private:
@@ -38,12 +43,15 @@ private:
 
 	ISVCEncoder* m_pEncoder;
 	onEncode_fp onEncoded;
+	onLockScreen_fp onLockScreen;
 	unsigned char* m_pYUVData;
 	int m_iFrameW;
 	int m_iFrameH;
 	bool m_bRunning;
 	bool m_bResetSequence;
 	bool m_bForceKeyframe;
+	bool m_bLockScreen;
+	bool m_bSendPic;
 	int m_iFrameRate;
 
 	ISVCDecoder* m_pDecoder;

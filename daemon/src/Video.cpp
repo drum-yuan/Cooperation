@@ -8,9 +8,13 @@ Video::Video():m_iFrameW(0),
 				m_bRunning(false),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
+				m_bLockScreen(false),
+				m_bSendPic(false),
 				m_iFrameRate(25)
 {
 	m_pEncoder = NULL;
+	onEncoded = NULL;
+	onLockScreen = NULL;
 	m_pYUVData = NULL;
 	m_pDecoder = NULL;
 	m_hRenderWin = NULL;
@@ -32,6 +36,7 @@ Video::~Video()
 void Video::SetRenderWin(HWND hWnd)
 {
 	m_hRenderWin = hWnd;
+	m_bSendPic = false;
 }
 
 void Video::show(unsigned char* buffer, unsigned int len)
@@ -42,6 +47,12 @@ void Video::show(unsigned char* buffer, unsigned int len)
 void Video::SetOnEncoded(onEncode_fp fp)
 {
 	onEncoded = fp;
+}
+
+void Video::SetOnLockScreen(onLockScreen_fp fp)
+{
+	onLockScreen = fp;
+	m_bLockScreen = true;
 }
 
 void Video::start()
@@ -74,10 +85,32 @@ void Video::reset_keyframe(bool reset_ack)
 	}
 }
 
+void Video::set_ackseq(unsigned int sequence)
+{
+	cap_set_ack_sequence(sequence);
+}
+
+void Video::start_input_monitor()
+{
+
+}
+
+void Video::stop_input_monitor()
+{
+
+}
+
 void Video::onFrame(CallbackFrameInfo* frame, void* param)
 {
 	Video* video = (Video*)param;
 
+	if (!video->m_bSendPic && video->m_bLockScreen) {
+		if (video->onLockScreen) {
+			video->onLockScreen((unsigned char*)frame->buffer, frame->length);
+		}
+		video->m_bSendPic = true;
+		return;
+	}
 	if (video->m_iFrameW != frame->width || video->m_iFrameH != frame->height || video->m_pYUVData == NULL) {
 		video->CloseEncoder();
 		if (video->m_pYUVData)
@@ -212,7 +245,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	SSpatialLayerConfig *pDLayer = &sParam.sSpatialLayers[0];
 	pDLayer->iVideoWidth = m_iFrameW;
 	pDLayer->iVideoHeight = m_iFrameH;
-	pDLayer->fFrameRate = m_iFrameRate;
+	pDLayer->fFrameRate = (float)m_iFrameRate;
 	pDLayer->iSpatialBitrate = 2500000;
 	pDLayer->iMaxSpatialBitrate = 0;
 }
@@ -246,7 +279,9 @@ void Video::Encode()
 	if (iEncFrames == cmResultSuccess)
 	{
 		tFbi.uiTimeStamp = uTimeStamp;
-		onEncoded(&tFbi);
+		if (onEncoded) {
+			onEncoded(&tFbi);
+		}
 	}
 	else {
 		printf("encodeVideo failed\n");

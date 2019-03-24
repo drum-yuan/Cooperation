@@ -16,7 +16,27 @@
         ["bool", "resetMcuBuf", {"required": false}],
         ["bool", "resetSequence", {"required": false}]
     ] 
-}
+},
 
+{
+    "name": "MouseInput_C2S",
+    "namespace": "MCUProtocol",
+    "members":
+    [
+        ["unsigned int", "posX", {"required": true}],
+        ["unsigned int", "posY", {"required": true}],
+        ["unsigned int", "buttonMask", {"required": true}]
+    ]
+},
+
+{
+    "name": "KeyboardInput_C2S",
+    "namespace": "MCUProtocol",
+    "members":
+    [
+        ["unsigned int", "keyValue", {"required": true}],
+        ["bool", "isPressed", {"required": true}]
+    ]
+}
 ]
 

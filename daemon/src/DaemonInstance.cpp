@@ -42,5 +42,10 @@ void daemon_show_stream()
 
 void daemon_send_picture()
 {
+	s_pDaemon->send_picture();
+}
 
+void daemon_start_operate()
+{
+	s_pDaemon->start_operate();
 }

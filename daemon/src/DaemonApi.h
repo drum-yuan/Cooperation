@@ -18,4 +18,6 @@ DAEMON_API void daemon_show_stream();
 
 DAEMON_API void daemon_send_picture();
 
+DAEMON_API void daemon_start_operate();
+
 

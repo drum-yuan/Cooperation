@@ -9,7 +9,6 @@
 using namespace std;
 
 typedef void(*RecvCallback)(const void* data, int len);
-
 class SocketsClient
 {
 public:
@@ -27,9 +26,14 @@ public:
 	void handle_in(struct lws *wsi, const void* data, size_t len);
 
 	void send_connect();
+	void send_publish();
 	void send_video_data(void* data);
 	void send_video_ack(unsigned int sequence);
 	void send_keyframe_request(bool reset_seq);
+	void send_picture_data(unsigned char* data, int len);
+	void send_operate();
+	void send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask);
+	void send_key_event(unsigned int key_val, bool is_pressed);
 
 	static int callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
 
