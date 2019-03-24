@@ -25,8 +25,6 @@ public:
 	void resume();
 	void reset_keyframe(bool reset_ack);
 	void set_ackseq(unsigned int sequence);
-	void start_input_monitor();
-	void stop_input_monitor();
 	static void onFrame(CallbackFrameInfo* frame, void* param);
 
 private:

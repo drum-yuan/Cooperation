@@ -41,19 +41,44 @@ bool Daemon::connect_mcu(const string& url)
 	return true;
 }
 
-void Daemon::set_recv_callback(RecvCallback on_recv)
-{
-	m_McuClient.set_recv_callback(on_recv);
-}
-
 void Daemon::send_picture()
 {
 	m_Video.SetOnLockScreen(std::bind(&Daemon::OnLockScreen, this, std::placeholders::_1, std::placeholders::_2));
 }
 
+void Daemon::set_picture_callback(PictureCallback on_picture)
+{
+	m_McuClient.set_picture_callback(on_picture);
+}
+
 void Daemon::start_operate()
 {
 	m_McuClient.send_operate();
+}
+
+void Daemon::set_operater_callback(OperaterCallback on_operater)
+{
+	m_McuClient.set_operater_callback(on_operater);
+}
+
+void Daemon::send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask)
+{
+	m_McuClient.send_mouse_event(x, y, button_mask);
+}
+
+void Daemon::set_mouse_callback(MouseCallback on_mouse)
+{
+	m_McuClient.set_mouse_callback(on_mouse);
+}
+
+void Daemon::send_keyboard_event(unsigned int key_val, bool is_pressed)
+{
+	m_McuClient.send_keyboard_event(key_val, is_pressed);
+}
+
+void Daemon::set_keyboard_callback(KeyboardCallback on_keyboard)
+{
+	m_McuClient.set_keyboard_callback(on_keyboard);
 }
 
 void Daemon::OnVideoEncoded(void* data)

@@ -37,6 +37,7 @@ void Video::SetRenderWin(HWND hWnd)
 {
 	m_hRenderWin = hWnd;
 	m_bSendPic = false;
+	m_bLockScreen = false;
 }
 
 void Video::show(unsigned char* buffer, unsigned int len)
@@ -88,16 +89,6 @@ void Video::reset_keyframe(bool reset_ack)
 void Video::set_ackseq(unsigned int sequence)
 {
 	cap_set_ack_sequence(sequence);
-}
-
-void Video::start_input_monitor()
-{
-
-}
-
-void Video::stop_input_monitor()
-{
-
 }
 
 void Video::onFrame(CallbackFrameInfo* frame, void* param)

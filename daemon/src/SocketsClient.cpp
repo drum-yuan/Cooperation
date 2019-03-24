@@ -51,7 +51,9 @@ SocketsClient::SocketsClient() : m_Exit(false),
 	}
 
 	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
-	m_CallbackRecv = NULL;
+	m_CallbackPicture = NULL;
+	m_CallbackOperater = NULL;
+	memset(m_FilePath, 0, sizeof(m_FilePath));
 }
 
 SocketsClient::~SocketsClient()
@@ -247,19 +249,40 @@ int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 	return ret;
 }
 
-void SocketsClient::set_recv_callback(RecvCallback on_recv)
+void SocketsClient::set_picture_callback(PictureCallback on_recv)
 {
-	m_CallbackRecv = on_recv;
+	m_CallbackPicture = on_recv;
+}
+
+void SocketsClient::set_operater_callback(OperaterCallback on_operater)
+{
+	m_CallbackOperater = on_operater;
+}
+
+void SocketsClient::set_mouse_callback(MouseCallback on_mouse)
+{
+	m_CallbackMouse = on_mouse;
+}
+
+void SocketsClient::set_keyboard_callback(KeyboardCallback on_keyboard)
+{
+	m_CallbackKeyboard = on_keyboard;
 }
 
 void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 {
 	WebSocketHeader* pWebHeader = (WebSocketHeader*)in;
+	unsigned char uMagic = pWebHeader->magic;
 	unsigned short uType = Swap16IfLE(pWebHeader->type);
 	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
 	switch (uType)
 	{
 	case kMsgTypePublishAck:
+	{
+		if (m_pVideo) {
+			m_pVideo->stop();
+		}
+	}
 		break;
 	case kMsgTypeVideoData:
 	{
@@ -274,8 +297,14 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		break;
 	case kMsgTypeVideoAck:
 	{
-		VideoAck_C2S* pVideoAck = (VideoAck_C2S*)((uint8_t*)in + sizeof(WebSocketHeader));
-		unsigned int sequence = pVideoAck->sequence;
+		VideoAck_C2S tVideoAck;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tVideoAck, result)) {
+			printf("parser json string fail\n");
+			break;
+		}
+		unsigned int sequence = tVideoAck.sequence;
 		if (m_pVideo) {
 			m_pVideo->set_ackseq(sequence);
 		}
@@ -283,27 +312,77 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		break;
 	case kMsgTypeRequestKeyFrame:
 	{
-		RequestKeyFrame* pRequestKeyFrame = (RequestKeyFrame*)((uint8_t*)in + sizeof(WebSocketHeader));
-		bool is_reset = pRequestKeyFrame->resetSequence;
+		RequestKeyFrame tRequestKeyFrame;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tRequestKeyFrame, result)) {
+			printf("parser json string fail\n");
+			break;
+		}
+		bool is_reset = tRequestKeyFrame.resetSequence;
 		if (m_pVideo) {
 			m_pVideo->reset_keyframe(is_reset);
 		}
 	}
 		break;
+	case kMsgTypePicture:
+	{
+		unsigned char* pData = (uint8_t*)in + sizeof(WebSocketHeader);
+		if (m_FilePath[0] == 0) {
+			SYSTEMTIME t;
+			GetLocalTime(&t);
+			sprintf(m_FilePath, "pic%04d%02d%02d%02d%02d%02d", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+		}
+		FILE* fp = fopen(m_FilePath, "ab");
+		fwrite(pData, 1, uPayloadLen, fp);
+		fclose(fp);
+		if (uMagic == 1) {
+			if (m_CallbackPicture) {
+				m_CallbackPicture(m_FilePath);
+				memset(m_FilePath, 0, sizeof(m_FilePath));
+			}
+		}
+	}
+		break;
 	case kMsgTypeOperate:
-		if (m_pVideo) {
-			m_pVideo->start_input_monitor();
+		if (m_CallbackOperater) {
+			m_CallbackOperater(true);
 		}
 		break;
 	case kMsgTypeOperateAck:
-		if (m_pVideo) {
-			m_pVideo->stop_input_monitor();
+		if (m_CallbackOperater) {
+			m_CallbackOperater(false);
 		}
 		break;
-	default:
-		if (m_CallbackRecv) {
-			m_CallbackRecv(in, len);
+	case kMsgTypeMouseEvent:
+	{
+		MouseInput_C2S tMouseInput;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tMouseInput, result)) {
+			printf("parser json string fail\n");
+			break;
 		}
+		if (m_CallbackMouse) {
+			m_CallbackMouse(tMouseInput.posX, tMouseInput.posY, tMouseInput.buttonMask);
+		}
+	}
+		break;
+	case kMsgTypeKeyboardEvent:
+	{
+		KeyboardInput_C2S tKeyboardInput;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tKeyboardInput, result)) {
+			printf("parser json string fail\n");
+			break;
+		}
+		if (m_CallbackKeyboard) {
+			m_CallbackKeyboard(tKeyboardInput.keyValue, tKeyboardInput.isPressed);
+		}
+	}
+		break;
+	default:
 		break;
 	}
 }
@@ -461,7 +540,7 @@ void SocketsClient::send_mouse_event(unsigned int x, unsigned int y, unsigned in
 	m_SendBuf->reset();
 }
 
-void SocketsClient::send_key_event(unsigned int key_val, bool is_pressed)
+void SocketsClient::send_keyboard_event(unsigned int key_val, bool is_pressed)
 {
 	KeyboardInput_C2S tKeyInput;
 	tKeyInput.keyValue = key_val;

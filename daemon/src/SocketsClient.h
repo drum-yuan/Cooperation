@@ -8,7 +8,10 @@
 
 using namespace std;
 
-typedef void(*RecvCallback)(const void* data, int len);
+typedef void(*PictureCallback)(const char* file_path);
+typedef void(*OperaterCallback)(bool is_operater);
+typedef void(*MouseCallback)(unsigned int x, unsigned int y, unsigned int button_mask);
+typedef void(*KeyboardCallback)(unsigned int key_val, bool is_pressed);
 class SocketsClient
 {
 public:
@@ -22,7 +25,10 @@ public:
 	bool is_connected();
 
 	int send_msg(unsigned char* payload, unsigned int msglen);
-	void set_recv_callback(RecvCallback on_recv);
+	void set_picture_callback(PictureCallback on_recv);
+	void set_operater_callback(OperaterCallback on_operater);
+	void set_mouse_callback(MouseCallback on_mouse);
+	void set_keyboard_callback(KeyboardCallback on_keyboard);
 	void handle_in(struct lws *wsi, const void* data, size_t len);
 
 	void send_connect();
@@ -33,7 +39,7 @@ public:
 	void send_picture_data(unsigned char* data, int len);
 	void send_operate();
 	void send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask);
-	void send_key_event(unsigned int key_val, bool is_pressed);
+	void send_keyboard_event(unsigned int key_val, bool is_pressed);
 
 	static int callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
 
@@ -47,6 +53,7 @@ private:
 	int  m_State;
 	bool   m_UseSSL;
 	string m_ServerUrl;
+	char m_FilePath[256];
 
 	lws* m_wsi;
 	thread* m_wsthread;
@@ -56,5 +63,8 @@ private:
 
 	Buffer* m_SendBuf;
 	Video* m_pVideo;
-	RecvCallback m_CallbackRecv;
+	PictureCallback m_CallbackPicture;
+	OperaterCallback m_CallbackOperater;
+	MouseCallback m_CallbackMouse;
+	KeyboardCallback m_CallbackKeyboard;
 };
