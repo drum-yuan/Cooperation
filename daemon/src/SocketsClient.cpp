@@ -331,7 +331,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		if (m_FilePath[0] == 0) {
 			SYSTEMTIME t;
 			GetLocalTime(&t);
-			sprintf(m_FilePath, "pic%04d%02d%02d%02d%02d%02d", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+			sprintf(m_FilePath, "%%USERPROFILE%%\\Pictures\\pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
 		}
 		FILE* fp = fopen(m_FilePath, "ab");
 		fwrite(pData, 1, uPayloadLen, fp);
@@ -339,8 +339,8 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		if (uMagic == 1) {
 			if (m_CallbackPicture) {
 				m_CallbackPicture(m_FilePath);
-				memset(m_FilePath, 0, sizeof(m_FilePath));
 			}
+			memset(m_FilePath, 0, sizeof(m_FilePath));
 		}
 	}
 		break;

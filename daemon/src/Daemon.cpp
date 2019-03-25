@@ -9,6 +9,7 @@ Daemon::Daemon()
 Daemon::~Daemon()
 {
 	stop_stream();
+	m_McuClient.stop();
 }
 
 void Daemon::start_stream()
