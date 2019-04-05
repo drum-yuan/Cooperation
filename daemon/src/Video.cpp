@@ -349,15 +349,19 @@ void Video::Decode(unsigned char* buffer, unsigned int len)
 
 void Video::Render(SBufferInfo* pInfo)
 {
-	if (pInfo->iBufferStatus != 1 || m_hRenderWin == NULL) {
+	if (pInfo == NULL || pInfo->iBufferStatus != 1 || m_hRenderWin == NULL) {
 		return;
 	}
 
 	int width = pInfo->UsrData.sSystemBuffer.iWidth;
 	int height = pInfo->UsrData.sSystemBuffer.iHeight;
-
 	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, width, height);
-	if (m_hD3DHandle == NULL) {
+	if (width != m_iFrameW || height != m_iFrameH) {
+		m_iFrameW = width;
+		m_iFrameH = height;
+		if (m_hD3DHandle) {
+			D3D_Release(&m_hD3DHandle);
+		}
 		D3D_Initial(&m_hD3DHandle, m_hRenderWin, width, height, 0, 1, D3D_FORMAT_YV12);
 	}
 	RECT rcSrc = { 0, 0, width, height };

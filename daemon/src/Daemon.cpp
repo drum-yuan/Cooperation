@@ -4,11 +4,22 @@
 
 Daemon::Daemon()
 {
+	m_pHeartbeatID = NULL;
+	m_bQuit = true;
+	m_bPublisher = false;
 }
 
 Daemon::~Daemon()
 {
+	m_bQuit = true;
 	stop_stream();
+	if (m_pHeartbeatID) {
+		if (m_pHeartbeatID->joinable()) {
+			m_pHeartbeatID->join();
+		}
+		delete m_pHeartbeatID;
+		m_pHeartbeatID = NULL;
+	}
 	m_McuClient.stop();
 }
 
@@ -16,11 +27,13 @@ void Daemon::start_stream()
 {
 	m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
 	m_McuClient.send_publish();
+	m_bPublisher = true;
 	m_Video.start();
 }
 
 void Daemon::stop_stream()
 {
+	m_bPublisher = false;
 	m_Video.stop();
 }
 
@@ -39,6 +52,8 @@ bool Daemon::connect_mcu(const string& url)
 
 	m_McuClient.set_video_event(&m_Video);
 	m_McuClient.send_connect();
+	m_bQuit = false;
+	m_pHeartbeatID = new thread(&Daemon::HeartbeatThread, this);
 	return true;
 }
 
@@ -90,4 +105,32 @@ void Daemon::OnVideoEncoded(void* data)
 void Daemon::OnLockScreen(unsigned char* data, int len)
 {
 	m_McuClient.send_picture_data(data, len);
+}
+
+void Daemon::HeartbeatThread()
+{
+	uint32_t retry = 3;
+
+	while (!m_bQuit)
+	{
+		if (!m_McuClient.is_connected() && retry)
+		{
+			if (!m_McuClient.connect(m_McuUrl, true, false))
+			{
+				printf("reconnect mcu failed\n");
+				if (!--retry)
+				{
+					break;
+				}
+			}
+			else 
+			{
+				m_McuClient.send_connect();
+				if (m_bPublisher) {
+					m_McuClient.send_publish();
+				}
+			}
+		}
+		Sleep(50);
+	}
 }

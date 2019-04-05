@@ -24,8 +24,12 @@ public:
 private:
 	void OnVideoEncoded(void* data);
 	void OnLockScreen(unsigned char* data, int len);
+	void HeartbeatThread();
 
 	SocketsClient m_McuClient;
 	Video m_Video;
 	string m_McuUrl;
+	thread* m_pHeartbeatID;
+	bool m_bQuit;
+	bool m_bPublisher;
 };
