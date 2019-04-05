@@ -10,7 +10,7 @@ Video::Video():m_iFrameW(0),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
 				m_bSendPic(false),
-				m_iFrameRate(25)
+				m_iFrameRate(30)
 {
 	m_pEncoder = NULL;
 	onEncoded = NULL;

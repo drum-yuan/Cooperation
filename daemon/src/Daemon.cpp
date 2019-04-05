@@ -47,9 +47,11 @@ bool Daemon::connect_mcu(const string& url)
 {
 	m_McuUrl = url;
 	if (!m_McuClient.connect(url, true, false)) {
+		printf("connect mcu failed\n");
 		return false;
 	}
 
+	printf("send connect msg\n");
 	m_McuClient.set_video_event(&m_Video);
 	m_McuClient.send_connect();
 	m_bQuit = false;
