@@ -36,7 +36,6 @@ private:
 	bool OpenDecoder();
 	void CloseDecoder();
 	void WriteYUVBuffer(int iStride[2], int iWidth, int iHeight);
-	void Decode(unsigned char* buffer, unsigned int len);
 	void Render(SBufferInfo* pInfo);
 
 	ISVCEncoder* m_pEncoder;

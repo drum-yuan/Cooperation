@@ -42,7 +42,14 @@ void Video::SetRenderWin(HWND hWnd)
 
 void Video::show(unsigned char* buffer, unsigned int len)
 {
-	Decode(buffer, len);
+	SBufferInfo tDstInfo;
+	DECODING_STATE state = m_pDecoder->DecodeFrame2(buffer, len, m_pDecData, &tDstInfo);
+	if (state == 0) {
+		Render(&tDstInfo);
+	}
+	else {
+		printf("decode frame failed 0x%x\n", state);
+	}
 }
 
 void Video::SetOnEncoded(onEncode_fp fp)
@@ -102,7 +109,9 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		video->m_bSendPic = true;
 		return;
 	}
+
 	if (video->m_iFrameW != frame->width || video->m_iFrameH != frame->height || video->m_pYUVData == NULL) {
+		printf("onFrame change size: seq %d w %d h %d\n", cap_get_capture_sequence(), frame->width, frame->height);
 		video->CloseEncoder();
 		if (video->m_pYUVData)
 			delete[] video->m_pYUVData;
@@ -113,6 +122,7 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 	}
 
 	if (frame->bitcount == 8) {
+		printf("capture 8bit\n");
 		return;
 	}
 	else if (frame->bitcount == 16) {
@@ -123,6 +133,7 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		printf("capture 24bit\n");
 	}
 	else if (frame->bitcount == 32) {
+		printf("capture 32bit len %d\n", frame->length);
 		int uv_stride = (video->m_iFrameW + 1) / 2;
 		uint8_t* y = video->m_pYUVData;
 		uint8_t* u = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH;
@@ -188,7 +199,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.bEnableDenoise = 0;             // denoise control
 	sParam.bEnableBackgroundDetection = 0; // background detection control
 	sParam.bEnableAdaptiveQuant = 0;       // adaptive quantization control
-	sParam.bEnableFrameSkip = 1;           // frame skipping
+	sParam.bEnableFrameSkip = 0;           // frame skipping
 	sParam.bEnableLongTermReference = 0;   // long term reference control
 	sParam.bEnableSceneChangeDetect = 1;
 	sParam.iLtrMarkPeriod = 30;
@@ -336,14 +347,6 @@ void Video::WriteYUVBuffer(int iStride[2], int iWidth, int iHeight)
 		memcpy(pData, pYUV, iWidth / 2);
 		pYUV += iStride[1];
 		pData += iWidth / 2;
-	}
-}
-
-void Video::Decode(unsigned char* buffer, unsigned int len)
-{
-	SBufferInfo tDstInfo;
-	if (m_pDecoder->DecodeFrame2(buffer, len, m_pDecData, &tDstInfo) == 0) {
-		Render(&tDstInfo);
 	}
 }
 

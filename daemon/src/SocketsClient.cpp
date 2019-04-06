@@ -289,10 +289,10 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		VideoDataHeader* pVideoHeader = (VideoDataHeader*)((uint8_t*)in + sizeof(WebSocketHeader));
 		unsigned int sequence = Swap32IfLE(pVideoHeader->sequence);
 		unsigned int len = uPayloadLen - sizeof(VideoDataHeader);
-		send_video_ack(sequence);
 		if (m_pVideo) {
 			m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len);
 		}
+		send_video_ack(sequence);
 	}
 		break;
 	case kMsgTypeVideoAck:
@@ -416,8 +416,10 @@ void SocketsClient::send_video_data(void* data)
 	if (data == NULL)
 		return;
 	int iFrameSize = CalcFrameSize(data);
-	if (!iFrameSize)
+	if (!iFrameSize) {
+		printf("frame size 0\n");
 		return;
+	}
 
 	WebSocketHeader header;
 	header.version = 1;
@@ -453,6 +455,7 @@ void SocketsClient::send_video_data(void* data)
 	}
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
+	printf("send video data seq %d\n", sequence);
 }
 
 void SocketsClient::send_video_ack(unsigned int sequence)
@@ -604,10 +607,12 @@ unsigned int SocketsClient::CalcFrameSize(void* data)
 	int iLayer = 0;
 	int iFrameSize = 0;
 
-	if (!data)
+	if (!data) {
+		printf("encoded data null\n");
 		return 0;
-
+	}
 	SFrameBSInfo* sFbi = (SFrameBSInfo*)data;
+	printf("Fbi layernum %d\n", sFbi->iLayerNum);
 	while (iLayer < sFbi->iLayerNum) {
 		SLayerBSInfo* pLayerBsInfo = &(sFbi->sLayerInfo[iLayer]);
 		if (pLayerBsInfo != NULL) {
