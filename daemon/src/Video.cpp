@@ -133,7 +133,7 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		printf("capture 24bit\n");
 	}
 	else if (frame->bitcount == 32) {
-		printf("capture 32bit len %d\n", frame->length);
+		//printf("capture 32bit len %d\n", frame->length);
 		int uv_stride = (video->m_iFrameW + 1) / 2;
 		uint8_t* y = video->m_pYUVData;
 		uint8_t* u = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH;

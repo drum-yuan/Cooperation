@@ -275,7 +275,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	unsigned char uMagic = pWebHeader->magic;
 	unsigned short uType = Swap16IfLE(pWebHeader->type);
 	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
-	printf("handle_in msg type %d\n", uType);
+
 	switch (uType)
 	{
 	case kMsgTypePublishAck:
@@ -384,6 +384,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	}
 		break;
 	default:
+		printf("handle_in unknown msg type %d\n", uType);
 		break;
 	}
 }
@@ -613,7 +614,7 @@ unsigned int SocketsClient::CalcFrameSize(void* data)
 		return 0;
 	}
 	SFrameBSInfo* sFbi = (SFrameBSInfo*)data;
-	printf("Fbi layernum %d\n", sFbi->iLayerNum);
+	//printf("Fbi layernum %d\n", sFbi->iLayerNum);
 	while (iLayer < sFbi->iLayerNum) {
 		SLayerBSInfo* pLayerBsInfo = &(sFbi->sLayerInfo[iLayer]);
 		if (pLayerBsInfo != NULL) {

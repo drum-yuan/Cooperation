@@ -30,7 +30,7 @@ DAEMON_API void daemon_start_stream();
 //停止直播
 DAEMON_API void daemon_stop_stream();
 //显示直播画面
-DAEMON_API void daemon_show_stream();
+DAEMON_API void daemon_show_stream(void* hwnd);
 //锁屏后发送无损图片
 DAEMON_API void daemon_send_picture();
 //设置接收图片完成后的回调

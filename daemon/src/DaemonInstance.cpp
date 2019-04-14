@@ -30,9 +30,9 @@ void daemon_stop_stream()
 	s_pDaemon->stop_stream();
 }
 
-void daemon_show_stream()
+void daemon_show_stream(void* hwnd)
 {
-	s_pDaemon->show_stream(GetDesktopWindow());
+	s_pDaemon->show_stream((HWND)hwnd);
 }
 
 void daemon_send_picture()

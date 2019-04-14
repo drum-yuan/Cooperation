@@ -44,3 +44,4 @@
 *.log
 *.idb
 /test_daemon/DaemonApi.h
+/daemon/.vs/daemon/v15
