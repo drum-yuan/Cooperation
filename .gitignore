@@ -43,3 +43,4 @@
 *.exp
 *.log
 *.idb
+/test_daemon/DaemonApi.h

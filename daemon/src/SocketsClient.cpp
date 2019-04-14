@@ -275,6 +275,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	unsigned char uMagic = pWebHeader->magic;
 	unsigned short uType = Swap16IfLE(pWebHeader->type);
 	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
+	printf("handle_in msg type %d\n", uType);
 	switch (uType)
 	{
 	case kMsgTypePublishAck:
@@ -583,7 +584,7 @@ int SocketsClient::callback_client(struct lws *wsi, enum lws_callback_reasons re
 		wsclient->SetConnectState(ConnectStateEstablished);
 		break;
 	case LWS_CALLBACK_CLIENT_RECEIVE:
-		lwsl_notice("Client RX %d\n", len);
+		//lwsl_notice("Client RX %d\n", len);
 		wsclient->handle_in(wsi, in, len);
 		break;
 	case LWS_CALLBACK_CLIENT_WRITEABLE:
