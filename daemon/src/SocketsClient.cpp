@@ -19,6 +19,7 @@ enum ClientConnState {
 SocketsClient::SocketsClient() : m_Exit(false),
 								m_State(ConnectStateUnConnected),
 								m_UseSSL(false),
+								m_PicFile(NULL),
 								m_wsi(NULL),
 								m_wsthread(NULL),
 								m_protocols(NULL),
@@ -331,15 +332,19 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	case kMsgTypePicture:
 	{
 		unsigned char* pData = (uint8_t*)in + sizeof(WebSocketHeader);
-		if (m_FilePath[0] == 0) {
+		if (m_PicFile == NULL) {
 			SYSTEMTIME t;
 			GetLocalTime(&t);
 			sprintf(m_FilePath, "%%USERPROFILE%%\\Pictures\\pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+			m_PicFile = fopen(m_FilePath, "wb");
+			if (m_pVideo && m_PicFile) {
+				m_pVideo->WriteBmpHeader(m_PicFile);
+			}
 		}
-		FILE* fp = fopen(m_FilePath, "ab");
-		fwrite(pData, 1, uPayloadLen, fp);
-		fclose(fp);
+		fwrite(pData, 1, uPayloadLen, m_PicFile);
 		if (uMagic == 1) {
+			fclose(m_PicFile);
+			m_PicFile = NULL;
 			if (m_CallbackPicture) {
 				m_CallbackPicture(m_FilePath);
 			}

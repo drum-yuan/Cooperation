@@ -376,3 +376,36 @@ void Video::Render(SBufferInfo* pInfo)
 	D3D_Render(m_hD3DHandle, m_hRenderWin, 1, &rcDst);
 }
 
+void Video::WriteBmpHeader(FILE* fp)
+{
+	if (fp == NULL || m_iFrameW == 0 || m_iFrameH == 0) {
+		return;
+	}
+
+	unsigned char header[54] = {
+	  0x42, 0x4d, 0, 0, 0, 0, 0, 0, 0, 0,
+		54, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0
+	};
+
+	long file_size = (long)m_iFrameW * (long)m_iFrameH * 4 + 54;
+	header[2] = (unsigned char)(file_size & 0x000000ff);
+	header[3] = (file_size >> 8) & 0x000000ff;
+	header[4] = (file_size >> 16) & 0x000000ff;
+	header[5] = (file_size >> 24) & 0x000000ff;
+
+	long width = m_iFrameW;
+	header[18] = width & 0x000000ff;
+	header[19] = (width >> 8) & 0x000000ff;
+	header[20] = (width >> 16) & 0x000000ff;
+	header[21] = (width >> 24) & 0x000000ff;
+
+	long height = -m_iFrameH;
+	header[22] = height & 0x000000ff;
+	header[23] = (height >> 8) & 0x000000ff;
+	header[24] = (height >> 16) & 0x000000ff;
+	header[25] = (height >> 24) & 0x000000ff;
+
+	fwrite(header, sizeof(unsigned char), 54, fp);
+}

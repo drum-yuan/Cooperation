@@ -19,6 +19,7 @@ public:
 
 	void SetOnEncoded(onEncode_fp fp);
 	void SetOnLockScreen(onLockScreen_fp fp);
+	void WriteBmpHeader(FILE* fp);
 	void start();
 	void stop();
 	void pause();
