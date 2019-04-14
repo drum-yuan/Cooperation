@@ -101,9 +101,9 @@
       <AdditionalDependencies>ws2_32.lib;capture.lib;libssl32MT.lib;libcrypto32MT.lib;crypt32.lib;websockets_static.lib;openh264.lib;yuv.lib;D3DRender.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)$(Configuration)\daemon.lib ..\test_daemon\libs
-copy $(SolutionDir)\src\DaemonApi.h ..\test_daemon
-copy $(SolutionDir)$(Configuration)\daemon.dll ..\test_daemon\$(Configuration)</Command>
+      <Command>copy $(SolutionDir)$(Configuration)\daemon.lib ..\MFCClient\libs\
+copy $(SolutionDir)\src\DaemonApi.h ..\MFCClient
+copy $(SolutionDir)$(Configuration)\daemon.dll ..\MFCClient\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
