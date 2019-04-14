@@ -291,7 +291,9 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		unsigned int sequence = Swap32IfLE(pVideoHeader->sequence);
 		unsigned int len = uPayloadLen - sizeof(VideoDataHeader);
 		if (m_pVideo) {
-			m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len);
+			if (!(m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len))) {
+				send_keyframe_request(false);
+			}
 		}
 		send_video_ack(sequence);
 	}

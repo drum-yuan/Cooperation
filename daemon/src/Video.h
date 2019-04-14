@@ -15,7 +15,7 @@ public:
 	~Video();
 
 	void SetRenderWin(HWND hWnd);
-	void show(unsigned char* buffer, unsigned int len);
+	bool show(unsigned char* buffer, unsigned int len);
 
 	void SetOnEncoded(onEncode_fp fp);
 	void SetOnLockScreen(onLockScreen_fp fp);

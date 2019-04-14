@@ -45,3 +45,4 @@
 *.idb
 /test_daemon/DaemonApi.h
 /daemon/.vs/daemon/v15
+*.ib_pdb_index
