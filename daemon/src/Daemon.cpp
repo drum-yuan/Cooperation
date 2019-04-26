@@ -131,6 +131,9 @@ void Daemon::HeartbeatThread()
 				if (m_bPublisher) {
 					m_McuClient.send_publish();
 				}
+				else {
+					m_McuClient.send_keyframe_request(true);
+				}
 			}
 		}
 		Sleep(50);

@@ -43,7 +43,7 @@ void Video::SetRenderWin(HWND hWnd)
 bool Video::show(unsigned char* buffer, unsigned int len)
 {
 	SBufferInfo tDstInfo;
-	DECODING_STATE state = m_pDecoder->DecodeFrame2(buffer, len, m_pDecData, &tDstInfo);
+	DECODING_STATE state = m_pDecoder->DecodeFrameNoDelay(buffer, len, m_pDecData, &tDstInfo);
 	if (state == 0) {
 		Render(&tDstInfo);
 		return true;
