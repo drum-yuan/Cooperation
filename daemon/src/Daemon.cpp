@@ -12,7 +12,6 @@ Daemon::Daemon()
 Daemon::~Daemon()
 {
 	m_bQuit = true;
-	stop_stream();
 	if (m_pHeartbeatID) {
 		if (m_pHeartbeatID->joinable()) {
 			m_pHeartbeatID->join();
@@ -20,7 +19,7 @@ Daemon::~Daemon()
 		delete m_pHeartbeatID;
 		m_pHeartbeatID = NULL;
 	}
-	m_McuClient.stop();
+	stop_stream();
 }
 
 void Daemon::start_stream()
@@ -33,6 +32,7 @@ void Daemon::start_stream()
 
 void Daemon::stop_stream()
 {
+	m_McuClient.stop();
 	m_bPublisher = false;
 	m_Video.stop();
 }
