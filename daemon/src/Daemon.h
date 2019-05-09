@@ -12,6 +12,7 @@ public:
 	void stop_stream();
 	void show_stream(void* hWnd);
 	bool connect_mcu(const string& url);
+	void set_start_stream_callback(StartStreamCallback on_stream);
 	void send_picture();
 	void set_picture_callback(PictureCallback on_picture);
 	void start_operate();
@@ -31,5 +32,4 @@ private:
 	string m_McuUrl;
 	thread* m_pHeartbeatID;
 	bool m_bQuit;
-	bool m_bPublisher;
 };

@@ -41,6 +41,13 @@ void daemon_show_stream(void* hwnd)
 	}
 }
 
+void daemon_set_start_stream_callback(StartStreamCallback on_stream)
+{
+	if (s_pDaemon != NULL) {
+		s_pDaemon->set_start_stream_callback(on_stream);
+	}
+}
+
 void daemon_send_picture()
 {
 	if (s_pDaemon != NULL) {

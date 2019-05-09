@@ -8,6 +8,7 @@
 
 using namespace std;
 
+typedef void(*StartStreamCallback)(void);
 typedef void(*PictureCallback)(const char* file_path);
 typedef void(*OperaterCallback)(bool is_operater);
 typedef void(*MouseCallback)(unsigned int x, unsigned int y, unsigned int button_mask);
@@ -25,6 +26,7 @@ public:
 	bool is_connected();
 
 	int send_msg(unsigned char* payload, unsigned int msglen);
+	void set_start_stream_callback(StartStreamCallback on_stream);
 	void set_picture_callback(PictureCallback on_recv);
 	void set_operater_callback(OperaterCallback on_operater);
 	void set_mouse_callback(MouseCallback on_mouse);
@@ -64,6 +66,7 @@ private:
 
 	Buffer* m_SendBuf;
 	Video* m_pVideo;
+	StartStreamCallback m_CallbackStream;
 	PictureCallback m_CallbackPicture;
 	OperaterCallback m_CallbackOperater;
 	MouseCallback m_CallbackMouse;

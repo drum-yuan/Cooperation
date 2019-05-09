@@ -6,7 +6,6 @@ Daemon::Daemon()
 {
 	m_pHeartbeatID = NULL;
 	m_bQuit = true;
-	m_bPublisher = false;
 }
 
 Daemon::~Daemon()
@@ -26,15 +25,13 @@ void Daemon::start_stream()
 {
 	m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
 	m_McuClient.send_publish();
-	m_bPublisher = true;
 	m_Video.start();
 }
 
 void Daemon::stop_stream()
 {
-	m_McuClient.stop();
-	m_bPublisher = false;
 	m_Video.stop();
+	m_McuClient.stop();
 }
 
 void Daemon::show_stream(void* hWnd)
@@ -57,6 +54,11 @@ bool Daemon::connect_mcu(const string& url)
 	m_bQuit = false;
 	m_pHeartbeatID = new thread(&Daemon::HeartbeatThread, this);
 	return true;
+}
+
+void Daemon::set_start_stream_callback(StartStreamCallback on_stream)
+{
+	m_McuClient.set_start_stream_callback(on_stream);
 }
 
 void Daemon::send_picture()
@@ -128,7 +130,7 @@ void Daemon::HeartbeatThread()
 			else 
 			{
 				m_McuClient.send_connect();
-				if (m_bPublisher) {
+				if (m_Video.IsPublisher()) {
 					m_McuClient.send_publish();
 				}
 				else {

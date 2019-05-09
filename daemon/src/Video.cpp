@@ -18,7 +18,7 @@ typedef struct DXVA2DevicePriv {
 
 Video::Video():m_iFrameW(0),
 				m_iFrameH(0),
-				m_bRunning(false),
+				m_bPublisher(false),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
@@ -118,6 +118,7 @@ void Video::SetOnLockScreen(onLockScreen_fp fp)
 
 void Video::start()
 {
+	m_bPublisher = true;
 	cap_start_capture_screen(0, Video::onFrame, this);
 	cap_set_drop_interval(25);
 	cap_set_frame_rate(m_iFrameRate);
@@ -125,6 +126,7 @@ void Video::start()
 
 void Video::stop()
 {
+	m_bPublisher = false;
 	cap_stop_capture_screen();
 }
 
@@ -629,4 +631,14 @@ void Video::WriteBmpHeader(FILE* fp)
 	header[25] = (height >> 24) & 0x000000ff;
 
 	fwrite(header, sizeof(unsigned char), 54, fp);
+}
+
+bool Video::IsPublisher()
+{
+	return m_bPublisher;
+}
+
+void Video::SetPublisher(bool is_Publisher)
+{
+	m_bPublisher = is_Publisher;
 }

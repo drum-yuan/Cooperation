@@ -250,6 +250,11 @@ int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 	return ret;
 }
 
+void SocketsClient::set_start_stream_callback(StartStreamCallback on_stream)
+{
+	m_CallbackStream = on_stream;
+}
+
 void SocketsClient::set_picture_callback(PictureCallback on_recv)
 {
 	m_CallbackPicture = on_recv;
@@ -282,8 +287,13 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	{
 	case kMsgTypePublishAck:
 	{
-		if (m_pVideo) {
+		if (m_pVideo && m_pVideo->IsPublisher()) {
+			m_pVideo->SetPublisher(false);
 			m_pVideo->stop();
+			reset();
+		}
+		if (m_CallbackStream) {
+			m_CallbackStream();
 		}
 	}
 		break;

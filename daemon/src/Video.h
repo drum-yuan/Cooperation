@@ -29,6 +29,8 @@ public:
 	void SetOnEncoded(onEncode_fp fp);
 	void SetOnLockScreen(onLockScreen_fp fp);
 	void WriteBmpHeader(FILE* fp);
+	bool IsPublisher();
+	void SetPublisher(bool is_Publisher);
 	void start();
 	void stop();
 	void pause();
@@ -61,7 +63,7 @@ private:
 	unsigned char* m_pYUVData;
 	int m_iFrameW;
 	int m_iFrameH;
-	bool m_bRunning;
+	bool m_bPublisher;
 	bool m_bResetSequence;
 	bool m_bForceKeyframe;
 	bool m_bLockScreen;
