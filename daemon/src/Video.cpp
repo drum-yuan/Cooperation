@@ -203,9 +203,8 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.bEnableAdaptiveQuant = 0;       // adaptive quantization control
 	sParam.bEnableFrameSkip = 0;           // frame skipping
 	sParam.bEnableLongTermReference = 0;   // long term reference control
-	sParam.bEnableSceneChangeDetect = 1;
 	sParam.iLtrMarkPeriod = 30;
-	sParam.uiIntraPeriod = 320; // period of Intra frame
+	//sParam.uiIntraPeriod = 320; // period of Intra frame
 	sParam.eSpsPpsIdStrategy = INCREASING_ID;
 	sParam.bPrefixNalAddingCtrl = 0;
 	sParam.iComplexityMode = LOW_COMPLEXITY;

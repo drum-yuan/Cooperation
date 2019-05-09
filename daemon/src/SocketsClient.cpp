@@ -277,6 +277,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	unsigned short uType = Swap16IfLE(pWebHeader->type);
 	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
 
+	printf("handle in type %u\n", uType);
 	switch (uType)
 	{
 	case kMsgTypePublishAck:
