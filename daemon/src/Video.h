@@ -9,6 +9,9 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 }
+#ifdef USE_D3D
+#include <d3d9.h>
+#endif
 #endif
 #include <functional>
 
@@ -74,6 +77,9 @@ private:
 	AVFrame* m_AVVideoFrame;
 	AVFrame* m_HwVideoFrame;
 	enum AVPixelFormat m_HwPixFmt;
+#ifdef USE_D3D
+	CRITICAL_SECTION m_Cs;
+#endif
 #else
 	ISVCDecoder* m_pDecoder;
 #endif

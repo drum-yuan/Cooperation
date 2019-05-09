@@ -3,10 +3,9 @@
 #include "Video.h"
 #include "libyuv.h"
 #include "D3DRenderAPI.h"
-#ifdef HW_DECODE
-//#include <d3d9.h>
 
-/*typedef struct DXVA2DevicePriv {
+#ifdef USE_D3D
+typedef struct DXVA2DevicePriv {
 	HMODULE d3dlib;
 	HMODULE dxva2lib;
 
@@ -14,7 +13,7 @@
 
 	IDirect3D9       *d3d9;
 	IDirect3DDevice9 *d3d9device;
-} DXVA2DevicePriv;*/
+} DXVA2DevicePriv;
 #endif
 
 Video::Video():m_iFrameW(0),
@@ -38,6 +37,9 @@ Video::Video():m_iFrameW(0),
 	m_AVVideoFrame = NULL;
 	m_HwVideoFrame = NULL;
 	m_HwPixFmt = AV_PIX_FMT_NONE;
+#ifdef USE_D3D
+	InitializeCriticalSection(&m_Cs);
+#endif
 #else
 	m_pDecoder = NULL;
 #endif
@@ -475,18 +477,37 @@ void Video::DXVA2Render()
 	LPDIRECT3DSURFACE9 surface = (LPDIRECT3DSURFACE9)m_HwVideoFrame->data[3];
 	AVHWDeviceContext* ctx = (AVHWDeviceContext*)m_Hwctx->data;
 	DXVA2DevicePriv* priv = (DXVA2DevicePriv*)ctx->user_opaque;
+	HRESULT ret = 0;
 
-	//EnterCriticalSection(&cs);
+	EnterCriticalSection(&m_Cs);
 	//Ö±½ÓäÖÈ¾
-	priv->d3d9device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
-	priv->d3d9device->BeginScene();
-	priv->d3d9device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+	ret = priv->d3d9device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
+	if (ret < 0) {
+		printf("Clear failed\n");
+	}
+	ret = priv->d3d9device->BeginScene();
+	if (ret < 0) {
+		printf("BeginScene failed\n");
+	}
+	ret = priv->d3d9device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+	if (ret < 0) {
+		printf("GetBackBuffer failed\n");
+	}
 	RECT rcDst;
-	GetClientRect((HWND)m_hRenderWin, &rcDst);
-	priv->d3d9device->StretchRect(surface, NULL, backBuffer, &rcDst, D3DTEXF_LINEAR);
-	priv->d3d9device->EndScene();
-	priv->d3d9device->Present(NULL, NULL, NULL, NULL);
-	//LeaveCriticalSection(&cs);
+	GetClientRect((HWND)GetDesktopWindow(), &rcDst);
+	ret = priv->d3d9device->StretchRect(surface, NULL, backBuffer, &rcDst, D3DTEXF_LINEAR);
+	if (ret < 0) {
+		printf("StretchRect failed\n");
+	}
+	ret = priv->d3d9device->EndScene();
+	if (ret < 0) {
+		printf("EndScene failed\n");
+	}
+	ret = priv->d3d9device->Present(NULL, NULL, NULL, NULL);
+	if (ret < 0) {
+		printf("Present failed\n");
+	}
+	LeaveCriticalSection(&m_Cs);
 	backBuffer->Release();
 #else
 	int iStride[2];
