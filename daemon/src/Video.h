@@ -1,9 +1,15 @@
 #pragma once
+
+#include "CaptureApi.h"
 #include "wels/codec_def.h"
 #include "wels/codec_app_def.h"
 #include "wels/codec_api.h"
-#include "CaptureApi.h"
-#include "D3DRenderAPI.h"
+#ifdef HW_DECODE
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavutil/opt.h>
+}
+#endif
 #include <functional>
 
 typedef std::function<void(void* data)> onEncode_fp;
@@ -14,7 +20,7 @@ public:
 	Video();
 	~Video();
 
-	void SetRenderWin(HWND hWnd);
+	void SetRenderWin(void* hWnd);
 	bool show(unsigned char* buffer, unsigned int len);
 
 	void SetOnEncoded(onEncode_fp fp);
@@ -27,6 +33,9 @@ public:
 	void reset_keyframe(bool reset_ack);
 	void set_ackseq(unsigned int sequence);
 	static void onFrame(CallbackFrameInfo* frame, void* param);
+#ifdef HW_DECODE
+	static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
+#endif
 
 private:
 	bool OpenEncoder(int w, int h);
@@ -36,8 +45,12 @@ private:
 
 	bool OpenDecoder();
 	void CloseDecoder();
-	void WriteYUVBuffer(int iStride[2], int iWidth, int iHeight);
+	void WriteYUVBuffer(int iStride[2], int iWidth, int iHeight, int iFormat);
+#ifdef HW_DECODE
+	void DXVA2Render();
+#else
 	void Render(SBufferInfo* pInfo);
+#endif
 
 	ISVCEncoder* m_pEncoder;
 	onEncode_fp onEncoded;
@@ -52,9 +65,19 @@ private:
 	bool m_bSendPic;
 	int m_iFrameRate;
 
+	void* m_hRenderWin;
+#ifdef HW_DECODE
+	AVCodec* m_pAVDecoder;
+	AVCodecContext* m_pAVDecoderContext;
+	AVPacket m_AVPacket;
+	AVBufferRef* m_Hwctx;
+	AVFrame* m_AVVideoFrame;
+	AVFrame* m_HwVideoFrame;
+	enum AVPixelFormat m_HwPixFmt;
+#else
 	ISVCDecoder* m_pDecoder;
-	HWND m_hRenderWin;
-	D3D_HANDLE	m_hD3DHandle;
+#endif
+	void* m_hD3DHandle;
 	unsigned char* m_pDecData[3];
 	unsigned char* m_pRenderData;
 };

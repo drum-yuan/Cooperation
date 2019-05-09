@@ -37,7 +37,7 @@ void daemon_stop_stream()
 void daemon_show_stream(void* hwnd)
 {
 	if (s_pDaemon != NULL) {
-		s_pDaemon->show_stream((HWND)hwnd);
+		s_pDaemon->show_stream(hwnd);
 	}
 }
 

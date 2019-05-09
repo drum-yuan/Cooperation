@@ -10,7 +10,7 @@ public:
 
 	void start_stream();
 	void stop_stream();
-	void show_stream(HWND hWnd);
+	void show_stream(void* hWnd);
 	bool connect_mcu(const string& url);
 	void send_picture();
 	void set_picture_callback(PictureCallback on_picture);

@@ -37,7 +37,7 @@ void Daemon::stop_stream()
 	m_Video.stop();
 }
 
-void Daemon::show_stream(HWND hWnd)
+void Daemon::show_stream(void* hWnd)
 {
 	m_Video.SetRenderWin(hWnd);
 	m_McuClient.send_keyframe_request(true);

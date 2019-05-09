@@ -2,6 +2,20 @@
 #include <time.h>
 #include "Video.h"
 #include "libyuv.h"
+#include "D3DRenderAPI.h"
+#ifdef HW_DECODE
+//#include <d3d9.h>
+
+/*typedef struct DXVA2DevicePriv {
+	HMODULE d3dlib;
+	HMODULE dxva2lib;
+
+	HANDLE device_handle;
+
+	IDirect3D9       *d3d9;
+	IDirect3DDevice9 *d3d9device;
+} DXVA2DevicePriv;*/
+#endif
 
 Video::Video():m_iFrameW(0),
 				m_iFrameH(0),
@@ -16,8 +30,17 @@ Video::Video():m_iFrameW(0),
 	onEncoded = NULL;
 	onLockScreen = NULL;
 	m_pYUVData = NULL;
-	m_pDecoder = NULL;
 	m_hRenderWin = NULL;
+#ifdef HW_DECODE
+	m_pAVDecoder = NULL;
+	m_pAVDecoderContext = NULL;
+	m_Hwctx = NULL;
+	m_AVVideoFrame = NULL;
+	m_HwVideoFrame = NULL;
+	m_HwPixFmt = AV_PIX_FMT_NONE;
+#else
+	m_pDecoder = NULL;
+#endif
 	m_hD3DHandle = NULL;
 	m_pDecData[0] = NULL;
 	m_pDecData[1] = NULL;
@@ -30,10 +53,12 @@ Video::~Video()
 {
 	CloseEncoder();
 	CloseDecoder();
+#ifndef HW_DECODE
 	delete[] m_pRenderData;
+#endif
 }
 
-void Video::SetRenderWin(HWND hWnd)
+void Video::SetRenderWin(void* hWnd)
 {
 	m_hRenderWin = hWnd;
 	m_bSendPic = false;
@@ -42,6 +67,29 @@ void Video::SetRenderWin(HWND hWnd)
 
 bool Video::show(unsigned char* buffer, unsigned int len)
 {
+#ifdef HW_DECODE
+	int status = 0;
+
+	av_init_packet(&m_AVPacket);
+	m_AVPacket.data = (BYTE*)buffer;
+	m_AVPacket.size = len;
+	status = avcodec_send_packet(m_pAVDecoderContext, &m_AVPacket);
+	if (status < 0) {
+		printf("avcodec send packet failed! %d\n", status);
+		return false;
+	}
+	m_AVVideoFrame->format = AV_PIX_FMT_NV12;
+	do {
+		status = avcodec_receive_frame(m_pAVDecoderContext, m_Hwctx? m_HwVideoFrame : m_AVVideoFrame);
+	} while (status == AVERROR(EAGAIN));
+	if (status < 0) {
+		printf("avcodec receive frame failed! %d\n", status);
+		return false;
+	}
+
+	DXVA2Render();
+	return true;
+#else
 	SBufferInfo tDstInfo;
 	DECODING_STATE state = m_pDecoder->DecodeFrameNoDelay(buffer, len, m_pDecData, &tDstInfo);
 	if (state == 0) {
@@ -52,6 +100,7 @@ bool Video::show(unsigned char* buffer, unsigned int len)
 		printf("decode frame failed 0x%x\n", state);
 		return false;
 	}
+#endif
 }
 
 void Video::SetOnEncoded(onEncode_fp fp)
@@ -294,6 +343,34 @@ void Video::Encode()
 
 bool Video::OpenDecoder()
 {
+#ifdef HW_DECODE
+	m_pAVDecoder = avcodec_find_decoder(AV_CODEC_ID_H264);
+	if (m_pAVDecoder) {
+		m_pAVDecoderContext = avcodec_alloc_context3(m_pAVDecoder);
+	}
+	if (m_pAVDecoderContext == NULL) {
+		return false;
+	}
+	if (m_pAVDecoder->capabilities & AV_CODEC_CAP_TRUNCATED) {
+		m_pAVDecoderContext->flags |= AV_CODEC_FLAG_TRUNCATED;
+	}
+	if (av_hwdevice_ctx_create(&m_Hwctx, AV_HWDEVICE_TYPE_DXVA2, NULL, NULL, 0) < 0) {
+		avcodec_free_context(&m_pAVDecoderContext);
+		return false;
+	}
+	m_pAVDecoderContext->hw_device_ctx = av_buffer_ref(m_Hwctx);
+	m_pAVDecoderContext->get_format = get_hw_format;
+	m_HwPixFmt = AV_PIX_FMT_DXVA2_VLD;
+	m_pAVDecoderContext->opaque = this;
+
+	if (avcodec_open2(m_pAVDecoderContext, m_pAVDecoder, NULL) < 0) {
+		avcodec_free_context(&m_pAVDecoderContext);
+		return false;
+	}
+	m_AVVideoFrame = av_frame_alloc();
+	m_AVVideoFrame->pts = 0;
+	m_HwVideoFrame = av_frame_alloc();
+#else
 	if (!m_pDecoder)
 	{
 		if (WelsCreateDecoder(&m_pDecoder) || (NULL == m_pDecoder))
@@ -313,45 +390,168 @@ bool Video::OpenDecoder()
 			return false;
 		}
 	}
+#endif
 	return true;
 }
 
 void Video::CloseDecoder()
 {
+#ifdef HW_DECODE
+	if (m_HwVideoFrame) {
+		av_frame_free(&m_HwVideoFrame);
+	}
+	if (m_Hwctx) {
+		av_buffer_unref(&m_Hwctx);
+	}
+	if (m_pAVDecoderContext) {
+		avcodec_close(m_pAVDecoderContext);
+		avcodec_free_context(&m_pAVDecoderContext);
+	}
+#else
 	if (m_pDecoder)
 	{
 		WelsDestroyDecoder(m_pDecoder);
 		m_pDecoder = NULL;
 	}
+#endif
 }
 
-void Video::WriteYUVBuffer(int iStride[2], int iWidth, int iHeight)
+void Video::WriteYUVBuffer(int iStride[2], int iWidth, int iHeight, int iFormat)
 {
-	int   i;
+	int   i, j;
 	unsigned char* pYUV = NULL;
 	unsigned char* pData = NULL;
+	unsigned char* pData2 = NULL;
 
 	pData = m_pRenderData;
 	pYUV = m_pDecData[0];
-	for (i = 0; i < iHeight; i++) {
-		memcpy(pData, pYUV, iWidth);
-		pYUV += iStride[0];
-		pData += iWidth;
+	if (iFormat == 0) {
+		for (i = 0; i < iHeight; i++) {
+			memcpy(pData, pYUV, iWidth);
+			pYUV += iStride[0];
+			pData += iWidth;
+		}
+		pYUV = m_pDecData[1];
+		for (i = 0; i < iHeight / 2; i++) {
+			memcpy(pData, pYUV, iWidth / 2);
+			pYUV += iStride[1];
+			pData += iWidth / 2;
+		}
+		pYUV = m_pDecData[2];
+		for (i = 0; i < iHeight / 2; i++) {
+			memcpy(pData, pYUV, iWidth / 2);
+			pYUV += iStride[1];
+			pData += iWidth / 2;
+		}
 	}
-	pYUV = m_pDecData[1];
-	for (i = 0; i < iHeight / 2; i++) {
-		memcpy(pData, pYUV, iWidth / 2);
-		pYUV += iStride[1];
-		pData += iWidth / 2;
-	}
-	pYUV = m_pDecData[2];
-	for (i = 0; i < iHeight / 2; i++) {
-		memcpy(pData, pYUV, iWidth / 2);
-		pYUV += iStride[1];
-		pData += iWidth / 2;
+	else if (iFormat == 1) {
+		for (i = 0; i < iHeight; i++) {
+			memcpy(pData, pYUV, iWidth);
+			pYUV += iStride[0];
+			pData += iWidth;
+		}
+		pYUV = m_pDecData[1];
+		pData2 = pData + (iWidth * iHeight) / 4;
+		for (i = 0; i < iHeight / 2; i++) {
+			for (j = 0; j < iWidth; j++) {
+				if (j % 2 == 0) {
+					*pData = *(pYUV + j);
+					pData++;
+				}
+				else {
+					*pData2 = *(pYUV + j);
+					pData2++;
+				}
+			}
+			pYUV += iStride[1];
+		}
 	}
 }
 
+#ifdef HW_DECODE
+void Video::DXVA2Render()
+{
+#ifdef USE_D3D
+	IDirect3DSurface9* backBuffer = NULL;
+	LPDIRECT3DSURFACE9 surface = (LPDIRECT3DSURFACE9)m_HwVideoFrame->data[3];
+	AVHWDeviceContext* ctx = (AVHWDeviceContext*)m_Hwctx->data;
+	DXVA2DevicePriv* priv = (DXVA2DevicePriv*)ctx->user_opaque;
+
+	//EnterCriticalSection(&cs);
+	//Ö±½ÓäÖÈ¾
+	priv->d3d9device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
+	priv->d3d9device->BeginScene();
+	priv->d3d9device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+	RECT rcDst;
+	GetClientRect((HWND)m_hRenderWin, &rcDst);
+	priv->d3d9device->StretchRect(surface, NULL, backBuffer, &rcDst, D3DTEXF_LINEAR);
+	priv->d3d9device->EndScene();
+	priv->d3d9device->Present(NULL, NULL, NULL, NULL);
+	//LeaveCriticalSection(&cs);
+	backBuffer->Release();
+#else
+	int iStride[2];
+	AVFrame* avVideoFrame = m_AVVideoFrame;
+
+	if (m_Hwctx) {
+		if (m_HwVideoFrame->format == m_HwPixFmt) {
+			m_AVVideoFrame->width = m_HwVideoFrame->width;
+			m_AVVideoFrame->height = m_HwVideoFrame->height;
+			printf("transfer data from gpu to cpu %d-%d\n", m_AVVideoFrame->width, m_AVVideoFrame->height);
+			if (av_hwframe_transfer_data(m_AVVideoFrame, m_HwVideoFrame, 0) < 0) {
+				printf("transfer data failed!\n");
+				return;
+			}
+		}
+		else {
+			avVideoFrame = m_HwVideoFrame;
+		}
+	}
+
+	if (avVideoFrame->format == AV_PIX_FMT_YUV420P) {
+		m_pDecData[0] = avVideoFrame->data[0];
+		m_pDecData[1] = avVideoFrame->data[1];
+		m_pDecData[2] = avVideoFrame->data[2];
+		iStride[0] = avVideoFrame->linesize[0];
+		iStride[1] = avVideoFrame->linesize[1];
+	}
+	else if (avVideoFrame->format == AV_PIX_FMT_NV12) {
+		m_pDecData[0] = avVideoFrame->data[0];
+		m_pDecData[1] = avVideoFrame->data[1];
+		iStride[0] = avVideoFrame->linesize[0];
+		iStride[1] = avVideoFrame->linesize[1];
+	}
+	WriteYUVBuffer(iStride, avVideoFrame->width, avVideoFrame->height, 1);
+	if (avVideoFrame->width != m_iFrameW || avVideoFrame->height != m_iFrameH) {
+		m_iFrameW = avVideoFrame->width;
+		m_iFrameH = avVideoFrame->height;
+		if (m_hD3DHandle) {
+			D3D_Release(&m_hD3DHandle);
+		}
+		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, avVideoFrame->width, avVideoFrame->height, 0, 1, D3D_FORMAT_YV12);
+	}
+	RECT rcSrc = { 0, 0, avVideoFrame->width, avVideoFrame->height };
+	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, avVideoFrame->width, avVideoFrame->height, &rcSrc, NULL);
+	RECT rcDst;
+	GetClientRect((HWND)m_hRenderWin, &rcDst);
+	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
+#endif
+}
+
+enum AVPixelFormat Video::get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
+{
+	Video* pVideo = (Video*)ctx->opaque;
+	const enum AVPixelFormat *p;
+	for (p = pix_fmts; *p != -1; p++) {
+		if (*p == pVideo->m_HwPixFmt)
+			return *p;
+	}
+
+	printf("Failed to get HW surface format.\n");
+	return AV_PIX_FMT_NONE;
+}
+
+#else
 void Video::Render(SBufferInfo* pInfo)
 {
 	if (pInfo == NULL || pInfo->iBufferStatus != 1 || m_hRenderWin == NULL) {
@@ -360,21 +560,22 @@ void Video::Render(SBufferInfo* pInfo)
 
 	int width = pInfo->UsrData.sSystemBuffer.iWidth;
 	int height = pInfo->UsrData.sSystemBuffer.iHeight;
-	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, width, height);
+	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, width, height, 0);
 	if (width != m_iFrameW || height != m_iFrameH) {
 		m_iFrameW = width;
 		m_iFrameH = height;
 		if (m_hD3DHandle) {
 			D3D_Release(&m_hD3DHandle);
 		}
-		D3D_Initial(&m_hD3DHandle, m_hRenderWin, width, height, 0, 1, D3D_FORMAT_YV12);
+		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, width, height, 0, 1, D3D_FORMAT_YV12);
 	}
 	RECT rcSrc = { 0, 0, width, height };
 	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, width, height, &rcSrc, NULL);
 	RECT rcDst;
-	GetClientRect(m_hRenderWin, &rcDst);
-	D3D_Render(m_hD3DHandle, m_hRenderWin, 1, &rcDst);
+	GetClientRect((HWND)m_hRenderWin, &rcDst);
+	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
 }
+#endif
 
 void Video::WriteBmpHeader(FILE* fp)
 {
