@@ -6,6 +6,9 @@ Daemon::Daemon()
 {
 	m_pHeartbeatID = NULL;
 	m_bQuit = true;
+	m_CallbackStop = NULL;
+	m_LastVideoAckSeq = 0;
+	m_bWait = true;
 }
 
 Daemon::~Daemon()
@@ -38,6 +41,7 @@ void Daemon::show_stream(void* hWnd)
 {
 	m_Video.SetRenderWin(hWnd);
 	m_McuClient.send_keyframe_request(true);
+	m_bWait = false;
 }
 
 bool Daemon::connect_mcu(const string& url)
@@ -59,6 +63,11 @@ bool Daemon::connect_mcu(const string& url)
 void Daemon::set_start_stream_callback(StartStreamCallback on_stream)
 {
 	m_McuClient.set_start_stream_callback(on_stream);
+}
+
+void Daemon::set_stop_stream_callback(StopStreamCallback on_stop)
+{
+	m_CallbackStop = on_stop;
 }
 
 void Daemon::send_picture()
@@ -138,6 +147,17 @@ void Daemon::HeartbeatThread()
 				}
 			}
 		}
-		Sleep(50);
+		else {
+			if (m_McuClient.get_video_ack_seq() == m_LastVideoAckSeq) {
+				if (m_CallbackStop && !m_bWait) {
+					m_CallbackStop();
+					m_bWait = true;
+				}
+			}
+			else {
+				m_LastVideoAckSeq = m_McuClient.get_video_ack_seq();
+			}
+		}
+		Sleep(100);
 	}
 }

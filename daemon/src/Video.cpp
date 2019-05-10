@@ -148,9 +148,14 @@ void Video::reset_keyframe(bool reset_ack)
 	}
 }
 
-void Video::set_ackseq(unsigned int sequence)
+void Video::set_ack_seq(unsigned int sequence)
 {
 	cap_set_ack_sequence(sequence);
+}
+
+unsigned int Video::get_capture_seq()
+{
+	return cap_get_capture_sequence();
 }
 
 void Video::onFrame(CallbackFrameInfo* frame, void* param)

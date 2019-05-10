@@ -36,7 +36,8 @@ public:
 	void pause();
 	void resume();
 	void reset_keyframe(bool reset_ack);
-	void set_ackseq(unsigned int sequence);
+	void set_ack_seq(unsigned int sequence);
+	unsigned int get_capture_seq();
 	static void onFrame(CallbackFrameInfo* frame, void* param);
 #ifdef HW_DECODE
 	static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);

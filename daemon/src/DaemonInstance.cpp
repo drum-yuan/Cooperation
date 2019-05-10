@@ -48,6 +48,13 @@ void daemon_set_start_stream_callback(StartStreamCallback on_stream)
 	}
 }
 
+void daemon_set_stop_stream_callback(StopStreamCallback on_stop)
+{
+	if (s_pDaemon != NULL) {
+		s_pDaemon->set_stop_stream_callback(on_stop);
+	}
+}
+
 void daemon_send_picture()
 {
 	if (s_pDaemon != NULL) {

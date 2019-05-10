@@ -4,6 +4,9 @@
 /* 收到直播通知后的回调
 */
 typedef void(*StartStreamCallback)(void);
+/* 收到停播通知后的回调
+*/
+typedef void(*StopStreamCallback)(void);
 /* 收完图片文件后的回调
 	file_path：图片文件路径名
 */
@@ -36,6 +39,8 @@ DAEMON_API void daemon_stop_stream();
 DAEMON_API void daemon_show_stream(void* hwnd);
 //设置接收直播通知后的回调
 DAEMON_API void daemon_set_start_stream_callback(StartStreamCallback on_stream);
+//设置接收停播通知后的回调
+DAEMON_API void daemon_set_stop_stream_callback(StopStreamCallback on_stream);
 //锁屏后发送无损图片
 DAEMON_API void daemon_send_picture();
 //设置接收图片完成后的回调

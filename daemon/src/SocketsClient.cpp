@@ -51,10 +51,15 @@ SocketsClient::SocketsClient() : m_Exit(false),
 		m_exts[0].client_offer = NULL;
 	}
 
+	memset(m_FilePath, 0, sizeof(m_FilePath));
 	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
+	m_pVideo = NULL;
+	m_CallbackStream = NULL;
 	m_CallbackPicture = NULL;
 	m_CallbackOperater = NULL;
-	memset(m_FilePath, 0, sizeof(m_FilePath));
+	m_CallbackMouse = NULL;
+	m_CallbackKeyboard = NULL;
+	m_CurVideoAckSeq = 0;
 }
 
 SocketsClient::~SocketsClient()
@@ -236,6 +241,11 @@ bool SocketsClient::is_connected()
 	return m_State == ConnectStateEstablished;
 }
 
+unsigned int SocketsClient::get_video_ack_seq()
+{
+	return m_CurVideoAckSeq;
+}
+
 int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 {
 	if (m_State != ConnectStateEstablished)
@@ -308,6 +318,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			}
 		}
 		send_video_ack(sequence);
+		m_CurVideoAckSeq = sequence;
 	}
 		break;
 	case kMsgTypeVideoAck:
@@ -320,9 +331,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			break;
 		}
 		unsigned int sequence = tVideoAck.sequence;
-		if (m_pVideo) {
-			m_pVideo->set_ackseq(sequence);
-		}
+		cap_set_ack_sequence(sequence);
 	}
 		break;
 	case kMsgTypeRequestKeyFrame:

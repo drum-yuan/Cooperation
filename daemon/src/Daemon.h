@@ -13,6 +13,7 @@ public:
 	void show_stream(void* hWnd);
 	bool connect_mcu(const string& url);
 	void set_start_stream_callback(StartStreamCallback on_stream);
+	void set_stop_stream_callback(StopStreamCallback on_stop);
 	void send_picture();
 	void set_picture_callback(PictureCallback on_picture);
 	void start_operate();
@@ -32,4 +33,7 @@ private:
 	string m_McuUrl;
 	thread* m_pHeartbeatID;
 	bool m_bQuit;
+	StopStreamCallback m_CallbackStop;
+	unsigned int m_LastVideoAckSeq;
+	bool m_bWait;
 };
