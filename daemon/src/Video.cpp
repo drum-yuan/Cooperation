@@ -495,9 +495,9 @@ void Video::DXVA2Render()
 	if (ret < 0) {
 		printf("GetBackBuffer failed\n");
 	}
-	RECT rcDst;
-	GetClientRect((HWND)m_hRenderWin, &rcDst);
-	ret = priv->d3d9device->StretchRect(surface, NULL, backBuffer, &rcDst, D3DTEXF_LINEAR);
+	//RECT rcDst;
+	//GetClientRect((HWND)m_hRenderWin, &rcDst);
+	ret = priv->d3d9device->StretchRect(surface, NULL, backBuffer, NULL, D3DTEXF_LINEAR);
 	if (ret < 0) {
 		printf("StretchRect failed\n");
 	}
