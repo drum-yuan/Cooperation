@@ -30,8 +30,8 @@ void Daemon::start_stream()
 
 void Daemon::stop_stream()
 {
-	m_Video.stop();
 	m_McuClient.stop();
+	m_Video.stop();
 }
 
 void Daemon::show_stream(void* hWnd)

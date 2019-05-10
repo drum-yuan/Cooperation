@@ -187,7 +187,7 @@ bool SocketsClient::connect(std::string url, bool blocking, bool ssl)
 {
 	m_ServerUrl = url;
 	m_UseSSL = ssl;
-	reset();
+	//reset();
 	m_wsthread = new std::thread(&SocketsClient::RunWebSocketClient, this);
 
 	if (blocking && m_State != ConnectStateEstablished)
@@ -289,8 +289,8 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	{
 		if (m_pVideo && m_pVideo->IsPublisher()) {
 			m_pVideo->SetPublisher(false);
-			m_pVideo->stop();
 			reset();
+			m_pVideo->stop();
 		}
 		if (m_CallbackStream) {
 			m_CallbackStream();
