@@ -496,7 +496,7 @@ void Video::DXVA2Render()
 		printf("GetBackBuffer failed\n");
 	}
 	RECT rcDst;
-	GetClientRect((HWND)GetDesktopWindow(), &rcDst);
+	GetClientRect((HWND)m_hRenderWin, &rcDst);
 	ret = priv->d3d9device->StretchRect(surface, NULL, backBuffer, &rcDst, D3DTEXF_LINEAR);
 	if (ret < 0) {
 		printf("StretchRect failed\n");
@@ -505,7 +505,7 @@ void Video::DXVA2Render()
 	if (ret < 0) {
 		printf("EndScene failed\n");
 	}
-	ret = priv->d3d9device->Present(NULL, NULL, NULL, NULL);
+	ret = priv->d3d9device->Present(NULL, NULL, (HWND)m_hRenderWin, NULL);
 	if (ret < 0) {
 		printf("Present failed\n");
 	}
