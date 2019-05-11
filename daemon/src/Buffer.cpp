@@ -1,7 +1,5 @@
 #include "Buffer.h"
 
-#define LWS_PRE 16  //reserve 16 bytes for libwebsockets write protocol header data
-
 Buffer::Buffer(unsigned int size):m_buf(NULL),m_size(0), m_pos(LWS_PRE)
 {
 	m_size = LWS_PRE + size;

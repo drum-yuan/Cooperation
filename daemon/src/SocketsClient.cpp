@@ -32,7 +32,7 @@ SocketsClient::SocketsClient() : m_Exit(false),
 		m_protocols[0].name = "binary";
 		m_protocols[0].callback = SocketsClient::callback_client;
 		m_protocols[0].per_session_data_size = sizeof(SocketsClient*);
-		m_protocols[0].rx_buffer_size = WEBSOCKET_MAX_BUFFER_SIZE;
+		m_protocols[0].rx_buffer_size = WEBSOCKET_MAX_BUFFER_SIZE + LWS_PRE;
 		m_protocols[0].user = this;
 
 		m_protocols[1].name = NULL;
@@ -355,7 +355,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		if (m_PicFile == NULL) {
 			SYSTEMTIME t;
 			GetLocalTime(&t);
-			sprintf(m_FilePath, "%%USERPROFILE%%\\Pictures\\pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+			sprintf(m_FilePath, "pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
 			m_PicFile = fopen(m_FilePath, "wb");
 			if (m_pVideo && m_PicFile) {
 				m_pVideo->WriteBmpHeader(m_PicFile);
@@ -526,18 +526,23 @@ void SocketsClient::send_picture_data(unsigned char* data, int len)
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypePicture);
-	header.length = Swap32IfLE(len);
 
 	int send_len = 0;
-	while (send_len + WEBSOCKET_MAX_BUFFER_SIZE < len) {
+	int once_len = WEBSOCKET_MAX_BUFFER_SIZE - sizeof(WebSocketHeader);
+	while (send_len + once_len < len) {
+		header.length = Swap32IfLE(once_len);
 		m_SendBuf->append(&header, sizeof(WebSocketHeader));
-		m_SendBuf->append(data + send_len, WEBSOCKET_MAX_BUFFER_SIZE);
-		send_len += send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+		m_SendBuf->append(data + send_len, once_len);
+		send_len += once_len;
+		send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 		m_SendBuf->reset();
+		Sleep(3000);
 	}
+	once_len = len - send_len;
 	header.magic = 1;
+	header.length = Swap32IfLE(once_len);
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
-	m_SendBuf->append(data + send_len, len - send_len);
+	m_SendBuf->append(data + send_len, once_len);
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
 }

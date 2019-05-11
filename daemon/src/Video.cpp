@@ -148,16 +148,6 @@ void Video::reset_keyframe(bool reset_ack)
 	}
 }
 
-void Video::set_ack_seq(unsigned int sequence)
-{
-	cap_set_ack_sequence(sequence);
-}
-
-unsigned int Video::get_capture_seq()
-{
-	return cap_get_capture_sequence();
-}
-
 void Video::onFrame(CallbackFrameInfo* frame, void* param)
 {
 	Video* video = (Video*)param;
@@ -479,12 +469,20 @@ void Video::WriteYUVBuffer(int iStride[2], int iWidth, int iHeight, int iFormat)
 #ifdef HW_DECODE
 void Video::DXVA2Render()
 {
+	AVFrame* avVideoFrame = m_AVVideoFrame;
+	if (!m_Hwctx) {
+		goto COMMON_RENDER;
+	}
+
 #ifdef USE_D3D
 	IDirect3DSurface9* backBuffer = NULL;
 	LPDIRECT3DSURFACE9 surface = (LPDIRECT3DSURFACE9)m_HwVideoFrame->data[3];
 	AVHWDeviceContext* ctx = (AVHWDeviceContext*)m_Hwctx->data;
 	DXVA2DevicePriv* priv = (DXVA2DevicePriv*)ctx->user_opaque;
 	HRESULT ret = 0;
+
+	m_iFrameW = m_HwVideoFrame->width;
+	m_iFrameH = m_HwVideoFrame->height;
 
 	EnterCriticalSection(&m_Cs);
 	//Ö±½ÓäÖÈ¾
@@ -516,25 +514,24 @@ void Video::DXVA2Render()
 	}
 	LeaveCriticalSection(&m_Cs);
 	backBuffer->Release();
+	return;
 #else
-	int iStride[2];
-	AVFrame* avVideoFrame = m_AVVideoFrame;
-
-	if (m_Hwctx) {
-		if (m_HwVideoFrame->format == m_HwPixFmt) {
-			m_AVVideoFrame->width = m_HwVideoFrame->width;
-			m_AVVideoFrame->height = m_HwVideoFrame->height;
-			printf("transfer data from gpu to cpu %d-%d\n", m_AVVideoFrame->width, m_AVVideoFrame->height);
-			if (av_hwframe_transfer_data(m_AVVideoFrame, m_HwVideoFrame, 0) < 0) {
-				printf("transfer data failed!\n");
-				return;
-			}
-		}
-		else {
-			avVideoFrame = m_HwVideoFrame;
+	if (m_HwVideoFrame->format == m_HwPixFmt) {
+		m_AVVideoFrame->width = m_HwVideoFrame->width;
+		m_AVVideoFrame->height = m_HwVideoFrame->height;
+		printf("transfer data from gpu to cpu %d-%d\n", m_AVVideoFrame->width, m_AVVideoFrame->height);
+		if (av_hwframe_transfer_data(m_AVVideoFrame, m_HwVideoFrame, 0) < 0) {
+			printf("transfer data failed!\n");
+			return;
 		}
 	}
+	else {
+		avVideoFrame = m_HwVideoFrame;
+	}
+#endif
 
+COMMON_RENDER:
+	int iStride[2];
 	if (avVideoFrame->format == AV_PIX_FMT_YUV420P) {
 		m_pDecData[0] = avVideoFrame->data[0];
 		m_pDecData[1] = avVideoFrame->data[1];
@@ -562,7 +559,6 @@ void Video::DXVA2Render()
 	RECT rcDst;
 	GetClientRect((HWND)m_hRenderWin, &rcDst);
 	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
-#endif
 }
 
 enum AVPixelFormat Video::get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)

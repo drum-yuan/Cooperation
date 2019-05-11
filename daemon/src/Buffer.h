@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 
+#define LWS_PRE 16  //reserve 16 bytes for libwebsockets write protocol header data
+
 class Buffer 
 {
 public:
