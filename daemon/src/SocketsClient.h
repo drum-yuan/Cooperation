@@ -58,7 +58,8 @@ private:
 	bool   m_UseSSL;
 	string m_ServerUrl;
 	char m_FilePath[256];
-	FILE* m_PicFile;
+	unsigned char* m_PicBuffer;
+	int m_PicPos;
 
 	lws* m_wsi;
 	thread* m_wsthread;

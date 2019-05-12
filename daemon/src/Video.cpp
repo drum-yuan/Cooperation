@@ -47,7 +47,7 @@ Video::Video():m_iFrameW(0),
 	m_pDecData[0] = NULL;
 	m_pDecData[1] = NULL;
 	m_pDecData[2] = NULL;
-	m_pRenderData = new unsigned char[4096 * 2160 * 3 / 2];
+	m_pRenderData = new unsigned char[MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 3 / 2];
 	OpenDecoder();
 }
 

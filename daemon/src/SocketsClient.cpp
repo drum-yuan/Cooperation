@@ -2,6 +2,7 @@
 #include "Protocol.h"
 #include "proto.hpp"
 #include "autojsoncxx/autojsoncxx.hpp"
+#include "lz4.h"
 
 #define WEBSOCKET_MAX_BUFFER_SIZE (1024*1024)
 #define CONNECT_TIMEOUT 5000  //ms
@@ -19,7 +20,8 @@ enum ClientConnState {
 SocketsClient::SocketsClient() : m_Exit(false),
 								m_State(ConnectStateUnConnected),
 								m_UseSSL(false),
-								m_PicFile(NULL),
+								m_PicBuffer(NULL),
+								m_PicPos(0),
 								m_wsi(NULL),
 								m_wsthread(NULL),
 								m_protocols(NULL),
@@ -352,23 +354,39 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	case kMsgTypePicture:
 	{
 		unsigned char* pData = (uint8_t*)in + sizeof(WebSocketHeader);
-		if (m_PicFile == NULL) {
+		int bound = LZ4_compressBound(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
+		if (m_PicBuffer == NULL) {
+			m_PicBuffer = (unsigned char*)malloc(bound);
+			m_PicPos = 0;
+		}
+		if (m_PicPos + uPayloadLen <= bound) {
+			memcpy(m_PicBuffer + m_PicPos, pData, uPayloadLen);
+			m_PicPos += uPayloadLen;
+		}
+		else {
+			free(m_PicBuffer);
+			m_PicBuffer = NULL;
+			printf("receive picture data out of memory\n");
+			break;
+		}
+		if (uMagic == 1) {
+			unsigned char* decompressed = (unsigned char*)malloc(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
+			int decompressed_len = LZ4_decompress_safe((char*)m_PicBuffer, (char*)decompressed, m_PicPos, MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
+			free(m_PicBuffer);
+			m_PicBuffer = NULL;
+
 			SYSTEMTIME t;
 			GetLocalTime(&t);
 			sprintf(m_FilePath, "pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
-			m_PicFile = fopen(m_FilePath, "wb");
-			if (m_pVideo && m_PicFile) {
-				m_pVideo->WriteBmpHeader(m_PicFile);
+			FILE* fp = fopen(m_FilePath, "wb");
+			if (m_pVideo) {
+				m_pVideo->WriteBmpHeader(fp);
 			}
-		}
-		fwrite(pData, 1, uPayloadLen, m_PicFile);
-		if (uMagic == 1) {
-			fclose(m_PicFile);
-			m_PicFile = NULL;
+			fwrite(decompressed, 1, decompressed_len, fp);
+			fclose(fp);
 			if (m_CallbackPicture) {
 				m_CallbackPicture(m_FilePath);
 			}
-			memset(m_FilePath, 0, sizeof(m_FilePath));
 		}
 	}
 		break;
@@ -527,22 +545,26 @@ void SocketsClient::send_picture_data(unsigned char* data, int len)
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypePicture);
 
+	int bound = LZ4_compressBound(len);
+	unsigned char* compressed = (unsigned char*)malloc(bound);
+	int compressed_len = LZ4_compress_default((char*)data, (char*)compressed, len, bound);
+
 	int send_len = 0;
 	int once_len = WEBSOCKET_MAX_BUFFER_SIZE - sizeof(WebSocketHeader);
-	while (send_len + once_len < len) {
+	while (send_len + once_len < compressed_len) {
 		header.length = Swap32IfLE(once_len);
 		m_SendBuf->append(&header, sizeof(WebSocketHeader));
-		m_SendBuf->append(data + send_len, once_len);
+		m_SendBuf->append(compressed + send_len, once_len);
 		send_len += once_len;
 		send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 		m_SendBuf->reset();
 		Sleep(3000);
 	}
-	once_len = len - send_len;
+	once_len = compressed_len - send_len;
 	header.magic = 1;
 	header.length = Swap32IfLE(once_len);
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
-	m_SendBuf->append(data + send_len, once_len);
+	m_SendBuf->append(compressed + send_len, once_len);
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
 }
