@@ -29,6 +29,7 @@ private:
 	void HeartbeatThread();
 
 	SocketsClient m_McuClient;
+	SocketsClient m_ProxyClient;
 	Video m_Video;
 	string m_McuUrl;
 	thread* m_pHeartbeatID;

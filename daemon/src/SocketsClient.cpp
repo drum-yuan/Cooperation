@@ -17,7 +17,8 @@ enum ClientConnState {
 	ConnectStateClosed = 4
 };
 
-SocketsClient::SocketsClient() : m_Exit(false),
+SocketsClient::SocketsClient() : m_Proxy(false),
+								m_Exit(false),
 								m_State(ConnectStateUnConnected),
 								m_UseSSL(false),
 								m_PicBuffer(NULL),
@@ -53,7 +54,6 @@ SocketsClient::SocketsClient() : m_Exit(false),
 		m_exts[0].client_offer = NULL;
 	}
 
-	memset(m_FilePath, 0, sizeof(m_FilePath));
 	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
 	m_pVideo = NULL;
 	m_CallbackStream = NULL;
@@ -119,6 +119,9 @@ int SocketsClient::RunWebSocketClient()
 	if (lws_parse_uri((char*)m_ServerUrl.c_str(), &prot, &address, &port, &p))
 		return -1;
 
+	if (m_Proxy) {
+		port++;
+	}
 	uri[0] = '/';
 	strncpy(uri + 1, p, sizeof(uri) - 2);
 	uri[sizeof(uri) - 1] = '\0';
@@ -183,6 +186,11 @@ fail:
 	lwsl_notice("websocket client exited cleanly\n");
 
 	return 0;
+}
+
+void SocketsClient::set_proxy_flag(bool proxy)
+{
+	m_Proxy = proxy;
 }
 
 void SocketsClient::set_video_event(Video* pEvent)
@@ -377,15 +385,16 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 
 			SYSTEMTIME t;
 			GetLocalTime(&t);
-			sprintf(m_FilePath, "pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
-			FILE* fp = fopen(m_FilePath, "wb");
+			char file_path[256];
+			sprintf(file_path, "pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+			FILE* fp = fopen(file_path, "wb");
 			if (m_pVideo) {
 				m_pVideo->WriteBmpHeader(fp);
 			}
 			fwrite(decompressed, 1, decompressed_len, fp);
 			fclose(fp);
 			if (m_CallbackPicture) {
-				m_CallbackPicture(m_FilePath);
+				m_CallbackPicture(file_path);
 			}
 		}
 	}

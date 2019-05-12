@@ -51,10 +51,16 @@ bool Daemon::connect_mcu(const string& url)
 		printf("connect mcu failed\n");
 		return false;
 	}
+	m_ProxyClient.set_proxy_flag(true);
+	if (!m_ProxyClient.connect(url, true, false)) {
+		printf("connect proxy failed\n");
+		return false;
+	}
 
 	printf("send connect msg\n");
 	m_McuClient.set_video_event(&m_Video);
 	m_McuClient.send_connect();
+	m_ProxyClient.send_connect();
 	m_bQuit = false;
 	m_pHeartbeatID = new thread(&Daemon::HeartbeatThread, this);
 	return true;
@@ -82,32 +88,32 @@ void Daemon::set_picture_callback(PictureCallback on_picture)
 
 void Daemon::start_operate()
 {
-	m_McuClient.send_operate();
+	m_ProxyClient.send_operate();
 }
 
 void Daemon::set_operater_callback(OperaterCallback on_operater)
 {
-	m_McuClient.set_operater_callback(on_operater);
+	m_ProxyClient.set_operater_callback(on_operater);
 }
 
 void Daemon::send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask)
 {
-	m_McuClient.send_mouse_event(x, y, button_mask);
+	m_ProxyClient.send_mouse_event(x, y, button_mask);
 }
 
 void Daemon::set_mouse_callback(MouseCallback on_mouse)
 {
-	m_McuClient.set_mouse_callback(on_mouse);
+	m_ProxyClient.set_mouse_callback(on_mouse);
 }
 
 void Daemon::send_keyboard_event(unsigned int key_val, bool is_pressed)
 {
-	m_McuClient.send_keyboard_event(key_val, is_pressed);
+	m_ProxyClient.send_keyboard_event(key_val, is_pressed);
 }
 
 void Daemon::set_keyboard_callback(KeyboardCallback on_keyboard)
 {
-	m_McuClient.set_keyboard_callback(on_keyboard);
+	m_ProxyClient.set_keyboard_callback(on_keyboard);
 }
 
 void Daemon::OnVideoEncoded(void* data)
