@@ -70,7 +70,6 @@ private:
 	bool m_bResetSequence;
 	bool m_bForceKeyframe;
 	bool m_bLockScreen;
-	bool m_bSendPic;
 	int m_iFrameRate;
 
 	void* m_hRenderWin;
