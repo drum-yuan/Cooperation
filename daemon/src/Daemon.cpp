@@ -44,6 +44,11 @@ void Daemon::show_stream(void* hWnd)
 	m_bWait = false;
 }
 
+void Daemon::get_stream_size(int* width, int* height)
+{
+	m_Video.GetStreamSize(width, height);
+}
+
 bool Daemon::connect_mcu(const string& url)
 {
 	m_McuUrl = url;
@@ -128,7 +133,8 @@ void Daemon::OnLockScreen(unsigned char* data, int len)
 
 void Daemon::HeartbeatThread()
 {
-	uint32_t retry = 3;
+	int retry = 3;
+	int pause_cnt = 0;
 
 	while (!m_bQuit)
 	{
@@ -154,15 +160,15 @@ void Daemon::HeartbeatThread()
 			}
 		}
 		else {
-			if (m_McuClient.get_video_ack_seq() == m_LastVideoAckSeq) {
-				if (m_CallbackStop && !m_bWait) {
+			if (m_McuClient.get_video_ack_seq() == m_LastVideoAckSeq && !m_bWait) {
+				pause_cnt++;
+				if (m_CallbackStop && pause_cnt > 5) {
 					m_CallbackStop();
 					m_bWait = true;
+					pause_cnt = 0;
 				}
 			}
-			else {
-				m_LastVideoAckSeq = m_McuClient.get_video_ack_seq();
-			}
+			m_LastVideoAckSeq = m_McuClient.get_video_ack_seq();
 		}
 		Sleep(100);
 	}

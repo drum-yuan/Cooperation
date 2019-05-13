@@ -41,6 +41,13 @@ void daemon_show_stream(void* hwnd)
 	}
 }
 
+void daemon_get_stream_size(int* width, int* height)
+{
+	if (s_pDaemon != NULL) {
+		s_pDaemon->get_stream_size(width, height);
+	}
+}
+
 void daemon_set_start_stream_callback(StartStreamCallback on_stream)
 {
 	if (s_pDaemon != NULL) {

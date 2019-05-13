@@ -81,12 +81,8 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 		is_ok = dp->__init_mirror(TRUE);
 		if (is_ok) m_GrabType = GRAB_TYPE_MIRROR;
 		else {
-			is_ok = dp->__init_directx(TRUE);
-			if (is_ok) m_GrabType = GRAB_TYPE_DIRECTX;
-			else {
-				is_ok = dp->__init_gdi(TRUE);
-				if (is_ok) m_GrabType = GRAB_TYPE_GDI;
-			}
+			is_ok = dp->__init_gdi(TRUE);
+			if (is_ok) m_GrabType = GRAB_TYPE_GDI;
 		}
 		dp->m_GrabType = m_GrabType;
 	}
@@ -95,20 +91,6 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 	}
 	else if (m_GrabType == GRAB_TYPE_DIRECTX) {
 		is_ok = dp->__init_directx(TRUE);
-		if (!is_ok) {
-			is_ok = dp->__init_mirror(TRUE);
-			if (is_ok) {
-				m_GrabType = GRAB_TYPE_MIRROR;
-				dp->m_GrabType = m_GrabType;
-			}
-			else {
-				is_ok = dp->__init_gdi(TRUE);
-				if (is_ok) {
-					m_GrabType = GRAB_TYPE_GDI;
-					dp->m_GrabType = m_GrabType;
-				}
-			}
-		}
 	}
 	else if (m_GrabType == GRAB_TYPE_GDI) {
 		is_ok = dp->__init_gdi(TRUE);

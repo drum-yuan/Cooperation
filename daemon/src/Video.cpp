@@ -298,7 +298,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	pDLayer->iVideoHeight = m_iFrameH;
 	pDLayer->fFrameRate = (float)m_iFrameRate;
 	pDLayer->iSpatialBitrate = 2500000;
-	pDLayer->iMaxSpatialBitrate = 0;
+	pDLayer->iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
 }
 
 void Video::Encode()
@@ -642,4 +642,10 @@ bool Video::IsPublisher()
 void Video::SetPublisher(bool is_Publisher)
 {
 	m_bPublisher = is_Publisher;
+}
+
+void Video::GetStreamSize(int* width, int* height)
+{
+	*width = m_iFrameW;
+	*height = m_iFrameH;
 }

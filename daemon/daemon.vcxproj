@@ -104,7 +104,8 @@
     <PostBuildEvent>
       <Command>copy $(SolutionDir)$(Configuration)\daemon.lib ..\MFCClient\libs\
 copy $(SolutionDir)\src\DaemonApi.h ..\MFCClient
-copy $(SolutionDir)$(Configuration)\daemon.dll ..\MFCClient\$(Configuration)\</Command>
+copy $(SolutionDir)$(Configuration)\daemon.dll ..\MFCClient\$(Configuration)\
+copy $(SolutionDir)$(Configuration)\capture.dll ..\MFCClient\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

@@ -34,6 +34,7 @@ public:
 	void WriteBmpHeader(FILE* fp);
 	bool IsPublisher();
 	void SetPublisher(bool is_Publisher);
+	void GetStreamSize(int* width, int* height);
 	void start();
 	void stop();
 	void pause();
