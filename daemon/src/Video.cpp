@@ -22,7 +22,6 @@ Video::Video():m_iFrameW(0),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
-				m_bSendPic(false),
 				m_iFrameRate(30)
 {
 	m_pEncoder = NULL;
@@ -63,7 +62,6 @@ Video::~Video()
 void Video::SetRenderWin(void* hWnd)
 {
 	m_hRenderWin = hWnd;
-	m_bSendPic = false;
 	m_bLockScreen = false;
 }
 
@@ -152,11 +150,11 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 {
 	Video* video = (Video*)param;
 
-	if (!video->m_bSendPic && video->m_bLockScreen) {
+	if (video->m_bLockScreen) {
 		if (video->onLockScreen) {
 			video->onLockScreen((unsigned char*)frame->buffer, frame->length);
 		}
-		video->m_bSendPic = true;
+		video->m_bLockScreen = false;
 		return;
 	}
 
@@ -485,7 +483,7 @@ void Video::DXVA2Render()
 	m_iFrameH = m_HwVideoFrame->height;
 
 	EnterCriticalSection(&m_Cs);
-	//Ö±½ÓäÖÈ¾
+	//Ö±È¾
 	ret = priv->d3d9device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
 	if (ret < 0) {
 		printf("Clear failed\n");
