@@ -28,7 +28,7 @@ typedef void (*MouseCallback)(unsigned int x, unsigned int y, unsigned int butto
 typedef void (*KeyboardCallback)(unsigned int key_val, bool is_pressed);
 
 //启动daemon(包含网络初始连接)
-DAEMON_API void daemon_start(const char* url);
+DAEMON_API bool daemon_start(const char* url);
 //停止daemon(包含断开连接)
 DAEMON_API void daemon_stop();
 //开始直播
