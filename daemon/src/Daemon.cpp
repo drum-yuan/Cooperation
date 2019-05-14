@@ -162,11 +162,13 @@ void Daemon::HeartbeatThread()
 		else {
 			if (m_McuClient.get_video_ack_seq() == m_LastVideoAckSeq && !m_bWait) {
 				pause_cnt++;
-				if (m_CallbackStop && pause_cnt > 5) {
+				if (m_CallbackStop && pause_cnt > 10) {
 					m_CallbackStop();
 					m_bWait = true;
-					pause_cnt = 0;
 				}
+			}
+			else {
+				pause_cnt = 0;
 			}
 			m_LastVideoAckSeq = m_McuClient.get_video_ack_seq();
 		}
