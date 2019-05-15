@@ -6,9 +6,6 @@ Daemon::Daemon()
 {
 	m_pHeartbeatID = NULL;
 	m_bQuit = true;
-	m_CallbackStop = NULL;
-	m_LastVideoAckSeq = 0;
-	m_bWait = true;
 }
 
 Daemon::~Daemon()
@@ -21,6 +18,7 @@ Daemon::~Daemon()
 		delete m_pHeartbeatID;
 		m_pHeartbeatID = NULL;
 	}
+	m_McuClient.stop();
 	stop_stream();
 }
 
@@ -33,7 +31,7 @@ void Daemon::start_stream()
 
 void Daemon::stop_stream()
 {
-	m_McuClient.stop();
+	m_McuClient.send_stop_stream();;
 	m_Video.stop();
 }
 
@@ -41,7 +39,6 @@ void Daemon::show_stream(void* hWnd)
 {
 	m_Video.SetRenderWin(hWnd);
 	m_McuClient.send_keyframe_request(true);
-	m_bWait = false;
 }
 
 void Daemon::get_stream_size(int* width, int* height)
@@ -78,7 +75,7 @@ void Daemon::set_start_stream_callback(StartStreamCallback on_stream)
 
 void Daemon::set_stop_stream_callback(StopStreamCallback on_stop)
 {
-	m_CallbackStop = on_stop;
+	m_McuClient.set_stop_stream_callback(on_stop);
 }
 
 void Daemon::send_picture()
@@ -134,7 +131,6 @@ void Daemon::OnLockScreen(unsigned char* data, int len)
 void Daemon::HeartbeatThread()
 {
 	int retry = 3;
-	int pause_cnt = 0;
 
 	while (!m_bQuit)
 	{
@@ -155,22 +151,9 @@ void Daemon::HeartbeatThread()
 					m_McuClient.send_publish();
 				}
 				else {
-					m_McuClient.send_keyframe_request(true);
+					m_McuClient.continue_show_stream();
 				}
 			}
-		}
-		else {
-			if (m_McuClient.get_video_ack_seq() == m_LastVideoAckSeq && !m_bWait) {
-				pause_cnt++;
-				if (m_CallbackStop && pause_cnt > 10) {
-					m_CallbackStop();
-					m_bWait = true;
-				}
-			}
-			else {
-				pause_cnt = 0;
-			}
-			m_LastVideoAckSeq = m_McuClient.get_video_ack_seq();
 		}
 		Sleep(100);
 	}

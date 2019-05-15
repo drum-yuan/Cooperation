@@ -61,7 +61,6 @@ SocketsClient::SocketsClient() : m_Proxy(false),
 	m_CallbackOperater = NULL;
 	m_CallbackMouse = NULL;
 	m_CallbackKeyboard = NULL;
-	m_CurVideoAckSeq = 0;
 }
 
 SocketsClient::~SocketsClient()
@@ -251,11 +250,6 @@ bool SocketsClient::is_connected()
 	return m_State == ConnectStateEstablished;
 }
 
-unsigned int SocketsClient::get_video_ack_seq()
-{
-	return m_CurVideoAckSeq;
-}
-
 int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 {
 	if (m_State != ConnectStateEstablished)
@@ -270,9 +264,21 @@ int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 	return ret;
 }
 
+void SocketsClient::continue_show_stream()
+{
+	if (m_CallbackStream) {
+		m_CallbackStream();
+	}
+}
+
 void SocketsClient::set_start_stream_callback(StartStreamCallback on_stream)
 {
 	m_CallbackStream = on_stream;
+}
+
+void SocketsClient::set_stop_stream_callback(StopStreamCallback on_stop)
+{
+	m_CallbackStop = on_stop;
 }
 
 void SocketsClient::set_picture_callback(PictureCallback on_recv)
@@ -328,7 +334,6 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			}
 		}
 		send_video_ack(sequence);
-		m_CurVideoAckSeq = sequence;
 	}
 		break;
 	case kMsgTypeVideoAck:
@@ -437,6 +442,13 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		}
 	}
 		break;
+	case kMsgTypeStopStreamAck:
+	{
+		if (m_CallbackStop) {
+			m_CallbackStop();
+		}
+	}
+		break;
 	default:
 		printf("handle_in unknown msg type %d\n", uType);
 		break;
@@ -461,6 +473,18 @@ void SocketsClient::send_publish()
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypePublish);
+	header.length = 0;
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_stop_stream()
+{
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeStopStream);
 	header.length = 0;
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());

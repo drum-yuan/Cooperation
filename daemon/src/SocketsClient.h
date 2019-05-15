@@ -26,10 +26,11 @@ public:
 	void stop();
 	void reset();
 	bool is_connected();
-	unsigned int get_video_ack_seq();
 
 	int send_msg(unsigned char* payload, unsigned int msglen);
+	void continue_show_stream();
 	void set_start_stream_callback(StartStreamCallback on_stream);
+	void set_stop_stream_callback(StopStreamCallback on_stop);
 	void set_picture_callback(PictureCallback on_recv);
 	void set_operater_callback(OperaterCallback on_operater);
 	void set_mouse_callback(MouseCallback on_mouse);
@@ -38,6 +39,7 @@ public:
 
 	void send_connect();
 	void send_publish();
+	void send_stop_stream();
 	void send_video_data(void* data);
 	void send_video_ack(unsigned int sequence);
 	void send_keyframe_request(bool reset_seq);
@@ -75,5 +77,5 @@ private:
 	OperaterCallback m_CallbackOperater;
 	MouseCallback m_CallbackMouse;
 	KeyboardCallback m_CallbackKeyboard;
-	unsigned int m_CurVideoAckSeq;
+	StopStreamCallback m_CallbackStop;
 };

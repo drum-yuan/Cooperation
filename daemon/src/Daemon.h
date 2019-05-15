@@ -35,7 +35,4 @@ private:
 	string m_McuUrl;
 	thread* m_pHeartbeatID;
 	bool m_bQuit;
-	StopStreamCallback m_CallbackStop;
-	unsigned int m_LastVideoAckSeq;
-	bool m_bWait;
 };
