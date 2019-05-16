@@ -19,6 +19,7 @@ Daemon::~Daemon()
 		m_pHeartbeatID = NULL;
 	}
 	m_McuClient.stop();
+	m_ProxyClient.stop();
 	stop_stream();
 }
 

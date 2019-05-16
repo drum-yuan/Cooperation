@@ -201,7 +201,7 @@ bool SocketsClient::connect(std::string url, bool blocking, bool ssl)
 {
 	m_ServerUrl = url;
 	m_UseSSL = ssl;
-	//reset();
+	reset();
 	m_wsthread = new std::thread(&SocketsClient::RunWebSocketClient, this);
 
 	if (blocking && m_State != ConnectStateEstablished)
