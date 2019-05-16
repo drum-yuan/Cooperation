@@ -498,6 +498,7 @@ void SocketsClient::send_video_data(void* data)
 	int iFrameSize = CalcFrameSize(data);
 	if (!iFrameSize) {
 		printf("frame size 0\n");
+		cap_set_capture_sequence(cap_get_capture_sequence() - 1);
 		return;
 	}
 

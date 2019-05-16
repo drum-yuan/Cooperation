@@ -61,6 +61,13 @@ unsigned int cap_get_capture_sequence()
 	return s_pCapture->get_capture_sequence();
 }
 
+void cap_set_capture_sequence(unsigned int seq)
+{
+	if (s_pCapture != NULL) {
+		s_pCapture->set_capture_sequence(seq);
+	}
+}
+
 void cap_reset_sequence()
 {
 	if (s_pCapture != NULL) {

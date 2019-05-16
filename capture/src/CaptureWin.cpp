@@ -157,7 +157,6 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 			else if (m_GrabType == GRAB_TYPE_GDI) {
 				dp->capture_gdi();
 			}
-			dp->m_CaptureSeq++;
 			QueryPerformanceCounter(&dp->frame_end);
 
 			LONGLONG dt = (dp->frame_end.QuadPart - dp->frame_begin.QuadPart) * 1000 / dp->counter.QuadPart;
@@ -253,6 +252,7 @@ void CCapture::change_display(int w, int h, int bits)
 #else
 		m_Mirror.buffer = NULL;
 #endif
+		m_Mirror.index = -1;
 	}
 
 	DEVMODE devmode;
@@ -285,6 +285,11 @@ void CCapture::set_ack_sequence(unsigned int seq)
 unsigned int CCapture::get_capture_sequence()
 {
 	return m_CaptureSeq;
+}
+
+void CCapture::set_capture_sequence(unsigned int seq)
+{
+	m_CaptureSeq = seq;
 }
 
 void CCapture::reset_sequence()
@@ -512,20 +517,27 @@ void CCapture::capture_mirror()
 	if (!m_Mirror.buffer.Userbuffer && abs(time(0) - m_Mirror.last_check_drawbuf_time) > 5) {
 		m_Mirror.last_check_drawbuf_time = time(0);
 		map_and_unmap_buffer(m_Mirror.disp.DeviceName, TRUE, &m_Mirror.buffer);
+		//printf("map mirror buffer\n");
 	}
 	if (!m_Mirror.buffer.Userbuffer) {
 		return;
 	}
 
-	CallbackFrameInfo frm;
+	//printf("mirror buffer counter %d\n", m_Mirror.buffer.buffer->counter);
+	if (m_Mirror.buffer.buffer->counter != m_Mirror.index) {
+		m_Mirror.index = m_Mirror.buffer.buffer->counter;
 
-	frm.width = GetSystemMetrics(SM_CXSCREEN);
-	frm.height = GetSystemMetrics(SM_CYSCREEN);
-	frm.line_bytes = frm.width * 4;
-	frm.line_stride = frm.width * 4;
-	frm.bitcount = 32;
-	frm.buffer = (char*)m_Mirror.buffer.Userbuffer;
-	frm.length = frm.width * frm.height * 4;
+		CallbackFrameInfo frm;
+		frm.width = GetSystemMetrics(SM_CXSCREEN);
+		frm.height = GetSystemMetrics(SM_CYSCREEN);
+		frm.line_bytes = frm.width * 4;
+		frm.line_stride = frm.width * 4;
+		frm.bitcount = 32;
+		frm.buffer = (char*)m_Mirror.buffer.Userbuffer;
+		frm.length = frm.width * frm.height * 4;
+		onFrame(&frm, onframe_param);
+		m_CaptureSeq++;
+	}
 #else
 	if (!m_Mirror.buffer && abs(time(0) - m_Mirror.last_check_drawbuf_time) > 5) {
 		m_Mirror.last_check_drawbuf_time = time(0);
@@ -536,7 +548,6 @@ void CCapture::capture_mirror()
 	}
 
 	CallbackFrameInfo frm;
-
 	frm.width = m_Mirror.buffer->cx;
 	frm.height = m_Mirror.buffer->cy;
 	frm.line_bytes = m_Mirror.buffer->line_bytes;
@@ -544,8 +555,9 @@ void CCapture::capture_mirror()
 	frm.bitcount = m_Mirror.buffer->bitcount;
 	frm.buffer = (char*)m_Mirror.buffer->data_buffer;
 	frm.length = m_Mirror.buffer->data_length;
-#endif
 	onFrame(&frm, onframe_param);
+	m_CaptureSeq++;
+#endif
 }
 
 void CCapture::capture_dxgi()
@@ -635,6 +647,7 @@ L:
 	frm.buffer = (char*)m_Directx.buffer;
 	frm.length = m_Directx.line_stride * m_Directx.cy;
 	onFrame(&frm, onframe_param);
+	m_CaptureSeq++;
 }
 
 void CCapture::capture_gdi()
@@ -655,6 +668,7 @@ void CCapture::capture_gdi()
 	frm.buffer = (char*)m_GDI.buffer;
 	frm.length = m_GDI.line_stride * m_GDI.cy;
 	onFrame(&frm, onframe_param);
+	m_CaptureSeq++;
 }
 
 BOOL CCapture::__init_mirror(BOOL is_init)
@@ -674,6 +688,7 @@ BOOL CCapture::__init_mirror(BOOL is_init)
 		else {
 			m_Mirror.is_active = TRUE;
 		}
+		m_Mirror.index = -1;
 		return m_Mirror.is_active;
 	}
 	else { // deinit
@@ -689,7 +704,7 @@ BOOL CCapture::__init_mirror(BOOL is_init)
 
 		m_Mirror.is_active = FALSE;
 		r = active_mirror_driver(FALSE, &m_Mirror.disp);
-
+		m_Mirror.index = -1;
 		printf("unload mirror driver ret=%d\n", r);
 		return TRUE;
 	}

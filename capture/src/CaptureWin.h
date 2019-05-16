@@ -34,6 +34,7 @@ struct dp_rect_t
 struct __mirror_cap_t
 {
 	BOOL             is_active;
+	unsigned long	 index;
 	DISPLAY_DEVICE   disp;
 	time_t           last_check_drawbuf_time;
 #ifdef DMF_MIRROR
@@ -98,6 +99,7 @@ public:
 	void set_drop_interval(unsigned int count);
 	void set_ack_sequence(unsigned int seq);
 	unsigned int get_capture_sequence();
+	void set_capture_sequence(unsigned int seq);
 	void reset_sequence();
 	void set_frame_rate(unsigned int rate);
 
@@ -165,8 +167,8 @@ private:
 #define SAFE_FREE(a) if(a){ free(a); (a)=NULL; }
 
 #ifdef DMF_MIRROR
-#define MIRROR_DRIVER   "Drumjun Mirror Display Driver"
+#define MIRROR_DRIVER   "XieTong Mirror Display Driver"
 #else
-#define MIRROR_DRIVER   "DrumjunHF Mirror Display Driver"
-#define VIRTUAL_DRIVER  "DrumjunHF Virtual Display Driver (XPDM for WinXP Only)"
+#define MIRROR_DRIVER   "XieTong Mirror Display Driver"
+#define VIRTUAL_DRIVER  "XieTong Virtual Display Driver (XPDM for WinXP Only)"
 #endif

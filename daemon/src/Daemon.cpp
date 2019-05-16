@@ -153,6 +153,22 @@ void Daemon::HeartbeatThread()
 				else {
 					m_McuClient.continue_show_stream();
 				}
+				retry = 3;
+			}
+		}
+		if (!m_ProxyClient.is_connected() && retry)
+		{
+			if (!m_ProxyClient.connect(m_McuUrl, true, false))
+			{
+				printf("reconnect proxy failed\n");
+				if (!--retry)
+				{
+					break;
+				}
+			}
+			else
+			{
+				retry = 3;
 			}
 		}
 		Sleep(100);

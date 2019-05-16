@@ -30,6 +30,8 @@ CAPTURE_API void cap_set_ack_sequence(unsigned int seq);
 
 CAPTURE_API unsigned int cap_get_capture_sequence();
 
+CAPTURE_API void cap_set_capture_sequence(unsigned int seq);
+
 CAPTURE_API void cap_reset_sequence();
 
 CAPTURE_API void cap_set_frame_rate(unsigned int rate);

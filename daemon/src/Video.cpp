@@ -22,7 +22,7 @@ Video::Video():m_iFrameW(0),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
-				m_iFrameRate(30)
+				m_iFrameRate(40)
 {
 	m_pEncoder = NULL;
 	onEncoded = NULL;
@@ -238,7 +238,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.fMaxFrameRate = 30;    // input frame rate
 	sParam.iPicWidth = m_iFrameW;         // width of picture in samples
 	sParam.iPicHeight = m_iFrameH;         // height of picture in samples
-	sParam.iTargetBitrate = 2500000; // target bitrate desired
+	sParam.iTargetBitrate = 1500000; // target bitrate desired
 	sParam.iMaxBitrate = UNSPECIFIED_BIT_RATE;
 	sParam.iRCMode = RC_BITRATE_MODE;      //  rc mode control
 	sParam.iTemporalLayerNum = 1;          // layer number at temporal level
@@ -247,7 +247,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.bEnableDenoise = 0;             // denoise control
 	sParam.bEnableBackgroundDetection = 0; // background detection control
 	sParam.bEnableAdaptiveQuant = 0;       // adaptive quantization control
-	sParam.bEnableFrameSkip = 0;           // frame skipping
+	sParam.bEnableFrameSkip = 1;           // frame skipping
 	sParam.bEnableLongTermReference = 0;   // long term reference control
 	sParam.iLtrMarkPeriod = 30;
 	//sParam.uiIntraPeriod = 320; // period of Intra frame
@@ -295,7 +295,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	pDLayer->iVideoWidth = m_iFrameW;
 	pDLayer->iVideoHeight = m_iFrameH;
 	pDLayer->fFrameRate = (float)m_iFrameRate;
-	pDLayer->iSpatialBitrate = 2500000;
+	pDLayer->iSpatialBitrate = 1500000;
 	pDLayer->iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
 }
 
