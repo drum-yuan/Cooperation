@@ -169,6 +169,7 @@ void Daemon::HeartbeatThread()
 			}
 			else
 			{
+				m_ProxyClient.send_connect();
 				retry = 3;
 			}
 		}
