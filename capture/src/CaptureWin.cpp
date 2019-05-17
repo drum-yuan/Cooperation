@@ -515,6 +515,108 @@ LPSTR CCapture::GetDispCode(INT code)
 	}
 }
 
+void CCapture::combine_rectangle(byte* primary_buffer, byte* second_buffer, int line_stride, LPRECT rect, LPSIZE screen,
+	int bitcount, int SMALL_WIDTH, int SMALL_HEIGHT, HRGN& region)
+{
+	int x, y;
+	int num_bit = (bitcount >> 3);
+	byte* dst_buf = primary_buffer;
+	byte* bak_buf = second_buffer;
+
+	for (y = max(rect->top, 0); y < rect->bottom; y += SMALL_HEIGHT) {
+		int h = min(SMALL_HEIGHT, rect->bottom - y);
+		for (x = max(rect->left, 0); x < rect->right; x += SMALL_WIDTH) {
+			int w = min(SMALL_WIDTH, rect->right - x);
+			int x2 = x + w;
+			int y2 = y + h;
+			if (x < 0) { x = 0; }
+			else if (x >= screen->cx) { x = screen->cx; }
+			if (y < 0) { y = 0; }
+			else if (y >= screen->cy) { y = screen->cy; }
+			if (x2 >= screen->cx) x2 = screen->cx; if (x2 <= x)continue;
+			if (y2 >= screen->cy) y2 = screen->cy; if (y2 <= y)continue;
+
+			w = x2 - x;
+			h = y2 - y;
+			int base_pos = line_stride*y + x*num_bit;
+			int line_bytes = w*num_bit;
+
+			int i;
+			bool is_dirty = false;
+#define    REP_CD(II) \
+			if( !is_dirty){ \
+				for (i = II; i < h; i += 5) { /*隔行扫描*/ \
+					int pos = base_pos + line_stride*i;\
+					if (memcmp(dst_buf + pos, bak_buf + pos, line_bytes) != 0) { is_dirty = true; break; }\
+				}\
+			}
+			REP_CD(0); REP_CD(1);
+			REP_CD(2); REP_CD(3); REP_CD(4);
+
+			if (is_dirty) {
+				if (!region) {
+					region = CreateRectRgn(x, y, x2, y2);
+				}
+				else {
+					HRGN n_rgn = CreateRectRgn(x, y, x2, y2);
+					if (n_rgn) {
+						if (CombineRgn(region, region, n_rgn, RGN_OR) == NULLREGION) { //矩形框可能有重叠，因此首先组成HRGN区域，然后再计算出合并之后的矩形框
+							printf("CombineRgn [%d, %d, %d, %d} err=%d\n", x, y, x2, y2, GetLastError());
+							DeleteObject(region);
+							region = NULL;
+						}
+						DeleteObject(n_rgn);
+					}
+				}
+			}
+		}
+	}
+}
+
+void CCapture::region_to_rectangle(HRGN region, byte* dst_buf, int line_stride,
+	int cx, int cy, int bitcount, ChangedRects** p_rc_array, int* p_rc_count)
+{
+	ChangedRects* rc = NULL;
+	DWORD idx = 0;
+	int num_bit = (bitcount >> 3);
+
+	DWORD size = GetRegionData(region, NULL, NULL);
+	tbuf_check(&m_tArr[0], size);
+	LPRGNDATA rgnData = (LPRGNDATA)m_tArr[0].buf;
+	if (GetRegionData(region, size, rgnData)) {
+		DWORD cnt = rgnData->rdh.nCount;
+		DWORD sz = cnt * sizeof(ChangedRects);
+		tbuf_check(&m_tArr[1], sz);
+		rc = (ChangedRects*)m_tArr[1].buf;
+		LPRECT src_rc = (LPRECT)rgnData->Buffer;
+		unsigned int i;
+		for (i = 0; i < cnt; ++i) {
+			ChangedRects* c = &rc[idx];;
+			//裁剪矩形框，保证在可视区域
+			int x = src_rc[i].left;
+			if (x < 0) { x = 0; }
+			else if (x >= cx) { x = cx; }
+			int y = src_rc[i].top;
+			if (y < 0) { y = 0; }
+			else if (y >= cy) { y = cy; }
+			int x2 = src_rc[i].right;
+			if (x2 >= cx) x2 = cx;
+			if (x2 <= x) continue;
+			int y2 = src_rc[i].bottom;
+			if (y2 >= cy) y2 = cy;
+			if (y2 <= y) continue;
+			c->left = x;
+			c->top = y;
+			c->right = x2;
+			c->bottom = y2;
+			c->buffer = (char*)dst_buf + line_stride * y + x * num_bit;
+			++idx;
+		}
+	}
+	*p_rc_array = rc;
+	*p_rc_count = idx;
+}
+
 void CCapture::capture_mirror()
 {
 #ifdef DMF_MIRROR
@@ -664,17 +766,34 @@ void CCapture::capture_gdi()
 	BitBlt(m_GDI.memdc, 0, 0, m_GDI.cx, m_GDI.cy, hdc, 0, 0, SRCCOPY | CAPTUREBLT);
 	ReleaseDC(NULL, hdc);
 
-	CallbackFrameInfo frm;
+	HRGN region = NULL;
+	SIZE screenSize;
+	screenSize.cx = m_GDI.cx;
+	screenSize.cy = m_GDI.cy;
+	RECT screeRc = { 0, 0, m_GDI.cx, m_GDI.cy };
+	combine_rectangle(m_GDI.buffer, m_GDI.back_buf, m_GDI.line_stride, &screeRc, &screenSize, m_GDI.bitcount,
+		GDI_SMALL_RECT_WIDTH, GDI_SMALL_RECT_HEIGHT, region);
 
-	frm.width = m_GDI.cx;
-	frm.height = m_GDI.cy;
-	frm.line_bytes = m_GDI.line_bytes;
-	frm.line_stride = m_GDI.line_stride;
-	frm.bitcount = m_GDI.bitcount;
-	frm.buffer = (char*)m_GDI.buffer;
-	frm.length = m_GDI.line_stride * m_GDI.cy;
-	onFrame(&frm, onframe_param);
-	m_CaptureSeq++;
+	int rc_count = 0;
+	ChangedRects* rc_array = NULL;
+	if (region) {
+		region_to_rectangle(region, m_GDI.buffer, m_GDI.line_stride, m_GDI.cx, m_GDI.cy,
+			m_GDI.bitcount, &rc_array, &rc_count);
+		DeleteObject(region);
+	}
+	if (rc_count > 0) {
+		memcpy(m_GDI.back_buf, m_GDI.buffer, m_GDI.line_stride * m_GDI.cy);
+		CallbackFrameInfo frm;
+		frm.width = m_GDI.cx;
+		frm.height = m_GDI.cy;
+		frm.line_bytes = m_GDI.line_bytes;
+		frm.line_stride = m_GDI.line_stride;
+		frm.bitcount = m_GDI.bitcount;
+		frm.buffer = (char*)m_GDI.buffer;
+		frm.length = m_GDI.line_stride * m_GDI.cy;
+		onFrame(&frm, onframe_param);
+		m_CaptureSeq++;
+	}
 }
 
 BOOL CCapture::__init_mirror(BOOL is_init)

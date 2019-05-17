@@ -20,16 +20,6 @@
 #define GRAB_TYPE_DIRECTX   2
 #define GRAB_TYPE_GDI       3
 
-struct dp_rect_t
-{
-	RECT   rc;             ///发生变化的矩形框
-
-	char*  line_buffer;    ///矩形框数据起始地址
-	int    line_bytes;     ///每行（矩形框width对应）的数据长度
-	int    line_nextpos;   ///从0开始，第N行的数据地址: line_buffer + N*line_nextpos 。
-	int    line_count;     ///等于矩形框高度 height
-};
-
 //镜像驱动抓屏
 struct __mirror_cap_t
 {
@@ -73,6 +63,22 @@ struct __gdi_cap_t
 	HDC        memdc;
 	HBITMAP    hbmp;
 	byte*      buffer;
+	byte*      back_buf;
+};
+
+struct ChangedRects
+{
+	unsigned short left;
+	unsigned short top;
+	unsigned short right;
+	unsigned short bottom;
+	char*  buffer;    //矩形框数据起始地址
+};
+
+struct __tbuf_t
+{
+	int    size;
+	void*  buf;
 };
 
 typedef HRESULT(WINAPI *fnD3D11CreateDevice)(
@@ -125,6 +131,18 @@ private:
 	BOOL find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_primary, int id);
 	BOOL active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp);
 	LPSTR GetDispCode(INT code);
+	void combine_rectangle(byte* primary_buffer, byte* second_buffer, int line_stride, LPRECT rect, LPSIZE screen,
+		int bitcount, int SMALL_WIDTH, int SMALL_HEIGHT, HRGN& region);
+	void region_to_rectangle(HRGN region, byte* dst_buf, int line_stride,
+		int cx, int cy, int bitcount, ChangedRects** p_rc_array, int* p_rc_count);
+	inline void tbuf_check(__tbuf_t* arr, int size)
+	{
+		if (!arr->buf || arr->size < size) {
+			if (arr->buf) free(arr->buf);
+			arr->buf = malloc(size);
+			arr->size = size;
+		}
+	}
 
 	int              m_GrabType;   // 抓屏方法: 0 自动选择，1 mirror，2 DX抓屏，3 GDI抓屏
 	int				 m_MonitorID;
@@ -138,6 +156,7 @@ private:
 	HWND             m_hMessageWnd;
 	HANDLE           m_hThread;
 	HANDLE           m_hEvent;
+	__tbuf_t         m_tArr[2];
 
 	unsigned int	 m_IntervalCnt;
 	unsigned int	 m_AckSeq;
@@ -149,10 +168,6 @@ private:
 	LARGE_INTEGER	 frame_begin;
 	LARGE_INTEGER	 frame_end;
 };
-
-#define USE_MIRROR_DIRTY_RECT   1   //使用mirror镜像驱动自己生成的脏矩形区域
-
-#define USE_DXGI_DIRTY_RECT     1   //使用DXGI的 GetFrameDirtyRect获取更新的区域
 
 
 //计算小矩形像素
