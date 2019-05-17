@@ -405,14 +405,24 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	}
 		break;
 	case kMsgTypeOperate:
+	{
 		if (m_CallbackOperater) {
 			m_CallbackOperater(true);
 		}
+		if (m_pVideo) {
+			m_pVideo->SetOperater(true);
+		}
+	}
 		break;
 	case kMsgTypeOperateAck:
+	{
 		if (m_CallbackOperater) {
 			m_CallbackOperater(false);
 		}
+		if (m_pVideo) {
+			m_pVideo->SetOperater(false);
+		}
+	}
 		break;
 	case kMsgTypeMouseEvent:
 	{

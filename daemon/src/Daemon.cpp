@@ -170,6 +170,9 @@ void Daemon::HeartbeatThread()
 			else
 			{
 				m_ProxyClient.send_connect();
+				if (m_Video.IsOperater()) {
+					m_ProxyClient.send_operate();
+				}
 				retry = 3;
 			}
 		}

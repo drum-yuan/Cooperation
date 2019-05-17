@@ -33,7 +33,9 @@ public:
 	void SetOnLockScreen(onLockScreen_fp fp);
 	void WriteBmpHeader(FILE* fp);
 	bool IsPublisher();
-	void SetPublisher(bool is_Publisher);
+	void SetPublisher(bool is_publisher);
+	bool IsOperater();
+	void SetOperater(bool is_operater);
 	void GetStreamSize(int* width, int* height);
 	void start();
 	void stop();
@@ -67,6 +69,7 @@ private:
 	int m_iFrameW;
 	int m_iFrameH;
 	bool m_bPublisher;
+	bool m_bOperater;
 	bool m_bResetSequence;
 	bool m_bForceKeyframe;
 	bool m_bLockScreen;

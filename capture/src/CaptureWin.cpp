@@ -81,8 +81,12 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 		is_ok = dp->__init_mirror(TRUE);
 		if (is_ok) m_GrabType = GRAB_TYPE_MIRROR;
 		else {
-			is_ok = dp->__init_gdi(TRUE);
-			if (is_ok) m_GrabType = GRAB_TYPE_GDI;
+			is_ok = dp->__init_directx(TRUE);
+			if (is_ok) m_GrabType = GRAB_TYPE_DIRECTX;
+			else {
+				is_ok = dp->__init_gdi(TRUE);
+				if (is_ok) m_GrabType = GRAB_TYPE_GDI;
+			}
 		}
 		dp->m_GrabType = m_GrabType;
 	}
@@ -575,7 +579,7 @@ void CCapture::capture_dxgi()
 		m_Directx.dxgi_dup->ReleaseFrame();
 		m_Directx.is_acquire_frame = 0;
 	}
-	hr = m_Directx.dxgi_dup->AcquireNextFrame(0, &FrameInfo, &DesktopResource);
+	hr = m_Directx.dxgi_dup->AcquireNextFrame(100, &FrameInfo, &DesktopResource);
 	if (FAILED(hr)) {   
 		if (hr == _HRESULT_TYPEDEF_(0x887A0026L) || hr == _HRESULT_TYPEDEF_(0x887A0001L)) {
 			__init_directx(FALSE);
@@ -584,7 +588,7 @@ void CCapture::capture_dxgi()
 		}
 		if (!m_Directx.buffer)
 			return;
-		//printf("acquire frame fail 0x%X\n", hr);
+		printf("acquire frame fail 0x%X\n", hr);
 		goto L;
 	}
 	m_Directx.is_acquire_frame = 1;
@@ -635,19 +639,21 @@ void CCapture::capture_dxgi()
 
 	//获取整个帧数据
 	m_Directx.d11ctx->CopyResource(m_Directx.dxgi_text2d, image2d);
+	//printf("Meta data size %u\n", FrameInfo.TotalMetadataBufferSize);
 
 L:
-	CallbackFrameInfo frm;
-
-	frm.width = m_Directx.cx;
-	frm.height = m_Directx.cy;
-	frm.line_bytes = m_Directx.line_bytes;
-	frm.line_stride = m_Directx.line_stride;
-	frm.bitcount = m_Directx.bitcount;
-	frm.buffer = (char*)m_Directx.buffer;
-	frm.length = m_Directx.line_stride * m_Directx.cy;
-	onFrame(&frm, onframe_param);
-	m_CaptureSeq++;
+	if (FrameInfo.TotalMetadataBufferSize > 0) {
+		CallbackFrameInfo frm;
+		frm.width = m_Directx.cx;
+		frm.height = m_Directx.cy;
+		frm.line_bytes = m_Directx.line_bytes;
+		frm.line_stride = m_Directx.line_stride;
+		frm.bitcount = m_Directx.bitcount;
+		frm.buffer = (char*)m_Directx.buffer;
+		frm.length = m_Directx.line_stride * m_Directx.cy;
+		onFrame(&frm, onframe_param);
+		m_CaptureSeq++;
+	}
 }
 
 void CCapture::capture_gdi()

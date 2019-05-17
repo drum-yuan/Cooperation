@@ -483,7 +483,6 @@ void Video::DXVA2Render()
 	m_iFrameH = m_HwVideoFrame->height;
 
 	EnterCriticalSection(&m_Cs);
-	//ֱȾ
 	ret = priv->d3d9device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
 	if (ret < 0) {
 		printf("Clear failed\n");
@@ -637,9 +636,19 @@ bool Video::IsPublisher()
 	return m_bPublisher;
 }
 
-void Video::SetPublisher(bool is_Publisher)
+void Video::SetPublisher(bool is_publisher)
 {
-	m_bPublisher = is_Publisher;
+	m_bPublisher = is_publisher;
+}
+
+bool Video::IsOperater()
+{
+	return m_bOperater;
+}
+
+void Video::SetOperater(bool is_operater)
+{
+	m_bOperater = is_operater;
 }
 
 void Video::GetStreamSize(int* width, int* height)
