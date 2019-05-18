@@ -675,16 +675,16 @@ void CCapture::capture_dxgi()
 		return;
 	}
 
-	IDXGIResource* DesktopResource = 0;
-	DXGI_OUTDUPL_FRAME_INFO FrameInfo;
 	HRESULT hr;
+	IDXGIResource* DesktopResource = NULL;
+	DXGI_OUTDUPL_FRAME_INFO FrameInfo;
 	ID3D11Texture2D* image2d = NULL;
 
 	if (m_Directx.is_acquire_frame) {
 		m_Directx.dxgi_dup->ReleaseFrame();
 		m_Directx.is_acquire_frame = 0;
 	}
-	hr = m_Directx.dxgi_dup->AcquireNextFrame(100, &FrameInfo, &DesktopResource);
+	hr = m_Directx.dxgi_dup->AcquireNextFrame(0, &FrameInfo, &DesktopResource);
 	if (FAILED(hr)) {   
 		if (hr == _HRESULT_TYPEDEF_(0x887A0026L) || hr == _HRESULT_TYPEDEF_(0x887A0001L)) {
 			__init_directx(FALSE);
@@ -693,7 +693,7 @@ void CCapture::capture_dxgi()
 		}
 		if (!m_Directx.buffer)
 			return;
-		printf("acquire frame fail 0x%X\n", hr);
+		//printf("acquire frame fail 0x%X\n", hr);
 		goto L;
 	}
 	m_Directx.is_acquire_frame = 1;
@@ -702,6 +702,7 @@ void CCapture::capture_dxgi()
 	hr = DesktopResource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&image2d);
 	SAFE_RELEASE(DesktopResource);
 	if (FAILED(hr)) {
+		printf("Query Texture2D err=0x%X\n", hr);
 		return;
 	}
 
@@ -718,33 +719,28 @@ void CCapture::capture_dxgi()
 		frameDescriptor.SampleDesc.Count = 1;
 		hr = m_Directx.d11dev->CreateTexture2D(&frameDescriptor, NULL, &m_Directx.dxgi_text2d);
 		if (FAILED(hr)) {
-			m_Directx.dxgi_dup->ReleaseFrame(); 
 			printf("CreateTexture2D err=0x%X\n", hr);
 			return;
 		}
+		m_Directx.dxgi_text2d->SetEvictionPriority(DXGI_RESOURCE_PRIORITY_MAXIMUM);
 		hr = m_Directx.dxgi_text2d->QueryInterface(__uuidof(IDXGISurface), (void**)&m_Directx.dxgi_surf);
 		if (FAILED(hr)) {
 			SAFE_RELEASE(m_Directx.dxgi_text2d);
-			m_Directx.dxgi_dup->ReleaseFrame(); 
-			printf("CreateTexture2D 2 err=0x%X\n", hr);
+			printf("QueryInterface dxgi_surf err=0x%X\n", hr);
 			return;
 		}
 		hr = m_Directx.dxgi_surf->Map(&mappedRect, DXGI_MAP_READ);
 		if (FAILED(hr)) {
 			printf("Map Data buffer error\n");
-			SAFE_RELEASE(m_Directx.dxgi_text2d);
 			SAFE_RELEASE(m_Directx.dxgi_surf);
-			m_Directx.dxgi_dup->ReleaseFrame();
+			SAFE_RELEASE(m_Directx.dxgi_text2d);
 			return;
 		}
 
 		if (!m_Directx.buffer) 
 			m_Directx.buffer = (byte*)mappedRect.pBits;
 	}
-
-	//获取整个帧数据
 	m_Directx.d11ctx->CopyResource(m_Directx.dxgi_text2d, image2d);
-	//printf("Meta data size %u\n", FrameInfo.TotalMetadataBufferSize);
 
 L:
 	if (FrameInfo.TotalMetadataBufferSize > 0) {
