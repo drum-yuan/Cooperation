@@ -18,9 +18,11 @@ Daemon::~Daemon()
 		delete m_pHeartbeatID;
 		m_pHeartbeatID = NULL;
 	}
+	if (m_Video.IsPublisher()) {
+		stop_stream();
+	}
 	m_McuClient.stop();
 	m_ProxyClient.stop();
-	stop_stream();
 }
 
 void Daemon::start_stream()
@@ -32,7 +34,7 @@ void Daemon::start_stream()
 
 void Daemon::stop_stream()
 {
-	m_McuClient.send_stop_stream();;
+	m_McuClient.send_stop_stream();
 	m_Video.stop();
 }
 

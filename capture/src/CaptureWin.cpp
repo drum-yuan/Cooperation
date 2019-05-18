@@ -31,6 +31,8 @@ CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 	m_IntervalCnt = 5;
 	m_AckSeq = 0;
 	m_CaptureSeq = 0;
+
+	delay_val = 0;
 }
 
 CCapture::~CCapture()
@@ -125,33 +127,23 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 	SetEvent(hEvt);
 
 	long sleep_msec = dp->m_SleepMsec;
-
-	MSG msg;
 	BOOL bQuit = FALSE;
+	dp->delay_val = 0;
 	QueryPerformanceFrequency(&dp->counter);
-	while (!dp->m_Quit) {	
-		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-			if (msg.message == WM_QUIT) {
-				bQuit = TRUE;
-				break;
-			}
-			else {
-				DispatchMessage(&msg);
-			}
-		}
-		if (bQuit)break;
-
+	while (!dp->m_Quit) {
+		//LARGE_INTEGER last_begin = dp->frame_begin;
+		QueryPerformanceCounter(&dp->frame_begin);
+		//printf("send interval %lld ms\n", (dp->frame_begin.QuadPart - last_begin.QuadPart) * 1000 / dp->counter.QuadPart);
 		sleep_msec = dp->m_SleepMsec;
 		if (!dp->m_Pause) {
 			while ((!dp->m_Quit) && (dp->m_CaptureSeq - dp->m_AckSeq > dp->m_IntervalCnt)) {
 				//printf("Sequence D-value %d\n", dp->m_CaptureSeq - dp->m_AckSeq);
 				SleepEx(10, TRUE);
 			}
-
 			if (dp->m_Quit) {
 				goto End;
 			}
-			QueryPerformanceCounter(&dp->frame_begin);
+
 			if (m_GrabType == GRAB_TYPE_MIRROR) {
 				dp->capture_mirror();
 			}
@@ -165,13 +157,24 @@ DWORD CALLBACK CCapture::__loop_msg(void* _p)
 
 			LONGLONG dt = (dp->frame_end.QuadPart - dp->frame_begin.QuadPart) * 1000 / dp->counter.QuadPart;
 			if (dt >= dp->m_SleepMsec) {
+				dp->delay_val += ((long)dt - dp->m_SleepMsec);
 				sleep_msec = 0;
 			}
 			else {
 				sleep_msec = dp->m_SleepMsec - (long)dt;
+				if (dp->delay_val > sleep_msec) {
+					dp->delay_val -= sleep_msec;
+					sleep_msec = 0;
+				}
+				else {
+					sleep_msec -= dp->delay_val;
+					dp->delay_val = 0;
+				}
 			}
 		}
-		SleepEx(sleep_msec, TRUE);
+		if (sleep_msec > 0) {
+			SleepEx(sleep_msec, TRUE);
+		}
 	}
 
 End:
@@ -828,8 +831,8 @@ BOOL CCapture::__init_mirror(BOOL is_init)
 		}
 
 		m_Mirror.is_active = FALSE;
-		r = active_mirror_driver(FALSE, &m_Mirror.disp);
 		m_Mirror.index = -1;
+		r = active_mirror_driver(FALSE, &m_Mirror.disp);
 		printf("unload mirror driver ret=%d\n", r);
 		return TRUE;
 	}

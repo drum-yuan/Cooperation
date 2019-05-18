@@ -10,8 +10,9 @@
 #include <dxgi1_2.h>
 #ifdef DMF_MIRROR
 #include "DisplayEsc.h"
-#endif
+#else
 #include "IOCtl.h"
+#endif
 #include "CaptureApi.h"
 
 
@@ -167,12 +168,8 @@ private:
 	LARGE_INTEGER	 counter;
 	LARGE_INTEGER	 frame_begin;
 	LARGE_INTEGER	 frame_end;
+	long			 delay_val;
 };
-
-
-//计算小矩形像素
-#define MIRROR_SMALL_RECT_WIDTH    256
-#define MIRROR_SMALL_RECT_HEIGHT   256
 
 //小矩形块
 #define GDI_SMALL_RECT_WIDTH    128

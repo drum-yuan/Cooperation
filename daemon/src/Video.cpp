@@ -22,7 +22,7 @@ Video::Video():m_iFrameW(0),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
-				m_iFrameRate(40)
+				m_iFrameRate(60)
 {
 	m_pEncoder = NULL;
 	onEncoded = NULL;
@@ -235,7 +235,7 @@ void Video::CloseEncoder()
 void Video::FillSpecificParameters(SEncParamExt &sParam)
 {
 	sParam.iUsageType = SCREEN_CONTENT_REAL_TIME;
-	sParam.fMaxFrameRate = 30;    // input frame rate
+	sParam.fMaxFrameRate = 60;    // input frame rate
 	sParam.iPicWidth = m_iFrameW;         // width of picture in samples
 	sParam.iPicHeight = m_iFrameH;         // height of picture in samples
 	sParam.iTargetBitrate = 1500000; // target bitrate desired
