@@ -94,6 +94,7 @@ void Daemon::set_picture_callback(PictureCallback on_picture)
 void Daemon::start_operate()
 {
 	m_ProxyClient.send_operate();
+	m_Video.SetOperater(true);
 }
 
 void Daemon::set_operater_callback(OperaterCallback on_operater)

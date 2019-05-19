@@ -409,9 +409,6 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		if (m_CallbackOperater) {
 			m_CallbackOperater(true);
 		}
-		if (m_pVideo) {
-			m_pVideo->SetOperater(true);
-		}
 	}
 		break;
 	case kMsgTypeOperateAck:
