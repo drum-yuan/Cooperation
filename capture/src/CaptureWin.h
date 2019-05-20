@@ -110,17 +110,17 @@ public:
 	void reset_sequence();
 	void set_frame_rate(unsigned int rate);
 
-	static DWORD CALLBACK __loop_msg(void* _p);
+	static DWORD CALLBACK LoopMsgProc(void* param);
 	static LRESULT CALLBACK xDispWindowProc(HWND hwnd, UINT uMsg, WPARAM  wParam, LPARAM lParam);
 
 private:
 	void capture_mirror();
 	void capture_dxgi();
 	void capture_gdi();
-	BOOL __init_mirror(BOOL is_init);
-	BOOL __init_dxgi();
-	BOOL __init_directx(BOOL is_init);
-	BOOL __init_gdi(BOOL is_init);
+	BOOL init_mirror(BOOL is_init);
+	BOOL init_dxgi();
+	BOOL init_directx(BOOL is_init);
+	BOOL init_gdi(BOOL is_init);
 
 	HWND CreateMsgWnd();
 	void change_display(int w, int h, int bits);
@@ -164,11 +164,6 @@ private:
 	unsigned int	 m_CaptureSeq;
 	FrameCallback	 onFrame;
 	void*			 onframe_param;
-
-	LARGE_INTEGER	 counter;
-	LARGE_INTEGER	 frame_begin;
-	LARGE_INTEGER	 frame_end;
-	long			 delay_val;
 };
 
 //Ð¡¾ØÐÎ¿é

@@ -31,8 +31,6 @@ CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 	m_IntervalCnt = 5;
 	m_AckSeq = 0;
 	m_CaptureSeq = 0;
-
-	delay_val = 0;
 }
 
 CCapture::~CCapture()
@@ -42,7 +40,7 @@ CCapture::~CCapture()
 void CCapture::start()
 {
 	DWORD tid;
-	m_hThread = CreateThread(NULL, 10 * 1024 * 1024, __loop_msg, this, 0, &tid);
+	m_hThread = CreateThread(NULL, 10 * 1024 * 1024, LoopMsgProc, this, 0, &tid);
 
 	if (!m_hThread) {
 		CloseHandle(m_hEvent);
@@ -72,117 +70,95 @@ void CCapture::resume()
 	m_Pause = FALSE;
 }
 
-DWORD CALLBACK CCapture::__loop_msg(void* _p)
+DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 {
-	CCapture* dp = (CCapture*)_p;
+	CCapture* capture = (CCapture*)param;
 	::CoInitialize(0);
 
-	int m_GrabType = dp->m_GrabType;
+	int m_GrabType = capture->m_GrabType;
 	BOOL is_ok = FALSE;
 	if (m_GrabType == GRAB_TYPE_AUTO) {
-		is_ok = dp->__init_mirror(TRUE);
+		is_ok = capture->init_mirror(TRUE);
 		if (is_ok) m_GrabType = GRAB_TYPE_MIRROR;
 		else {
-			is_ok = dp->__init_directx(TRUE);
+			is_ok = capture->init_directx(TRUE);
 			if (is_ok) m_GrabType = GRAB_TYPE_DIRECTX;
 			else {
-				is_ok = dp->__init_gdi(TRUE);
+				is_ok = capture->init_gdi(TRUE);
 				if (is_ok) m_GrabType = GRAB_TYPE_GDI;
 			}
 		}
-		dp->m_GrabType = m_GrabType;
+		capture->m_GrabType = m_GrabType;
 	}
 	else if (m_GrabType == GRAB_TYPE_MIRROR) {
-		is_ok = dp->__init_mirror(TRUE);
+		is_ok = capture->init_mirror(TRUE);
 	}
 	else if (m_GrabType == GRAB_TYPE_DIRECTX) {
-		is_ok = dp->__init_directx(TRUE);
+		is_ok = capture->init_directx(TRUE);
 	}
 	else if (m_GrabType == GRAB_TYPE_GDI) {
-		is_ok = dp->__init_gdi(TRUE);
+		is_ok = capture->init_gdi(TRUE);
 	}
 
 	if (!is_ok) {
 		printf("Can not init capture screen type=%d\n", m_GrabType);
-		dp->m_hMessageWnd = NULL;
-		SetEvent(dp->m_hEvent);
+		capture->m_hMessageWnd = NULL;
+		SetEvent(capture->m_hEvent);
 		CoUninitialize();
 		return 0;
 	}
 
-	HWND hwnd = dp->CreateMsgWnd();
-	HANDLE hEvt = dp->m_hEvent;
+	HWND hwnd = capture->CreateMsgWnd();
+	HANDLE hEvt = capture->m_hEvent;
 
 	if (!hwnd) {
 		switch (m_GrabType) {
-		case GRAB_TYPE_MIRROR:  dp->__init_mirror(FALSE);  break;
-		case GRAB_TYPE_DIRECTX: dp->__init_directx(FALSE); break;
-		case GRAB_TYPE_GDI:     dp->__init_gdi(FALSE);     break;
+		case GRAB_TYPE_MIRROR:  capture->init_mirror(FALSE);  break;
+		case GRAB_TYPE_DIRECTX: capture->init_directx(FALSE); break;
+		case GRAB_TYPE_GDI:     capture->init_gdi(FALSE);     break;
 		}
-		dp->m_hMessageWnd = NULL;
+		capture->m_hMessageWnd = NULL;
 		SetEvent(hEvt);
 		CoUninitialize();
 		return 0;
 	}
 	SetEvent(hEvt);
 
-	long sleep_msec = dp->m_SleepMsec;
+	unsigned int last_capture_seq = capture->m_CaptureSeq;
 	BOOL bQuit = FALSE;
-	dp->delay_val = 0;
-	QueryPerformanceFrequency(&dp->counter);
-	while (!dp->m_Quit) {
-		//LARGE_INTEGER last_begin = dp->frame_begin;
-		QueryPerformanceCounter(&dp->frame_begin);
-		//printf("send interval %lld ms\n", (dp->frame_begin.QuadPart - last_begin.QuadPart) * 1000 / dp->counter.QuadPart);
-		sleep_msec = dp->m_SleepMsec;
-		if (!dp->m_Pause) {
-			while ((!dp->m_Quit) && (dp->m_CaptureSeq - dp->m_AckSeq > dp->m_IntervalCnt)) {
-				//printf("Sequence D-value %d\n", dp->m_CaptureSeq - dp->m_AckSeq);
+	while (!capture->m_Quit) {
+		if (!capture->m_Pause) {
+			while ((!capture->m_Quit) && (capture->m_CaptureSeq - capture->m_AckSeq > capture->m_IntervalCnt)) {
+				//printf("Sequence D-value %d\n", capture->m_CaptureSeq - capture->m_AckSeq);
 				SleepEx(10, TRUE);
 			}
-			if (dp->m_Quit) {
+			if (capture->m_Quit) {
 				goto End;
 			}
 
 			if (m_GrabType == GRAB_TYPE_MIRROR) {
-				dp->capture_mirror();
+				capture->capture_mirror();
 			}
 			else if (m_GrabType == GRAB_TYPE_DIRECTX) {
-				dp->capture_dxgi();
+				capture->capture_dxgi();
 			}
 			else if (m_GrabType == GRAB_TYPE_GDI) {
-				dp->capture_gdi();
+				capture->capture_gdi();
 			}
-			QueryPerformanceCounter(&dp->frame_end);
-
-			LONGLONG dt = (dp->frame_end.QuadPart - dp->frame_begin.QuadPart) * 1000 / dp->counter.QuadPart;
-			if (dt >= dp->m_SleepMsec) {
-				dp->delay_val += ((long)dt - dp->m_SleepMsec);
-				sleep_msec = 0;
-			}
-			else {
-				sleep_msec = dp->m_SleepMsec - (long)dt;
-				if (dp->delay_val > sleep_msec) {
-					dp->delay_val -= sleep_msec;
-					sleep_msec = 0;
-				}
-				else {
-					sleep_msec -= dp->delay_val;
-					dp->delay_val = 0;
-				}
+			if (capture->m_CaptureSeq > last_capture_seq) {
+				last_capture_seq = capture->m_CaptureSeq;
+				continue;
 			}
 		}
-		if (sleep_msec > 0) {
-			SleepEx(sleep_msec, TRUE);
-		}
+		SleepEx(capture->m_SleepMsec, TRUE);
 	}
 
 End:
 	CloseHandle(hEvt);
-	switch (dp->m_GrabType) {
-	case GRAB_TYPE_MIRROR:  dp->__init_mirror(FALSE);  break;
-	case GRAB_TYPE_DIRECTX: dp->__init_directx(FALSE); break;
-	case GRAB_TYPE_GDI:     dp->__init_gdi(FALSE);     break;
+	switch (capture->m_GrabType) {
+	case GRAB_TYPE_MIRROR:  capture->init_mirror(FALSE);  break;
+	case GRAB_TYPE_DIRECTX: capture->init_directx(FALSE); break;
+	case GRAB_TYPE_GDI:     capture->init_gdi(FALSE);     break;
 	}
 
 	CoUninitialize();
@@ -202,13 +178,13 @@ LRESULT CALLBACK CCapture::xDispWindowProc(HWND hwnd, UINT uMsg, WPARAM  wParam,
 				dp->change_display(LOWORD(lParam), HIWORD(lParam), wParam);
 			}
 			else if (dp->m_GrabType == GRAB_TYPE_DIRECTX) {
-				dp->__init_directx(FALSE);
-				dp->__init_directx(TRUE);
+				dp->init_directx(FALSE);
+				dp->init_directx(TRUE);
 				printf("directx restart\n");
 			}
 			else if (dp->m_GrabType == GRAB_TYPE_GDI) {
-				dp->__init_gdi(FALSE);
-				dp->__init_gdi(TRUE);
+				dp->init_gdi(FALSE);
+				dp->init_gdi(TRUE);
 			}
 		}
 	}
@@ -687,8 +663,8 @@ void CCapture::capture_dxgi()
 	hr = m_Directx.dxgi_dup->AcquireNextFrame(0, &FrameInfo, &DesktopResource);
 	if (FAILED(hr)) {   
 		if (hr == _HRESULT_TYPEDEF_(0x887A0026L) || hr == _HRESULT_TYPEDEF_(0x887A0001L)) {
-			__init_directx(FALSE);
-			__init_directx(TRUE);
+			init_directx(FALSE);
+			init_directx(TRUE);
 			return;
 		}
 		if (!m_Directx.buffer)
@@ -795,7 +771,7 @@ void CCapture::capture_gdi()
 	}
 }
 
-BOOL CCapture::__init_mirror(BOOL is_init)
+BOOL CCapture::init_mirror(BOOL is_init)
 {
 	BOOL r = FALSE;
 	if (is_init) {
@@ -834,7 +810,7 @@ BOOL CCapture::__init_mirror(BOOL is_init)
 	}
 }
 
-BOOL CCapture::__init_dxgi()
+BOOL CCapture::init_dxgi()
 {
 	HRESULT hr;
 	static HMODULE hmod = 0; 
@@ -872,7 +848,7 @@ BOOL CCapture::__init_dxgi()
 	IDXGIDevice* dxdev = 0;
 	hr = m_Directx.d11dev->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxdev);
 	if (FAILED(hr)) {
-		__init_directx(FALSE); 
+		init_directx(FALSE); 
 		printf("DXGI init: IDXGIDevice Error hr=0x%X\n", hr);
 		return FALSE;
 	}
@@ -880,7 +856,7 @@ BOOL CCapture::__init_dxgi()
 	hr = dxdev->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(&DxgiAdapter));
 	SAFE_RELEASE(dxdev);
 	if (FAILED(hr)) {
-		__init_directx(FALSE); 
+		init_directx(FALSE); 
 		printf("DXGI init: IDXGIAdapter Error hr=0x%X\n", hr);
 		return FALSE;
 	}
@@ -889,7 +865,7 @@ BOOL CCapture::__init_dxgi()
 	hr = DxgiAdapter->EnumOutputs(nOutput, &DxgiOutput);
 	SAFE_RELEASE(DxgiAdapter);
 	if (FAILED(hr)) {
-		__init_directx(FALSE);
+		init_directx(FALSE);
 		printf("DXGI init: IDXGIOutput Error hr=0x%X\n", hr);
 		return FALSE;
 	}
@@ -898,21 +874,21 @@ BOOL CCapture::__init_dxgi()
 	hr = DxgiOutput->QueryInterface(__uuidof(IDXGIOutput1), reinterpret_cast<void**>(&DxgiOutput1));
 	SAFE_RELEASE(DxgiOutput);
 	if (FAILED(hr)) {
-		__init_directx(FALSE); 
+		init_directx(FALSE); 
 		printf("DXGI init: IDXGIOutput1 Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	hr = DxgiOutput1->DuplicateOutput(m_Directx.d11dev, &m_Directx.dxgi_dup);
 	SAFE_RELEASE(DxgiOutput1);
 	if (FAILED(hr)) {
-		__init_directx(FALSE);
+		init_directx(FALSE);
 		printf("DXGI init: IDXGIOutputDuplication Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	return TRUE;
 }
 
-BOOL CCapture::__init_directx(BOOL is_init)
+BOOL CCapture::init_directx(BOOL is_init)
 {
 	if (is_init) {
 		DISPLAY_DEVICE dispDevice;
@@ -933,7 +909,7 @@ BOOL CCapture::__init_directx(BOOL is_init)
 		m_Directx.line_stride = (m_Directx.line_bytes + 3) / 4 * 4;
 
 		//DXGI above win8
-		if (__init_dxgi()) {
+		if (init_dxgi()) {
 			return TRUE;
 		}
 
@@ -960,7 +936,7 @@ BOOL CCapture::__init_directx(BOOL is_init)
 	return FALSE;
 }
 
-BOOL CCapture::__init_gdi(BOOL is_init)
+BOOL CCapture::init_gdi(BOOL is_init)
 {
 	if (is_init) {
 		DISPLAY_DEVICE dispDevice;
