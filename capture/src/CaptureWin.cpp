@@ -31,6 +31,8 @@ CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 	m_IntervalCnt = 5;
 	m_AckSeq = 0;
 	m_CaptureSeq = 0;
+
+	QueryPerformanceFrequency(&m_Counter);
 }
 
 CCapture::~CCapture()
@@ -125,8 +127,8 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 	SetEvent(hEvt);
 
 	unsigned int last_capture_seq = capture->m_CaptureSeq;
-	BOOL bQuit = FALSE;
 	while (!capture->m_Quit) {
+		QueryPerformanceCounter(&capture->m_FrameBegin);
 		if (!capture->m_Pause) {
 			while ((!capture->m_Quit) && (capture->m_CaptureSeq - capture->m_AckSeq > capture->m_IntervalCnt)) {
 				//printf("Sequence D-value %d\n", capture->m_CaptureSeq - capture->m_AckSeq);
@@ -147,10 +149,17 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 			}
 			if (capture->m_CaptureSeq > last_capture_seq) {
 				last_capture_seq = capture->m_CaptureSeq;
-				continue;
+				QueryPerformanceCounter(&capture->m_FrameEnd);
+				LONGLONG dt = (capture->m_FrameEnd.QuadPart - capture->m_FrameBegin.QuadPart) * 1000 / capture->m_Counter.QuadPart;
+				if (dt < capture->m_SleepMsec) {
+					SleepEx(capture->m_SleepMsec - dt, TRUE);
+					//printf("Sleep %d ms\n", capture->m_SleepMsec - dt);
+				}
 			}
 		}
-		SleepEx(capture->m_SleepMsec, TRUE);
+		else {
+			SleepEx(capture->m_SleepMsec, TRUE);
+		}
 	}
 
 End:

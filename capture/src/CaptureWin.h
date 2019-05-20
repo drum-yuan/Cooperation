@@ -164,6 +164,10 @@ private:
 	unsigned int	 m_CaptureSeq;
 	FrameCallback	 onFrame;
 	void*			 onframe_param;
+
+	LARGE_INTEGER	 m_Counter;
+	LARGE_INTEGER	 m_FrameBegin;
+	LARGE_INTEGER	 m_FrameEnd;
 };
 
 //Ð¡¾ØÐÎ¿é
