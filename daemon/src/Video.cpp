@@ -22,7 +22,7 @@ Video::Video():m_iFrameW(0),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
-				m_iFrameRate(60)
+				m_iFrameRate(30)
 {
 	m_pEncoder = NULL;
 	onEncoded = NULL;
@@ -235,10 +235,10 @@ void Video::CloseEncoder()
 void Video::FillSpecificParameters(SEncParamExt &sParam)
 {
 	sParam.iUsageType = SCREEN_CONTENT_REAL_TIME;
-	sParam.fMaxFrameRate = 60;    // input frame rate
+	sParam.fMaxFrameRate = 30;    // input frame rate
 	sParam.iPicWidth = m_iFrameW;         // width of picture in samples
 	sParam.iPicHeight = m_iFrameH;         // height of picture in samples
-	sParam.iTargetBitrate = 1500000; // target bitrate desired
+	sParam.iTargetBitrate = 2500000; // target bitrate desired
 	sParam.iMaxBitrate = UNSPECIFIED_BIT_RATE;
 	sParam.iRCMode = RC_BITRATE_MODE;      //  rc mode control
 	sParam.iTemporalLayerNum = 1;          // layer number at temporal level
@@ -295,7 +295,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	pDLayer->iVideoWidth = m_iFrameW;
 	pDLayer->iVideoHeight = m_iFrameH;
 	pDLayer->fFrameRate = (float)m_iFrameRate;
-	pDLayer->iSpatialBitrate = 1500000;
+	pDLayer->iSpatialBitrate = 2500000;
 	pDLayer->iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
 }
 
