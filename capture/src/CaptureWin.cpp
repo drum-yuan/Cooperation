@@ -156,6 +156,9 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 					//printf("Sleep %d ms\n", capture->m_SleepMsec - dt);
 				}
 			}
+			else {
+				SleepEx(1, TRUE);
+			}
 		}
 		else {
 			SleepEx(capture->m_SleepMsec, TRUE);
