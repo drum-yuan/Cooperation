@@ -18,16 +18,35 @@ typedef struct DXVA2DevicePriv {
 
 Video::Video():m_iFrameW(0),
 				m_iFrameH(0),
+				m_iFrameRate(30),
 				m_bPublisher(false),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
-				m_bLockScreen(false),
-				m_iFrameRate(30)
+				m_bLockScreen(false)
 {
+#ifdef HW_ENCODE
+	m_pNVFBCLib = NULL;
+	m_pNvFBCDX9 = NULL;
+	m_pD3DEx = NULL;
+	m_pD3D9Device = NULL;
+	for (int i = 0; i < MAX_BUF_QUEUE; i++)
+	{
+		m_apD3D9RGB8Surf[i] = NULL;
+	}
+	m_pEncoder = NULL;
+	m_captureID = NULL;
+	m_bQuit = false;
+	m_bPause = false;
+	m_maxDisplayW = -1;
+	m_maxDisplayH = -1;
+	m_uCaptureSeq = 0;
+	m_uAckSeq = 0;
+#else
 	m_pEncoder = NULL;
 	onEncoded = NULL;
-	onLockScreen = NULL;
 	m_pYUVData = NULL;
+#endif
+	onLockScreen = NULL;
 	m_hRenderWin = NULL;
 #ifdef HW_DECODE
 	m_pAVDecoder = NULL;
@@ -52,11 +71,13 @@ Video::Video():m_iFrameW(0),
 
 Video::~Video()
 {
+#ifdef HW_ENCODE
+	CleanupNvfbcEncoder();
+#else
 	CloseEncoder();
-	CloseDecoder();
-#ifndef HW_DECODE
-	delete[] m_pRenderData;
 #endif
+	CloseDecoder();
+	delete[] m_pRenderData;
 }
 
 void Video::SetRenderWin(void* hWnd)
@@ -105,7 +126,13 @@ bool Video::show(unsigned char* buffer, unsigned int len)
 
 void Video::SetOnEncoded(onEncode_fp fp)
 {
+#ifdef HW_ENCODE
+	if (m_pEncoder) {
+		m_pEncoder->SetOnEncoded(fp);
+	}
+#else
 	onEncoded = fp;
+#endif
 }
 
 void Video::SetOnLockScreen(onLockScreen_fp fp)
@@ -117,35 +144,380 @@ void Video::SetOnLockScreen(onLockScreen_fp fp)
 void Video::start()
 {
 	m_bPublisher = true;
+#ifdef HW_ENCODE
+	m_bQuit = false;
+	InitNvfbcEncoder();
+	m_captureID = new std::thread(&Video::CaptureLoopProc, this);
+#else
 	cap_start_capture_screen(0, Video::onFrame, this);
 	cap_set_drop_interval(25);
 	cap_set_frame_rate(m_iFrameRate);
+#endif
 }
 
 void Video::stop()
 {
+	printf("video stop\n");
 	m_bPublisher = false;
+#ifdef HW_ENCODE
+	m_bQuit = true;
+	if (m_captureID) {
+		if (m_captureID->joinable()) {
+			m_captureID->join();
+		}
+		delete m_captureID;
+		m_captureID = NULL;
+	}
+	CleanupNvfbcEncoder();
+#else
 	cap_stop_capture_screen();
+#endif
 }
 
 void Video::pause()
 {
+#ifdef HW_ENCODE
+	m_bPause = true;
+#else
 	cap_pause_capture_screen();
+#endif
 }
 
 void Video::resume()
 {
+#ifdef HW_ENCODE
+	m_bPause = false;
+#else
 	cap_resume_capture_screen();
+#endif
 }
 
 void Video::reset_keyframe(bool reset_ack)
 {
 	m_bForceKeyframe = true;
 	if (reset_ack) {
+#ifdef HW_ENCODE
+		m_uAckSeq = m_uCaptureSeq;
+#else
 		cap_reset_sequence();
+#endif
 	}
 }
 
+#ifdef HW_ENCODE
+void Video::set_ack_seq(unsigned int seq)
+{
+	if (seq > m_uAckSeq) {
+		m_uAckSeq = seq;
+	}
+}
+
+unsigned int Video::get_capture_seq()
+{
+	return m_uCaptureSeq;
+}
+
+unsigned int Video::get_frame_type(NV_ENC_PIC_TYPE type)
+{
+	unsigned int frame_type = 0;
+	switch (type)
+	{
+	case NV_ENC_PIC_TYPE_P:
+		frame_type = 3;
+		break;
+	case NV_ENC_PIC_TYPE_B:
+		frame_type = 6;
+		break;
+	case NV_ENC_PIC_TYPE_I:
+		frame_type = 2;
+		break;
+	case NV_ENC_PIC_TYPE_IDR:
+		frame_type = 1;
+		break;
+	case NV_ENC_PIC_TYPE_SKIPPED:
+		frame_type = 4;
+		break;
+	default:
+		break;
+	}
+	return frame_type;
+}
+
+void Video::CaptureLoopProc(void* param)
+{
+	Video* video = (Video*)param;
+
+	LARGE_INTEGER counter;
+	LARGE_INTEGER frameBegin;
+	LARGE_INTEGER frameEnd;
+	QueryPerformanceFrequency(&counter);
+	LONGLONG sleepMsec = 1000 / video->m_iFrameRate;
+
+	NVFBC_TODX9VID_GRAB_FRAME_PARAMS fbcDX9GrabParams = { 0 };
+	NVFBCRESULT fbcRes = NVFBC_SUCCESS;
+	fbcDX9GrabParams.dwVersion = NVFBC_TODX9VID_GRAB_FRAME_PARAMS_V1_VER;
+	fbcDX9GrabParams.dwFlags = NVFBC_TODX9VID_NOWAIT;
+	fbcDX9GrabParams.eGMode = NVFBC_TODX9VID_SOURCEMODE_SCALE;
+	fbcDX9GrabParams.dwTargetWidth = MAX_FRAME_WIDTH;
+	fbcDX9GrabParams.dwTargetHeight = MAX_FRAME_HEIGHT;
+	fbcDX9GrabParams.pNvFBCFrameGrabInfo = &(video->m_frameGrabInfo);
+
+	while (!video->m_bQuit) {
+		QueryPerformanceCounter(&frameBegin);
+		if (video->m_bPause) {
+			Sleep(50);
+			continue;
+		}
+		if (video->m_uCaptureSeq - video->m_uAckSeq > 25) {
+			Sleep(1);
+			continue;
+		}
+		unsigned int frameIndex = video->m_uCaptureSeq % MAX_BUF_QUEUE;
+		fbcRes = video->m_pNvFBCDX9->NvFBCToDx9VidGrabFrame(&fbcDX9GrabParams);
+		if (fbcRes == NVFBC_SUCCESS)
+		{
+			if (video->m_iFrameW == 0 && video->m_iFrameH == 0) {
+				if (S_OK != video->m_pEncoder->SetupEncoder(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, ENCODER_BITRATE, 
+					video->m_maxDisplayW, video->m_maxDisplayH, 0, video->m_apD3D9RGB8Surf, false, false, false, NULL, false, 48))
+				{
+					printf("Failed when calling Encoder::SetupEncoder()\n");
+				}
+				printf("Setup encoder\n");
+				video->m_iFrameW = MAX_FRAME_WIDTH;
+				video->m_iFrameH = MAX_FRAME_HEIGHT;
+			}
+			if ((video->m_iFrameW != video->m_frameGrabInfo.dwBufferWidth) || (video->m_iFrameH != video->m_frameGrabInfo.dwHeight) || video->m_bForceKeyframe)
+			{
+				printf("Encoder reset %d\n", video->m_bForceKeyframe);
+				video->m_pEncoder->Reconfigure(video->m_frameGrabInfo.dwWidth, video->m_frameGrabInfo.dwHeight, ENCODER_BITRATE);
+				video->m_iFrameW = video->m_frameGrabInfo.dwBufferWidth;
+				video->m_iFrameH = video->m_frameGrabInfo.dwHeight;
+				if (video->m_bForceKeyframe) {
+					video->m_bForceKeyframe = false;
+				}
+			}
+
+			if (video->m_bLockScreen) {
+				if (video->onLockScreen) {
+					D3DLOCKED_RECT lockedRect;
+					RECT rect = { 0, 0, 1, 1 };
+					if (FAILED(video->m_apD3D9RGB8Surf[frameIndex]->LockRect(&lockedRect, &rect, 0))) {
+						printf("LockRect() failed.\n");
+					}
+					video->m_apD3D9RGB8Surf[frameIndex]->UnlockRect();
+
+					if (FAILED(video->m_apD3D9RGB8Surf[frameIndex]->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))) {
+						printf("LockRect() D3DLOCK_READONLY failed.\n");
+					}
+					D3DSURFACE_DESC desc;
+					video->m_apD3D9RGB8Surf[frameIndex]->GetDesc(&desc);
+					unsigned char* pData = new unsigned char[video->m_iFrameW * video->m_iFrameH * 4];
+					for (int i = 0; i < video->m_iFrameH; i++) {
+						memcpy(pData + video->m_iFrameW * 4 * i, (unsigned char*)lockedRect.pBits + lockedRect.Pitch * i, video->m_iFrameW * 4);
+					}
+					video->m_apD3D9RGB8Surf[frameIndex]->UnlockRect();
+					video->onLockScreen(pData, video->m_iFrameW * video->m_iFrameH * 4);
+					delete[] pData;
+				}
+				video->m_bLockScreen = false;
+				return;
+			}
+
+			HRESULT hr = E_FAIL;
+			//! Start encoding
+			hr = video->m_pEncoder->LaunchEncode(frameIndex);
+			if (hr != S_OK)
+			{
+				printf("Failed encoding via LaunchEncode frame %d\n", video->m_uCaptureSeq);
+				return;
+			}
+
+			//! Fetch encoded bitstream
+			hr = video->m_pEncoder->GetBitstream(frameIndex);
+			if (hr != S_OK)
+			{
+				printf("Failed encoding via GetBitstream frame %d\n", video->m_uCaptureSeq);
+				return;
+			}
+			video->m_uCaptureSeq++;
+			QueryPerformanceCounter(&frameEnd);
+			LONGLONG dt = (frameEnd.QuadPart - frameBegin.QuadPart) * 1000 / counter.QuadPart;
+			//printf("capture&encode cost %lld ms\n", dt);
+			if (dt < sleepMsec) {
+				Sleep(sleepMsec - dt);
+			}
+		}
+		else {
+			printf("Grab frame failed\n");
+		}
+	}
+	video->m_iFrameW = 0;
+	video->m_iFrameH = 0;
+	printf("CaptureLoopProc end\n");
+}
+
+void Video::InitNvfbcEncoder()
+{
+	m_pNVFBCLib = new NvFBCLibrary();
+	m_pNVFBCLib->load();
+	if (!SUCCEEDED(InitD3D9(0)))
+	{
+		printf("Unable to create a D3D9Ex Device\n");
+		CleanupNvfbcEncoder();
+		return;
+	}
+	if (!SUCCEEDED(InitD3D9Surfaces()))
+	{
+		printf("Unable to create a D3D9Ex Device\n");
+		CleanupNvfbcEncoder();
+		return;
+	}
+	m_pNvFBCDX9 = (NvFBCToDx9Vid *)m_pNVFBCLib->create(NVFBC_TO_DX9_VID, &m_maxDisplayW, &m_maxDisplayH, 0, (void *)m_pD3D9Device);
+	if (!m_pNvFBCDX9)
+	{
+		printf("Failed to create an instance of NvFBCToDx9Vid.  Please check the following requirements\n");
+		printf("1) A driver R355 or newer with capable Tesla/Quadro/GRID capable product\n");
+		printf("2) Run \"NvFBCEnable -enable\" after a new driver installation\n");
+		CleanupNvfbcEncoder();
+		return;
+	}
+	printf("NvFBCToDX9Vid CreateEx() success!\n");
+
+	m_pEncoder = new Encoder();
+	if (S_OK != m_pEncoder->Init(m_pD3D9Device))
+	{
+		printf("Failed to initialize NVENC video encoder\n");
+		CleanupNvfbcEncoder();
+		return;
+	}
+	NVFBC_TODX9VID_OUT_BUF NvFBC_OutBuf[MAX_BUF_QUEUE];
+	for (unsigned int i = 0; i < MAX_BUF_QUEUE; i++)
+	{
+		NvFBC_OutBuf[i].pPrimary = m_apD3D9RGB8Surf[i];
+	}
+	DWORD validClassMapSize = (int)(ceil((float)MAX_FRAME_WIDTH / NVFBC_TODX9VID_MIN_CLASSIFICATION_MAP_STAMP_DIM) * ceil((float)MAX_FRAME_HEIGHT / NVFBC_TODX9VID_MIN_CLASSIFICATION_MAP_STAMP_DIM));
+	NVFBC_TODX9VID_SETUP_PARAMS DX9SetupParams = {};
+	DX9SetupParams.dwVersion = NVFBC_TODX9VID_SETUP_PARAMS_V3_VER;
+	DX9SetupParams.bWithHWCursor = 0;
+	DX9SetupParams.bStereoGrab = 0;
+	DX9SetupParams.bDiffMap = 0;
+	DX9SetupParams.ppBuffer = NvFBC_OutBuf;
+	DX9SetupParams.eMode = NVFBC_TODX9VID_ARGB;
+	DX9SetupParams.dwNumBuffers = MAX_BUF_QUEUE;
+	if (NVFBC_SUCCESS != m_pNvFBCDX9->NvFBCToDx9VidSetUp(&DX9SetupParams))
+	{
+		printf("Failed when calling NvFBCDX9->NvFBCToDX9VidSetup()\n");
+		CleanupNvfbcEncoder();
+		return;
+	}
+}
+
+HRESULT Video::InitD3D9(unsigned int deviceID)
+{
+	HRESULT hr = S_OK;
+	D3DPRESENT_PARAMETERS d3dpp;
+	D3DADAPTER_IDENTIFIER9 adapterId;
+	unsigned int iAdapter = NULL;
+
+	Direct3DCreate9Ex(D3D_SDK_VERSION, &m_pD3DEx);
+	if (deviceID >= m_pD3DEx->GetAdapterCount())
+	{
+		printf("Error:(deviceID=%d) is not a valid GPU device. Headless video devices will not be detected\n", deviceID);
+		return E_FAIL;
+	}
+	hr = m_pD3DEx->GetAdapterIdentifier(deviceID, 0, &adapterId);
+	if (hr != S_OK)
+	{
+		printf("Error:(deviceID=%d) is not a valid GPU device\n", deviceID);
+		return E_FAIL;
+	}
+
+	// Create the Direct3D9 device and the swap chain. In this example, the swap
+	// chain is the same size as the current display mode. The format is RGB-32.
+	ZeroMemory(&d3dpp, sizeof(d3dpp));
+	d3dpp.Windowed = true;
+	d3dpp.BackBufferFormat = D3DFMT_X8R8G8B8;
+
+	d3dpp.BackBufferWidth = MAX_FRAME_WIDTH;
+	d3dpp.BackBufferHeight = MAX_FRAME_HEIGHT;
+	d3dpp.BackBufferCount = 1;
+	d3dpp.SwapEffect = D3DSWAPEFFECT_COPY;
+	d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	d3dpp.Flags = D3DPRESENTFLAG_VIDEO;
+	DWORD dwBehaviorFlags = D3DCREATE_FPU_PRESERVE | D3DCREATE_MULTITHREADED | D3DCREATE_HARDWARE_VERTEXPROCESSING;
+	hr = m_pD3DEx->CreateDeviceEx(
+		deviceID,
+		D3DDEVTYPE_HAL,
+		NULL,
+		dwBehaviorFlags,
+		&d3dpp,
+		NULL,
+		&m_pD3D9Device);
+
+	return hr;
+}
+
+HRESULT Video::InitD3D9Surfaces()
+{
+	HRESULT hr = E_FAIL;
+	if (m_pD3D9Device) {
+		for (int i = 0; i < MAX_BUF_QUEUE; i++)
+		{
+			hr = m_pD3D9Device->CreateOffscreenPlainSurface(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_apD3D9RGB8Surf[i], NULL);
+			if (FAILED(hr))
+			{
+				printf("Failed to create D3D9 surfaces D3DFMT_A8R8G8B8 for output. Error 0x%08x\n", hr);
+			}
+		}
+	}
+	return S_OK;
+}
+
+void Video::CleanupNvfbcEncoder()
+{
+	if (m_pEncoder)
+	{
+		m_pEncoder->TearDown();
+		delete m_pEncoder;
+		m_pEncoder = NULL;
+	}
+
+	if (m_pNvFBCDX9)
+	{
+		m_pNvFBCDX9->NvFBCToDx9VidRelease();
+		m_pNvFBCDX9 = NULL;
+	}
+
+	for (int i = 0; i < MAX_BUF_QUEUE; i++)
+	{
+		if (m_apD3D9RGB8Surf[i])
+		{
+			m_apD3D9RGB8Surf[i]->Release();
+			m_apD3D9RGB8Surf[i] = NULL;
+		}
+	}
+
+	if (m_pD3D9Device)
+	{
+		m_pD3D9Device->Release();
+		m_pD3D9Device = NULL;
+	}
+
+	if (m_pD3DEx)
+	{
+		m_pD3DEx->Release();
+		m_pD3DEx = NULL;
+	}
+
+	if (m_pNVFBCLib)
+	{
+		m_pNVFBCLib->close();
+		delete m_pNVFBCLib;
+		m_pNVFBCLib = NULL;
+	}
+}
+
+#else
 void Video::onFrame(CallbackFrameInfo* frame, void* param)
 {
 	Video* video = (Video*)param;
@@ -238,7 +610,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.fMaxFrameRate = 30;    // input frame rate
 	sParam.iPicWidth = m_iFrameW;         // width of picture in samples
 	sParam.iPicHeight = m_iFrameH;         // height of picture in samples
-	sParam.iTargetBitrate = 2500000; // target bitrate desired
+	sParam.iTargetBitrate = ENCODER_BITRATE; // target bitrate desired
 	sParam.iMaxBitrate = UNSPECIFIED_BIT_RATE;
 	sParam.iRCMode = RC_BITRATE_MODE;      //  rc mode control
 	sParam.iTemporalLayerNum = 1;          // layer number at temporal level
@@ -295,7 +667,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	pDLayer->iVideoWidth = m_iFrameW;
 	pDLayer->iVideoHeight = m_iFrameH;
 	pDLayer->fFrameRate = (float)m_iFrameRate;
-	pDLayer->iSpatialBitrate = 2500000;
+	pDLayer->iSpatialBitrate = ENCODER_BITRATE;
 	pDLayer->iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
 }
 
@@ -336,6 +708,7 @@ void Video::Encode()
 		printf("encodeVideo failed\n");
 	}
 }
+#endif
 
 bool Video::OpenDecoder()
 {

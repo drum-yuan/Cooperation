@@ -346,7 +346,13 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			break;
 		}
 		unsigned int sequence = tVideoAck.sequence;
+#ifdef HW_ENCODE
+		if (m_pVideo) {
+			m_pVideo->set_ack_seq(sequence);
+		}
+#else
 		cap_set_ack_sequence(sequence);
+#endif
 	}
 		break;
 	case kMsgTypeRequestKeyFrame:
@@ -502,6 +508,25 @@ void SocketsClient::send_video_data(void* data)
 {
 	if (data == NULL)
 		return;
+#ifdef HW_ENCODE
+	NV_ENC_LOCK_BITSTREAM* lockBitstreamData = (NV_ENC_LOCK_BITSTREAM*)data;
+	printf("bitstreamdata len %d\n", lockBitstreamData->bitstreamSizeInBytes);
+
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.length = Swap32IfLE(sizeof(VideoDataHeader) + lockBitstreamData->bitstreamSizeInBytes);
+	header.type = Swap16IfLE(kMsgTypeVideoData);
+	m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
+
+	VideoDataHeader videoheader;
+	unsigned int frame_type = m_pVideo->get_frame_type(lockBitstreamData->pictureType);
+	videoheader.eFrameType = Swap32IfLE(frame_type);
+	unsigned int sequence = m_pVideo->get_capture_seq();
+	videoheader.sequence = Swap32IfLE(sequence);
+	m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
+	m_SendBuf->append((unsigned char*)lockBitstreamData->bitstreamBufferPtr, lockBitstreamData->bitstreamSizeInBytes);
+#else
 	int iFrameSize = CalcFrameSize(data);
 	if (!iFrameSize) {
 		printf("frame size 0\n");
@@ -541,9 +566,10 @@ void SocketsClient::send_video_data(void* data)
 		}
 		++iLayer;
 	}
+#endif
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
-	printf("send video data seq %d\n", sequence);
+	//printf("send video data seq %d\n", sequence);
 }
 
 void SocketsClient::send_video_ack(unsigned int sequence)
@@ -701,8 +727,11 @@ int SocketsClient::callback_client(struct lws *wsi, enum lws_callback_reasons re
 
 unsigned int SocketsClient::CalcFrameSize(void* data)
 {
-	int iLayer = 0;
 	int iFrameSize = 0;
+#ifdef HW_ENCODE
+
+#else
+	int iLayer = 0;
 
 	if (!data) {
 		printf("encoded data null\n");
@@ -727,5 +756,6 @@ unsigned int SocketsClient::CalcFrameSize(void* data)
 		}
 		++iLayer;
 	}
+#endif
 	return iFrameSize;
 }
