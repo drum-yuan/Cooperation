@@ -126,9 +126,21 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 	}
 	SetEvent(hEvt);
 
+	MSG msg;
+	BOOL bQuit = FALSE;
 	unsigned int last_capture_seq = capture->m_CaptureSeq;
 	while (!capture->m_Quit) {
 		QueryPerformanceCounter(&capture->m_FrameBegin);
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			if (msg.message == WM_QUIT) {
+				bQuit = TRUE;
+				break;
+			}
+			else {
+				DispatchMessage(&msg);
+			}
+		}
+		if (bQuit)break;
 		if (!capture->m_Pause) {
 			while ((!capture->m_Quit) && (capture->m_CaptureSeq - capture->m_AckSeq > capture->m_IntervalCnt)) {
 				//printf("Sequence D-value %d\n", capture->m_CaptureSeq - capture->m_AckSeq);
