@@ -314,9 +314,8 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	case kMsgTypePublishAck:
 	{
 		if (m_pVideo && m_pVideo->IsPublisher()) {
-			m_pVideo->SetPublisher(false);
-			reset();
 			m_pVideo->stop();
+			reset();
 		}
 		if (m_CallbackStream) {
 			m_CallbackStream();
