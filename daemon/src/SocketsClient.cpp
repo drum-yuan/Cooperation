@@ -315,7 +315,6 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	{
 		if (m_pVideo && m_pVideo->IsPublisher()) {
 			m_pVideo->stop();
-			reset();
 		}
 		if (m_CallbackStream) {
 			m_CallbackStream();
