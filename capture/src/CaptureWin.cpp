@@ -11,7 +11,7 @@ static LPSTR dispCode[7] = {
 
 CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 {
-	m_GrabType = 0;
+	m_GrabType = 3;
 	m_MonitorID = id;
 	onFrame = on_frame;
 	onframe_param = param;
@@ -921,7 +921,11 @@ BOOL CCapture::init_directx(BOOL is_init)
 		devmode.dmSize = sizeof(DEVMODE);
 		devmode.dmDriverExtra = 0;
 		BOOL bRet = find_display_device(&dispDevice, &devmode, FALSE, m_MonitorID);
-		if (!bRet)return FALSE;
+		if (!bRet) {
+			m_MonitorID = 0;
+			bRet = find_display_device(&dispDevice, &devmode, FALSE, 0);
+			if (!bRet) return FALSE;
+		}
 
 		m_Directx.cx = devmode.dmPelsWidth;
 		m_Directx.cy = devmode.dmPelsHeight;
@@ -969,7 +973,11 @@ BOOL CCapture::init_gdi(BOOL is_init)
 		devmode.dmSize = sizeof(DEVMODE);
 		devmode.dmDriverExtra = 0;
 		BOOL bRet = find_display_device(&dispDevice, &devmode, FALSE, m_MonitorID);
-		if (!bRet)return FALSE;
+		if (!bRet) {
+			m_MonitorID = 0;
+			bRet = find_display_device(&dispDevice, &devmode, FALSE, 0);
+			if (!bRet) return FALSE;
+		}
 
 		m_GDI.cx = devmode.dmPelsWidth;
 		m_GDI.cy = devmode.dmPelsHeight;
@@ -1012,12 +1020,17 @@ BOOL CCapture::init_gdi(BOOL is_init)
 			return FALSE;
 		}
 		SelectObject(m_GDI.memdc, m_GDI.hbmp);
+		m_GDI.back_buf = (byte*)malloc(m_GDI.line_stride * m_GDI.cy);
 		return TRUE;
 	}
 	else {
-		m_GDI.buffer = 0;
+		m_GDI.buffer = NULL;
 		DeleteDC(m_GDI.memdc); m_GDI.memdc = NULL;
 		DeleteObject(m_GDI.hbmp); m_GDI.hbmp = NULL;
+		if (m_GDI.back_buf) {
+			free(m_GDI.back_buf);
+			m_GDI.back_buf = NULL;
+		}
 	}
 
 	return FALSE;

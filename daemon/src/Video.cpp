@@ -149,7 +149,7 @@ void Video::start()
 	InitNvfbcEncoder();
 	m_captureID = new std::thread(&Video::CaptureLoopProc, this);
 #else
-	cap_start_capture_screen(0, Video::onFrame, this);
+	cap_start_capture_screen(1, Video::onFrame, this);
 	cap_set_drop_interval(25);
 	cap_set_frame_rate(m_iFrameRate);
 #endif
@@ -538,7 +538,6 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		video->m_pYUVData = new unsigned char[frame->width * frame->height * 3 / 2];
 		video->OpenEncoder(frame->width, frame->height);
 		cap_reset_sequence();
-		return;
 	}
 
 	if (frame->bitcount == 8) {
@@ -561,9 +560,9 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		libyuv::ARGBToI420((uint8_t*)frame->buffer, frame->line_stride, y, video->m_iFrameW, u, uv_stride, v, uv_stride, video->m_iFrameW, video->m_iFrameH);
 		/*static int cnt = 0;
 		if (cnt < 10) {
-		m_pFile = fopen("yuv_data.yuv", "ab");
-		fwrite(m_pYUVData, 1, video->m_iFrameW * video->m_iFrameH * 3 / 2, m_pFile);
-		fclose(m_pFile);
+		FILE* fp = fopen("yuv_data.yuv", "ab");
+		fwrite(video->m_pYUVData, 1, video->m_iFrameW * video->m_iFrameH * 3 / 2, fp);
+		fclose(fp);
 		cnt++;
 		}*/
 	}
@@ -574,6 +573,7 @@ bool Video::OpenEncoder(int w, int h)
 {
 	m_iFrameW = w;
 	m_iFrameH = h;
+	printf("OpenEncoder w=%d h=%d\n", m_iFrameW, m_iFrameH);
 	if (!m_pEncoder)
 	{
 		if (WelsCreateSVCEncoder(&m_pEncoder) || (NULL == m_pEncoder))
@@ -628,7 +628,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.iComplexityMode = LOW_COMPLEXITY;
 	sParam.bSimulcastAVC = false;
 	sParam.iMaxQp = 48;
-	sParam.iMinQp = 0;
+	sParam.iMinQp = 24;
 	sParam.uiMaxNalSize = 0;
 	int iIndexLayer = 0;
 	sParam.sSpatialLayers[iIndexLayer].uiProfileIdc = PRO_BASELINE;
@@ -868,8 +868,8 @@ void Video::DXVA2Render()
 	if (ret < 0) {
 		printf("GetBackBuffer failed\n");
 	}
-	//RECT rcDst;
-	//GetClientRect((HWND)m_hRenderWin, &rcDst);
+	//RECT rcRender;
+	//GetClientRect((HWND)m_hRenderWin, &rcRender);
 	ret = priv->d3d9device->StretchRect(surface, NULL, backBuffer, NULL, D3DTEXF_LINEAR);
 	if (ret < 0) {
 		printf("StretchRect failed\n");
@@ -916,16 +916,25 @@ COMMON_RENDER:
 		iStride[1] = avVideoFrame->linesize[1];
 	}
 	WriteYUVBuffer(iStride, avVideoFrame->width, avVideoFrame->height, 1);
-	if (avVideoFrame->width != m_iFrameW || avVideoFrame->height != m_iFrameH) {
-		m_iFrameW = avVideoFrame->width;
-		m_iFrameH = avVideoFrame->height;
+	/*static int cnt = 0;
+	if (cnt < 10) {
+	FILE* fp = fopen("render_data.yuv", "ab");
+	fwrite(m_pRenderData, 1, width * height * 3 / 2, fp);
+	fclose(fp);
+	cnt++;
+	}*/
+	int width = avVideoFrame->width;
+	int height = avVideoFrame->height;
+	if (width != m_iFrameW || height != m_iFrameH) {
+		m_iFrameW = width;
+		m_iFrameH = height;
 		if (m_hD3DHandle) {
 			D3D_Release(&m_hD3DHandle);
 		}
-		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, avVideoFrame->width, avVideoFrame->height, 0, 1, D3D_FORMAT_YV12);
+		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, m_iFrameW, m_iFrameH, 0, 1, D3D_FORMAT_YV12);
 	}
-	RECT rcSrc = { 0, 0, avVideoFrame->width, avVideoFrame->height };
-	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, avVideoFrame->width, avVideoFrame->height, &rcSrc, NULL);
+	RECT rcSrc = { 0, 0, m_iFrameW, m_iFrameH };
+	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, m_iFrameW, m_iFrameH, &rcSrc, NULL);
 	RECT rcDst;
 	GetClientRect((HWND)m_hRenderWin, &rcDst);
 	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
@@ -951,19 +960,19 @@ void Video::Render(SBufferInfo* pInfo)
 		return;
 	}
 
+	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, pInfo->UsrData.sSystemBuffer.iWidth, pInfo->UsrData.sSystemBuffer.iHeight, 0);
 	int width = pInfo->UsrData.sSystemBuffer.iWidth;
 	int height = pInfo->UsrData.sSystemBuffer.iHeight;
-	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, width, height, 0);
 	if (width != m_iFrameW || height != m_iFrameH) {
 		m_iFrameW = width;
 		m_iFrameH = height;
 		if (m_hD3DHandle) {
 			D3D_Release(&m_hD3DHandle);
 		}
-		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, width, height, 0, 1, D3D_FORMAT_YV12);
+		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, m_iFrameW, m_iFrameH, 0, 1, D3D_FORMAT_YV12);
 	}
-	RECT rcSrc = { 0, 0, width, height };
-	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, width, height, &rcSrc, NULL);
+	RECT rcSrc = { 0, 0, m_iFrameW, m_iFrameH };
+	D3D_UpdateData(m_hD3DHandle, 0, m_pRenderData, m_iFrameW, m_iFrameH, &rcSrc, NULL);
 	RECT rcDst;
 	GetClientRect((HWND)m_hRenderWin, &rcDst);
 	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
@@ -976,6 +985,8 @@ void Video::WriteBmpHeader(FILE* fp)
 		return;
 	}
 
+	int width = m_iFrameW;
+	int height = m_iFrameH;
 	unsigned char header[54] = {
 	  0x42, 0x4d, 0, 0, 0, 0, 0, 0, 0, 0,
 		54, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0,
@@ -983,19 +994,18 @@ void Video::WriteBmpHeader(FILE* fp)
 		0, 0, 0, 0
 	};
 
-	long file_size = (long)m_iFrameW * (long)m_iFrameH * 4 + 54;
+	long file_size = (long)width * (long)height * 4 + 54;
 	header[2] = (unsigned char)(file_size & 0x000000ff);
 	header[3] = (file_size >> 8) & 0x000000ff;
 	header[4] = (file_size >> 16) & 0x000000ff;
 	header[5] = (file_size >> 24) & 0x000000ff;
 
-	long width = m_iFrameW;
 	header[18] = width & 0x000000ff;
 	header[19] = (width >> 8) & 0x000000ff;
 	header[20] = (width >> 16) & 0x000000ff;
 	header[21] = (width >> 24) & 0x000000ff;
 
-	long height = -m_iFrameH;
+	height = -height;
 	header[22] = height & 0x000000ff;
 	header[23] = (height >> 8) & 0x000000ff;
 	header[24] = (height >> 16) & 0x000000ff;

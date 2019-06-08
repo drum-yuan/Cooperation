@@ -29,7 +29,7 @@ extern "C" {
 #define MAX_FRAME_WIDTH		4096
 #define MAX_FRAME_HEIGHT	2160
 #endif
-#define ENCODER_BITRATE		2500000
+#define ENCODER_BITRATE		4000000
 
 typedef std::function<void(void* data)> onEncode_fp;
 typedef std::function<void(unsigned char* data, int len)> onLockScreen_fp;
