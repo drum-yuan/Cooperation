@@ -202,6 +202,7 @@ bool SocketsClient::connect(std::string url, bool blocking, bool ssl)
 	m_ServerUrl = url;
 	m_UseSSL = ssl;
 	reset();
+	m_Exit = false;
 	m_wsthread = new std::thread(&SocketsClient::RunWebSocketClient, this);
 
 	if (blocking && m_State != ConnectStateEstablished)
@@ -231,13 +232,12 @@ void SocketsClient::reset()
 		if (m_wsthread->joinable())
 		{
 			m_wsthread->join();
+			delete m_wsthread;
 		}
-		delete m_wsthread;
 		m_wsthread = NULL;
 	}
 	m_wsi = NULL;
 	m_State = ConnectStateUnConnected;
-	m_Exit = false;
 }
 
 void SocketsClient::stop()
