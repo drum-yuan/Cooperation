@@ -111,7 +111,7 @@ bool Video::show(unsigned char* buffer, unsigned int len)
 	int status = 0;
 
 	av_init_packet(&m_AVPacket);
-	m_AVPacket.data = (BYTE*)buffer;
+	m_AVPacket.data = (uint8_t*)buffer;
 	m_AVPacket.size = len;
 	status = avcodec_send_packet(m_pAVDecoderContext, &m_AVPacket);
 	if (status < 0) {
@@ -737,22 +737,33 @@ bool Video::OpenDecoder()
 		m_pAVDecoderContext = avcodec_alloc_context3(m_pAVDecoder);
 	}
 	if (m_pAVDecoderContext == NULL) {
+        printf("alloc context failed\n");
 		return false;
 	}
 	if (m_pAVDecoder->capabilities & AV_CODEC_CAP_TRUNCATED) {
 		m_pAVDecoderContext->flags |= AV_CODEC_FLAG_TRUNCATED;
 	}
+#ifdef WIN32
 	if (av_hwdevice_ctx_create(&m_Hwctx, AV_HWDEVICE_TYPE_DXVA2, NULL, NULL, 0) < 0) {
+#else
+	if (av_hwdevice_ctx_create(&m_Hwctx, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0) < 0) {
+#endif
 		avcodec_free_context(&m_pAVDecoderContext);
+        printf("create hwdevice ctx failed\n");
 		return false;
 	}
 	m_pAVDecoderContext->hw_device_ctx = av_buffer_ref(m_Hwctx);
 	m_pAVDecoderContext->get_format = get_hw_format;
+#ifdef WIN32
 	m_HwPixFmt = AV_PIX_FMT_DXVA2_VLD;
+#else
+    m_HwPixFmt = AV_PIX_FMT_VAAPI;
+#endif
 	m_pAVDecoderContext->opaque = this;
 
 	if (avcodec_open2(m_pAVDecoderContext, m_pAVDecoder, NULL) < 0) {
 		avcodec_free_context(&m_pAVDecoderContext);
+		printf("avcodec open failed\n");
 		return false;
 	}
 	m_AVVideoFrame = av_frame_alloc();
@@ -944,6 +955,7 @@ COMMON_RENDER:
 	}*/
 	int width = avVideoFrame->width;
 	int height = avVideoFrame->height;
+#ifdef WIN32
 	if (width != m_iFrameW || height != m_iFrameH) {
 		m_iFrameW = width;
 		m_iFrameH = height;
@@ -957,6 +969,18 @@ COMMON_RENDER:
 	RECT rcDst;
 	GetClientRect((HWND)m_hRenderWin, &rcDst);
 	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
+#else
+	if (width != m_iFrameW || height != m_iFrameH) {
+		m_iFrameW = width;
+		m_iFrameH = height;
+	}
+    XvImage *xv_image = XvCreateImage(m_Display, m_XvPortID, 0x30323449, (char*)m_pRenderData, width, height);
+    int dst_w = 0;
+    int dst_h = 0;
+    gtk_widget_get_size_request((GtkWidget*)m_hRenderWin, &dst_w, &dst_h);
+    XvPutImage(m_Display, m_XvPortID, m_Xwindow, m_XvGC, xv_image, 0, 0, width, height, 0, 0, dst_w, dst_h);
+    XFree(xv_image);
+#endif
 }
 
 enum AVPixelFormat Video::get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
