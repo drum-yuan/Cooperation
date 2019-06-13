@@ -39,6 +39,6 @@ CAPTURE_API void cap_set_capture_sequence(unsigned int seq);
 
 CAPTURE_API void cap_reset_sequence();
 
-#endif
-
 CAPTURE_API void cap_set_frame_rate(unsigned int rate);
+
+#endif
