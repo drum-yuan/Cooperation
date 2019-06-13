@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef WIN32
 #define DAEMON_API __declspec(dllexport)
+#else
+#define DAEMON_API
+#endif
 /* 收到直播通知后的回调
 */
 typedef void(*StartStreamCallback)(void);

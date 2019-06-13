@@ -149,7 +149,7 @@ void Daemon::HeartbeatThread()
 					break;
 				}
 			}
-			else 
+			else
 			{
 				m_McuClient.send_connect();
 				if (m_Video.IsPublisher()) {
@@ -180,6 +180,10 @@ void Daemon::HeartbeatThread()
 				retry = 3;
 			}
 		}
+#ifdef WIN32
 		Sleep(100);
+#else
+        usleep(100 * 1000);
+#endif
 	}
 }

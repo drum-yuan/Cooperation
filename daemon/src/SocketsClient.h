@@ -1,6 +1,7 @@
 #pragma once
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <string>
 #include "libwebsockets.h"
 #include "Video.h"

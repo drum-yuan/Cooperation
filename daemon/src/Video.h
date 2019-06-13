@@ -20,6 +20,10 @@ extern "C" {
 #include "wels/codec_app_def.h"
 #include "wels/codec_api.h"
 #endif
+#ifndef WIN32
+#include <X11/Xlib.h>
+#include <X11/extensions/Xvlib.h>
+#endif
 #include <functional>
 
 #ifdef HW_ENCODE
@@ -82,6 +86,9 @@ private:
 	bool OpenDecoder();
 	void CloseDecoder();
 	void WriteYUVBuffer(int iStride[2], int iWidth, int iHeight, int iFormat);
+#ifndef WIN32
+    int XVAutoDetectPort();
+#endif
 #ifdef HW_DECODE
 	void DXVA2Render();
 #else
@@ -133,7 +140,14 @@ private:
 #else
 	ISVCDecoder* m_pDecoder;
 #endif
+#ifdef WIN32
 	void* m_hD3DHandle;
+#else
+    Display* m_Display;
+    Window m_Xwindow;
+    GC m_XvGC;
+    XvPortID m_XvPortID;
+#endif
 	unsigned char* m_pDecData[3];
 	unsigned char* m_pRenderData;
 };

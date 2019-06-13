@@ -1,8 +1,14 @@
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 #include "Video.h"
 #include "libyuv.h"
+#ifdef WIN32
 #include "D3DRenderAPI.h"
+#else
+#include <gdk/gdkx.h>
+#include <gtk/gtk.h>
+#endif
 
 #ifdef USE_D3D
 typedef struct DXVA2DevicePriv {
@@ -61,7 +67,9 @@ Video::Video():m_iFrameW(0),
 #else
 	m_pDecoder = NULL;
 #endif
+#ifdef WIN32
 	m_hD3DHandle = NULL;
+#endif
 	m_pDecData[0] = NULL;
 	m_pDecData[1] = NULL;
 	m_pDecData[2] = NULL;
@@ -84,6 +92,17 @@ void Video::SetRenderWin(void* hWnd)
 {
 	m_hRenderWin = hWnd;
 	m_bLockScreen = false;
+#ifndef WIN32
+    if (m_hRenderWin != NULL) {
+        printf("init Xv image\n");
+        m_Display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window((GtkWidget*)m_hRenderWin));
+        m_Xwindow = GDK_WINDOW_XID(gtk_widget_get_window((GtkWidget*)m_hRenderWin));
+        Drawable d = GDK_WINDOW_XID(gtk_widget_get_window((GtkWidget*)m_hRenderWin));
+        m_XvGC = XCreateGC(m_Display, d, 0, NULL);
+        printf("XVAutoDetectPort\n");
+        XVAutoDetectPort();
+    }
+#endif
 }
 
 bool Video::show(unsigned char* buffer, unsigned int len)
@@ -963,6 +982,7 @@ void Video::Render(SBufferInfo* pInfo)
 	WriteYUVBuffer(pInfo->UsrData.sSystemBuffer.iStride, pInfo->UsrData.sSystemBuffer.iWidth, pInfo->UsrData.sSystemBuffer.iHeight, 0);
 	int width = pInfo->UsrData.sSystemBuffer.iWidth;
 	int height = pInfo->UsrData.sSystemBuffer.iHeight;
+#ifdef WIN32
 	if (width != m_iFrameW || height != m_iFrameH) {
 		m_iFrameW = width;
 		m_iFrameH = height;
@@ -976,6 +996,18 @@ void Video::Render(SBufferInfo* pInfo)
 	RECT rcDst;
 	GetClientRect((HWND)m_hRenderWin, &rcDst);
 	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
+#else
+	if (width != m_iFrameW || height != m_iFrameH) {
+		m_iFrameW = width;
+		m_iFrameH = height;
+	}
+    XvImage *xv_image = XvCreateImage(m_Display, m_XvPortID, 0x30323449, (char*)m_pRenderData, width, height);
+    int dst_w = 0;
+    int dst_h = 0;
+    gtk_widget_get_size_request((GtkWidget*)m_hRenderWin, &dst_w, &dst_h);
+    XvPutImage(m_Display, m_XvPortID, m_Xwindow, m_XvGC, xv_image, 0, 0, width, height, 0, 0, dst_w, dst_h);
+    XFree(xv_image);
+#endif
 }
 #endif
 
@@ -1013,6 +1045,57 @@ void Video::WriteBmpHeader(FILE* fp)
 
 	fwrite(header, sizeof(unsigned char), 54, fp);
 }
+
+#ifndef WIN32
+int Video::XVAutoDetectPort()
+{
+    int ret = Success;
+	unsigned int i, j, k;
+	unsigned int ver,rel,req,ev,err;
+	XvAdaptorInfo* adaptor_info = NULL;
+	unsigned int adaptor_num;
+	XvImageFormatValues *formatValues;
+	int formats;
+	XvPortID port;
+
+	XvQueryExtension(m_Display, &ver, &rel, &req, &ev, &err);
+	if (ret != Success)
+	{
+	    printf("XvQueryExtension failed,xv is not present.\n");
+	    goto OnError;
+	}
+	printf("xv version %u,release %u,request_base %u,event_base %u,error_base=%u\n", ver,rel,req,ev,err);
+	ret = XvQueryAdaptors(m_Display, m_Xwindow, &adaptor_num, &adaptor_info);
+	if (ret != Success)
+	{
+	    printf("XvQueryAdaptors failed.\n");
+	    goto OnError;
+	}
+	for (i = 0; i < adaptor_num; i++)
+	{
+	    for (j = 0; j < adaptor_info[i].num_ports; j++)
+	    {
+            port = adaptor_info[i].base_id + j;
+	        formatValues = XvListImageFormats(m_Display, port, &formats);
+            for (k = 0; k < formats; k++)
+            {
+                if (formatValues[k].type == XvYUV && (strcmp(formatValues[k].guid, "I420") == 0) &&
+                    XvGrabPort(m_Display, port, 0) == Success)
+                {
+                    m_XvPortID = port;
+                    goto OnError;
+                }
+            }
+	    }
+	}
+	ret = -1;
+    printf("Grab port failed\n");
+OnError:
+	if (adaptor_info)
+        XvFreeAdaptorInfo(adaptor_info);
+	return ret;
+}
+#endif
 
 bool Video::IsPublisher()
 {

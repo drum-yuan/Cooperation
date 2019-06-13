@@ -1,5 +1,10 @@
 #include "CaptureApi.h"
+#ifdef WIN32
 #include "CaptureWin.h"
+#else
+#include "CaptureLinux.h"
+#include <unistd.h>
+#endif
 
 static CCapture *s_pCapture = NULL;
 
@@ -7,7 +12,11 @@ void cap_start_capture_screen(int monitor_id, FrameCallback on_frame, void* para
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->stop();
+#ifdef WIN32
 		Sleep(1000);
+#else
+		usleep(1000 * 1000);
+#endif
 		delete s_pCapture;
 	}
 	printf("new Capture\n");
@@ -19,7 +28,11 @@ void cap_stop_capture_screen()
 {
 	if (s_pCapture != NULL) {
 		s_pCapture->stop();
-		Sleep(1000);
+#ifdef WIN32
+                Sleep(1000);
+#else
+                usleep(1000 * 1000);
+#endif
 		delete s_pCapture;
 		s_pCapture = NULL;
 	}

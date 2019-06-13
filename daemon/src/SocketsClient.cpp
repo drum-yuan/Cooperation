@@ -1,8 +1,8 @@
-#include "SocketsClient.h"
 #include "Protocol.h"
 #include "proto.hpp"
 #include "autojsoncxx/autojsoncxx.hpp"
 #include "lz4.h"
+#include "SocketsClient.h"
 
 #define WEBSOCKET_MAX_BUFFER_SIZE (1024*1024)
 #define CONNECT_TIMEOUT 5000  //ms
@@ -392,10 +392,19 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			free(m_PicBuffer);
 			m_PicBuffer = NULL;
 
+            char file_path[256];
+#ifdef WIN32
 			SYSTEMTIME t;
 			GetLocalTime(&t);
-			char file_path[256];
 			sprintf(file_path, "pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+#else
+            time_t now;
+            struct tm* tm_now;
+            time(&now);
+            tm_now = localtime(&now);
+            sprintf(file_path, "pic%04d%02d%02d%02d%02d%02d.bmp",
+                    tm_now->tm_year+1900, tm_now->tm_mon+1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
+#endif
 			FILE* fp = fopen(file_path, "wb");
 			if (m_pVideo) {
 				m_pVideo->WriteBmpHeader(fp);
@@ -623,7 +632,11 @@ void SocketsClient::send_picture_data(unsigned char* data, int len)
 		send_len += once_len;
 		send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 		m_SendBuf->reset();
+#ifdef WIN32
 		Sleep(3000);
+#else
+        usleep(3000 * 1000);
+#endif
 	}
 	once_len = compressed_len - send_len;
 	header.magic = 1;

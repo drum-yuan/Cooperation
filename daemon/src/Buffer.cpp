@@ -1,8 +1,9 @@
 #include "Buffer.h"
+#include <string.h>
 
 #define LWS_PRE 16  //reserve 16 bytes for libwebsockets write protocol header data
 
-Buffer::Buffer(unsigned int size):m_buf(NULL),m_size(0), m_pos(LWS_PRE)
+Buffer::Buffer(unsigned int size):m_buf(NULL),m_pos(LWS_PRE),m_size(0)
 {
 	m_size = LWS_PRE + size;
 	m_buf = new unsigned char[m_size];
@@ -12,7 +13,7 @@ Buffer::~Buffer()
 {
 	if (m_buf)
 	{
-		delete m_buf;
+		delete (unsigned char*)m_buf;
 		m_buf = NULL;
 	}
 }
@@ -52,7 +53,7 @@ unsigned int Buffer::append(void* buf, unsigned int size)
 void Buffer::resize(unsigned int size)
 {
 	if (LWS_PRE + size != m_size) {
-		delete m_buf;
+		delete (unsigned char*)m_buf;
 		m_size = LWS_PRE + size;
 		m_buf = new unsigned char[m_size];
 	}
