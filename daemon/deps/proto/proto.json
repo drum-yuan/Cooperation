@@ -37,6 +37,18 @@
         ["unsigned int", "keyValue", {"required": true}],
         ["bool", "isPressed", {"required": true}]
     ]
+},
+
+{
+    "name": "HeartbeatInfo",
+    "namespace": "MCUProtocol",
+    "members":
+    [
+        ["unsigned int", "UserNum", {"required": true}],
+        ["std::vector<std::string>", "UserList", {"required": true}],
+        ["std::string", "Publisher", {"required":true}],
+        ["std::string", "Operater", {"required":true}]
+    ]
 }
 ]
 

@@ -5,6 +5,16 @@
 #else
 #define DAEMON_API
 #endif
+
+/* 当前用户信息
+*/
+typedef struct tagUsersInfo {
+	unsigned int user_num;
+	char user_list[20][64];
+	char publisher[64];
+	char operater[64];
+} UsersInfo;
+
 /* 收到直播通知后的回调
 */
 typedef void(*StartStreamCallback)(void);
@@ -63,5 +73,7 @@ DAEMON_API void daemon_set_mouse_callback(MouseCallback on_mouse);
 DAEMON_API void daemon_send_keyboard_event(unsigned int key_val, bool is_pressed);
 //设置收到键盘事件后的回调
 DAEMON_API void daemon_set_keyboard_callback(KeyboardCallback on_keyboard);
+//获取播放参与者信息
+DAEMON_API void daemon_get_users_info(UsersInfo* info);
 
 

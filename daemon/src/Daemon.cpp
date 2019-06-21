@@ -122,6 +122,11 @@ void Daemon::set_keyboard_callback(KeyboardCallback on_keyboard)
 	m_ProxyClient.set_keyboard_callback(on_keyboard);
 }
 
+UsersInfoInternal Daemon::get_users_info()
+{
+	return m_ProxyClient.get_users_info();
+}
+
 void Daemon::OnVideoEncoded(void* data)
 {
 	m_McuClient.send_video_data(data);

@@ -469,6 +469,21 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		}
 	}
 		break;
+	case kMsgTypeHeartbeat:
+	{
+		HeartbeatInfo tHeartbeat;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tHeartbeat, result)) {
+			printf("parser json string fail %s\n", pPayload);
+			break;
+		}
+		m_UsersInfo.user_num = tHeartbeat.UserNum;
+		m_UsersInfo.user_list = tHeartbeat.UserList;
+		m_UsersInfo.publisher = tHeartbeat.Publisher;
+		m_UsersInfo.operater = tHeartbeat.Operater;
+	}
+		break;
 	default:
 		printf("handle_in unknown msg type %d\n", uType);
 		break;
@@ -477,12 +492,36 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 
 void SocketsClient::send_connect()
 {
+	string str;
+	if (m_Proxy) {
+		str = "{\"UserName\":\"";
+#ifdef WIN32
+		DWORD name_len = 0;
+		GetComputerName(NULL, &name_len);
+		char* name = new char[name_len];
+		GetComputerName(name, &name_len);
+		str += name;
+		str += "|";
+		delete[] name;
+		name_len = 0;
+		GetUserName(NULL, &name_len);
+		name = new char[name_len];
+		GetUserName(name, &name_len);
+		str += name;
+		delete[] name;
+#endif
+		str += "\"}";
+
+	}
 	WebSocketHeader header;
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypeConnect);
-	header.length = 0;
+	header.length = Swap32IfLE(str.size());
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	if (m_Proxy) {
+		m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	}
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
 }
@@ -692,6 +731,11 @@ void SocketsClient::send_keyboard_event(unsigned int key_val, bool is_pressed)
 	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
+}
+
+UsersInfoInternal SocketsClient::get_users_info()
+{
+	return m_UsersInfo;
 }
 
 int SocketsClient::callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user,

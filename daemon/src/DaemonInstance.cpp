@@ -117,3 +117,27 @@ void daemon_set_keyboard_callback(KeyboardCallback on_keyboard)
 		s_pDaemon->set_keyboard_callback(on_keyboard);
 	}
 }
+
+void daemon_get_users_info(UsersInfo* info)
+{
+	if (!info) {
+		return;
+	}
+	if (s_pDaemon != NULL) {
+		int len = 0;
+		UsersInfoInternal info_internal = s_pDaemon->get_users_info();
+		info->user_num = info_internal.user_num;
+		for (int i = 0; i < 20 && i < info_internal.user_list.size(); i++) {
+			string user = info_internal.user_list.at(i);
+			len = (user.length() < 63) ? user.length() : 63;
+			strncpy(info->user_list[i], info_internal.user_list.at(i).c_str(), len);
+			info->user_list[i][len] = '\0';
+		}
+		len = (info_internal.publisher.length() < 63) ? info_internal.publisher.length() : 63;
+		strncpy(info->publisher, info_internal.publisher.c_str(), len);
+		info->publisher[len] = '\0';
+		len = (info_internal.operater.length() < 63) ? info_internal.operater.length() : 63;
+		strncpy(info->operater, info_internal.operater.c_str(), len);
+		info->operater[len] = '\0';
+	}
+}

@@ -3,11 +3,19 @@
 #include <mutex>
 #include <condition_variable>
 #include <string>
+#include <vector>
 #include "libwebsockets.h"
 #include "Video.h"
 #include "Buffer.h"
 
 using namespace std;
+
+typedef struct tagUsersInfoInternal {
+	unsigned int user_num;
+	vector<string> user_list;
+	string publisher;
+	string operater;
+} UsersInfoInternal;
 
 typedef void(*StartStreamCallback)(void);
 typedef void(*StopStreamCallback)(void);
@@ -48,6 +56,7 @@ public:
 	void send_operate();
 	void send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask);
 	void send_keyboard_event(unsigned int key_val, bool is_pressed);
+	UsersInfoInternal get_users_info();
 
 	static int callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
 
@@ -79,4 +88,5 @@ private:
 	MouseCallback m_CallbackMouse;
 	KeyboardCallback m_CallbackKeyboard;
 	StopStreamCallback m_CallbackStop;
+	UsersInfoInternal m_UsersInfo;
 };

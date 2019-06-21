@@ -23,6 +23,7 @@ public:
 	void set_mouse_callback(MouseCallback on_mouse);
 	void send_keyboard_event(unsigned int key_val, bool is_pressed);
 	void set_keyboard_callback(KeyboardCallback on_keyboard);
+	UsersInfoInternal get_users_info();
 
 private:
 	void OnVideoEncoded(void* data);

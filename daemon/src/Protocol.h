@@ -27,7 +27,8 @@ typedef enum tagMsgType
 	kMsgTypeMouseEvent = 1009,
 	kMsgTypeKeyboardEvent = 1010,
 	kMsgTypeStopStream = 1011,
-	kMsgTypeStopStreamAck = 1012
+	kMsgTypeStopStreamAck = 1012,
+	kMsgTypeHeartbeat = 1013
 } MsgType;
 
 #define Swap32IfLE(l) \
