@@ -47,6 +47,7 @@ Video::Video():m_iFrameW(0),
 	m_maxDisplayH = -1;
 	m_uCaptureSeq = 0;
 	m_uAckSeq = 0;
+	InitNvfbcEncoder();
 #else
 	m_pEncoder = NULL;
 	onEncoded = NULL;
@@ -165,8 +166,9 @@ void Video::start()
 	m_bPublisher = true;
 #ifdef HW_ENCODE
 	m_bQuit = false;
-	InitNvfbcEncoder();
-	m_captureID = new std::thread(&Video::CaptureLoopProc, this);
+	if (m_pNvFBCDX9) {
+		m_captureID = new std::thread(&Video::CaptureLoopProc, this);
+	}
 #else
 	cap_start_capture_screen(1, Video::onFrame, this);
 	cap_set_drop_interval(25);
@@ -187,7 +189,6 @@ void Video::stop()
 		delete m_captureID;
 		m_captureID = NULL;
 	}
-	CleanupNvfbcEncoder();
 #else
 	cap_stop_capture_screen();
 #endif
@@ -273,7 +274,7 @@ void Video::CaptureLoopProc(void* param)
 	LONGLONG sleepMsec = 1000 / video->m_iFrameRate;
 
 	NVFBC_TODX9VID_GRAB_FRAME_PARAMS fbcDX9GrabParams = { 0 };
-	NVFBCRESULT fbcRes = NVFBC_SUCCESS;
+	NVFBCRESULT fbcRes = NVFBC_ERROR_GENERIC;
 	fbcDX9GrabParams.dwVersion = NVFBC_TODX9VID_GRAB_FRAME_PARAMS_V1_VER;
 	fbcDX9GrabParams.dwFlags = NVFBC_TODX9VID_NOWAIT;
 	fbcDX9GrabParams.eGMode = NVFBC_TODX9VID_SOURCEMODE_SCALE;
@@ -287,13 +288,15 @@ void Video::CaptureLoopProc(void* param)
 			Sleep(50);
 			continue;
 		}
-		if (video->m_uCaptureSeq - video->m_uAckSeq > 25) {
+		if (video->m_uCaptureSeq - video->m_uAckSeq >= 25) {
 			Sleep(1);
 			continue;
 		}
 		unsigned int frameIndex = video->m_uCaptureSeq % MAX_BUF_QUEUE;
-		fbcRes = video->m_pNvFBCDX9->NvFBCToDx9VidGrabFrame(&fbcDX9GrabParams);
-		if (fbcRes == NVFBC_SUCCESS)
+		if (video->m_pNvFBCDX9) {
+			fbcRes = video->m_pNvFBCDX9->NvFBCToDx9VidGrabFrame(&fbcDX9GrabParams);
+		}
+		if (fbcRes == NVFBC_SUCCESS && video->m_pEncoder)
 		{
 			if (video->m_iFrameW == 0 && video->m_iFrameH == 0) {
 				if (S_OK != video->m_pEncoder->SetupEncoder(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, ENCODER_BITRATE, 
@@ -367,6 +370,7 @@ void Video::CaptureLoopProc(void* param)
 			}
 		}
 		else {
+			Sleep(1);
 			printf("Grab frame failed\n");
 		}
 	}

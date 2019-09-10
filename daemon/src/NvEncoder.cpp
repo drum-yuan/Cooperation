@@ -414,8 +414,9 @@ HRESULT Encoder::GetBitstream(unsigned int i)
     {
         fprintf(stderr, __FUNCTION__": Failed to lock bitstream.\n");
     }
-
-	onEncoded(&lockBitstreamData);
+	if (onEncoded) {
+		onEncoded(&lockBitstreamData);
+	}
 
     nvStatus = m_pEncodeAPI->nvEncUnlockBitstream(m_hEncoder, m_stBitstreamBuffer[i].hBitstreamBuffer);
     if (nvStatus != NV_ENC_SUCCESS)

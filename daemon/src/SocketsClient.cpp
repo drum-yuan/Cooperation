@@ -552,8 +552,10 @@ void SocketsClient::send_stop_stream()
 
 void SocketsClient::send_video_data(void* data)
 {
-	if (data == NULL)
+	if (data == NULL) {
+		printf("send data null\n");
 		return;
+	}
 #ifdef HW_ENCODE
 	NV_ENC_LOCK_BITSTREAM* lockBitstreamData = (NV_ENC_LOCK_BITSTREAM*)data;
 	printf("bitstreamdata len %d\n", lockBitstreamData->bitstreamSizeInBytes);
