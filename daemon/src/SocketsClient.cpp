@@ -65,6 +65,7 @@ SocketsClient::SocketsClient() : m_Proxy(false),
 
 SocketsClient::~SocketsClient()
 {
+	stop();
 	if (m_protocols)
 	{
 		free(m_protocols);
