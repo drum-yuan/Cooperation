@@ -44,9 +44,11 @@
 *.log
 *.idb
 /daemon/.vs/daemon/v15
+/daemon/.vs/daemon/v16
 *.ib_pdb_index
 /MFCClient/.vs/MFCClient/v15/ipch
 /MFCClient/Release/MFCClient.res
 /MFCClient/DaemonApi.h
 /MFCClient/MFCClient.vcxproj.filters
-/MFCClient/ipch/MFCCLIENT-9e9466a3/MFCCLIENT-dcb7b33b.ipch
+/MFCClient/ipch
+
