@@ -97,7 +97,9 @@ void Widget::stop_stream_callback()
 {
     _instance->repaint();
     _instance->show_buttons();
+    _instance->setWindowFlag(Qt::Widget);
     _instance->resize(400, 300);
+    _instance->show();
 }
 
 void Widget::start_operate_callback(bool is_operater)
