@@ -13,6 +13,11 @@ typedef struct tagVideoDataHeader {
 	unsigned int sequence;
 } VideoDataHeader;
 
+typedef struct tagAudioDataHeader {
+	unsigned int timestamp;
+	unsigned int numFrames;
+} AudioDataHeader;
+
 typedef enum tagMsgType
 {
 	kMsgTypeConnect = 1000,
@@ -28,7 +33,9 @@ typedef enum tagMsgType
 	kMsgTypeKeyboardEvent = 1010,
 	kMsgTypeStopStream = 1011,
 	kMsgTypeStopStreamAck = 1012,
-	kMsgTypeHeartbeat = 1013
+	kMsgTypeHeartbeat = 1013,
+	kMsgTypeCursorShape = 1014,
+	kMsgTypeAudioData = 1015
 } MsgType;
 
 #define Swap32IfLE(l) \

@@ -40,7 +40,7 @@ Video::Video():m_iFrameW(0),
 		m_apD3D9RGB8Surf[i] = NULL;
 	}
 	m_pEncoder = NULL;
-	m_captureID = NULL;
+	m_pCaptureID = NULL;
 	m_bQuit = false;
 	m_bPause = false;
 	m_maxDisplayW = -1;
@@ -167,7 +167,7 @@ void Video::start()
 #ifdef HW_ENCODE
 	m_bQuit = false;
 	if (m_pNvFBCDX9) {
-		m_captureID = new std::thread(&Video::CaptureLoopProc, this);
+		m_pCaptureID = new std::thread(&Video::CaptureLoopProc, this);
 	}
 #else
 	cap_start_capture_screen(1, Video::onFrame, this);
@@ -182,12 +182,12 @@ void Video::stop()
 	m_bPublisher = false;
 #ifdef HW_ENCODE
 	m_bQuit = true;
-	if (m_captureID) {
-		if (m_captureID->joinable()) {
-			m_captureID->join();
+	if (m_pCaptureID) {
+		if (m_pCaptureID->joinable()) {
+			m_pCaptureID->join();
+			delete m_pCaptureID;
 		}
-		delete m_captureID;
-		m_captureID = NULL;
+		m_pCaptureID = NULL;
 	}
 #else
 	cap_stop_capture_screen();

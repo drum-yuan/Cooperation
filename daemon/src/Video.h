@@ -63,7 +63,6 @@ public:
 	void set_ack_seq(unsigned int seq);
 	unsigned int get_capture_seq();
 	unsigned int get_frame_type(NV_ENC_PIC_TYPE type);
-	static void CaptureLoopProc(void* param);
 #else
 	static void onFrame(CallbackFrameInfo* frame, void* param);
 #endif
@@ -74,6 +73,7 @@ public:
 private:
 #ifdef HW_ENCODE
 	void InitNvfbcEncoder();
+	void CaptureLoopProc(void* param);
 	HRESULT InitD3D9(unsigned int deviceID);
 	HRESULT InitD3D9Surfaces();
 	void CleanupNvfbcEncoder();
@@ -103,7 +103,7 @@ private:
 	IDirect3DDevice9Ex *m_pD3D9Device;
 	IDirect3DSurface9 *m_apD3D9RGB8Surf[MAX_BUF_QUEUE];
 	Encoder *m_pEncoder;
-	std::thread *m_captureID;
+	std::thread *m_pCaptureID;
 	bool m_bQuit;
 	bool m_bPause;
 	unsigned long m_maxDisplayW;

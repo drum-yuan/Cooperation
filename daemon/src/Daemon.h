@@ -27,12 +27,14 @@ public:
 
 private:
 	void OnVideoEncoded(void* data);
+	void OnAudioEncoded(unsigned char* data, int len, unsigned int frams_num);
 	void OnLockScreen(unsigned char* data, int len);
 	void HeartbeatThread();
 
 	SocketsClient m_McuClient;
 	SocketsClient m_ProxyClient;
 	Video m_Video;
+	Audio m_Audio;
 	string m_McuUrl;
 	thread* m_pHeartbeatID;
 	bool m_bQuit;

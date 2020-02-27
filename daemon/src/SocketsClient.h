@@ -6,6 +6,7 @@
 #include <vector>
 #include "libwebsockets.h"
 #include "Video.h"
+#include "Audio.h"
 #include "Buffer.h"
 
 using namespace std;
@@ -56,6 +57,7 @@ public:
 	void send_operate();
 	void send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask);
 	void send_keyboard_event(unsigned int key_val, bool is_pressed);
+	void send_audio_data(unsigned char* data, int len, unsigned int frams_num);
 	UsersInfoInternal get_users_info();
 
 	static int callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);

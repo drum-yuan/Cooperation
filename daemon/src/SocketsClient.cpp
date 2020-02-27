@@ -377,7 +377,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			m_PicBuffer = (unsigned char*)malloc(bound);
 			m_PicPos = 0;
 		}
-		if (m_PicPos + uPayloadLen <= bound) {
+		if (m_PicBuffer && m_PicPos + uPayloadLen <= bound) {
 			memcpy(m_PicBuffer + m_PicPos, pData, uPayloadLen);
 			m_PicPos += uPayloadLen;
 		}
@@ -389,6 +389,9 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		}
 		if (uMagic == 1) {
 			unsigned char* decompressed = (unsigned char*)malloc(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
+			if (decompressed == NULL) {
+				break;
+			}
 			int decompressed_len = LZ4_decompress_safe((char*)m_PicBuffer, (char*)decompressed, m_PicPos, MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
 			free(m_PicBuffer);
 			m_PicBuffer = NULL;
@@ -734,6 +737,19 @@ void SocketsClient::send_keyboard_event(unsigned int key_val, bool is_pressed)
 	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
+}
+
+void SocketsClient::send_audio_data(unsigned char* data, int len, unsigned int frams_num)
+{
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeAudioData);
+	header.length = sizeof(AudioDataHeader) + len;
+
+	AudioDataHeader audioheader;
+	audioheader.timestamp = Swap32IfLE((unsigned int)clock());
+	audioheader.numFrames = Swap32IfLE(frams_num);
 }
 
 UsersInfoInternal SocketsClient::get_users_info()

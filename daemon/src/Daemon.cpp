@@ -28,6 +28,7 @@ Daemon::~Daemon()
 void Daemon::start_stream()
 {
 	m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
+	m_Audio.SetOnEncoded(std::bind(&Daemon::OnAudioEncoded, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	m_McuClient.send_publish();
 	m_Video.start();
 }
@@ -130,6 +131,11 @@ UsersInfoInternal Daemon::get_users_info()
 void Daemon::OnVideoEncoded(void* data)
 {
 	m_McuClient.send_video_data(data);
+}
+
+void Daemon::OnAudioEncoded(unsigned char* data, int len, unsigned int frame_num)
+{
+	m_McuClient.send_audio_data(data, len, frame_num);
 }
 
 void Daemon::OnLockScreen(unsigned char* data, int len)
