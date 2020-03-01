@@ -118,6 +118,20 @@ void daemon_set_keyboard_callback(KeyboardCallback on_keyboard)
 	}
 }
 
+void daemon_send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes)
+{
+	if (s_pDaemon != NULL) {
+		s_pDaemon->send_cursor_shape(x, y, w, h, color_bytes, mask_bytes);
+	}
+}
+
+void daemon_set_cursor_shape_callback(CursorShapeCallback on_cursor_shape)
+{
+	if (s_pDaemon != NULL) {
+		s_pDaemon->set_cursor_shape_callback(on_cursor_shape);
+	}
+}
+
 void daemon_get_users_info(UsersInfo* info)
 {
 	if (!info) {

@@ -3,6 +3,7 @@
 #include "DaemonApi.h"
 #include <windows.h>
 #include <QMouseEvent>
+#include <QBitmap>
 #include <QDebug>
 
 #define AGENT_LBUTTON_MASK (1 << 1)
@@ -26,12 +27,23 @@ Widget::Widget(QWidget *parent) :
     connect(ui->Operate, SIGNAL(clicked()), this, SLOT(set_operater()));
     _instance = this;
 
+    m_quit = false;
     m_can_operate = false;
+    m_is_streaming = false;
     m_button_mask = 0;
+    m_monitor_thread = NULL;
 }
 
 Widget::~Widget()
 {
+    m_quit = true;
+    if (m_monitor_thread != NULL) {
+        if (m_monitor_thread->joinable()) {
+            m_monitor_thread->join();
+            delete m_monitor_thread;
+        }
+        m_monitor_thread = NULL;
+    }
     delete ui;
 }
 
@@ -49,17 +61,22 @@ void Widget::connect_to_server()
         daemon_set_operater_callback(start_operate_callback);
         daemon_set_mouse_callback(recv_mouse_event_callback);
         daemon_set_keyboard_callback(recv_keyboard_event_callback);
+        daemon_set_cursor_shape_callback(recv_cursor_shape_callback);
         ui->Connect->setEnabled(false);
+        m_monitor_thread = new std::thread(&Widget::monitor_thread, this);
     }
+    qWarning() << "connect to server";
 }
 
 void Widget::start_stream()
 {
     daemon_start_stream();
+    m_is_streaming = true;
 }
 
 void Widget::stop_stream()
 {
+    m_is_streaming = false;
     daemon_stop_stream();
 }
 
@@ -95,11 +112,10 @@ void Widget::start_stream_callback()
 
 void Widget::stop_stream_callback()
 {
-    _instance->repaint();
-    _instance->show_buttons();
+    _instance->m_can_operate = false;
     _instance->setWindowFlag(Qt::Widget);
-    _instance->resize(400, 300);
-    _instance->show();
+    _instance->showNormal();
+    _instance->show_buttons();
 }
 
 void Widget::start_operate_callback(bool is_operater)
@@ -133,7 +149,7 @@ void Widget::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
     DWORD buttons_change = 0;
     DWORD mouse_wheel = 0;
 
-    qDebug() << "recv mouse event " << x << "-" << y << "-" << button_mask;
+    //qDebug() << "recv mouse event " << x << "-" << y << "-" << button_mask;
     ZeroMemory(&_input, sizeof(INPUT));
     _input.type = INPUT_MOUSE;
 
@@ -187,18 +203,110 @@ void Widget::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
     }
 }
 
+void Widget::recv_cursor_shape_callback(int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes)
+{
+    QByteArray str_color = QByteArray::fromBase64(QByteArray(color_bytes.c_str(), color_bytes.length()));
+    QByteArray str_mask = QByteArray::fromBase64(QByteArray(mask_bytes.c_str(), mask_bytes.length()));
+
+    qWarning() << "recv cursor shape " << x << " " << y << " " << w << " " << h << " " << str_color.size() << " " << str_mask.size();
+
+    /*ICONINFO info;
+    info.fIcon = FALSE;
+    info.xHotspot = x;
+    info.yHotspot = y;
+    info.hbmMask = CreateBitmap(w, h, 1, 1, str_mask.data());
+    info.hbmColor = CreateBitmap(w, h, 1, 32, str_color.data());
+    _instance->m_cursor = CreateIconIndirect(&info);*/
+    QBitmap bitmap_mask = QBitmap::fromData(QSize(w, h), (uchar*)str_mask.data(), QImage::Format_Alpha8);
+    QBitmap bitmap_color = QBitmap::fromData(QSize(w, h), (uchar*)str_color.data(), QImage::Format_ARGB32);
+    QCursor cursor(bitmap_color, bitmap_mask, x, y);
+    _instance->setCursor(cursor);
+}
+
 void Widget::scale_to_screen(QPoint& point)
 {
     int w = 0;
     int h = 0;
     daemon_get_stream_size(&w, &h);
-    qDebug() << "stream size " << w << "-" << h;
+    //qDebug() << "stream size " << w << "-" << h;
 
     if (w > 0 && h > 0) {
         point.setX(point.x() * w / width());
         point.setY(point.y() * h / height());
     }
-    qDebug() << "cur point " << point.x() << "-" << point.y();
+    //qDebug() << "cur point " << point.x() << "-" << point.y();
+}
+
+void Widget::monitor_thread()
+{
+    //static int count = 0;
+    while (!m_quit) {
+#ifdef WIN32
+        Sleep(50);
+#else
+        usleep(50000);
+#endif
+        if (m_is_streaming) {
+            CURSORINFO cursor_info;
+            cursor_info.cbSize = sizeof(CURSORINFO);
+            BOOL ret = GetCursorInfo(&cursor_info);
+            if (cursor_info.hCursor != m_cursor) {
+                ICONINFO icon_info;
+                BITMAP bmMask;
+                BITMAP bmColor;
+                QByteArray str_mask;
+                std::string mask_bytes;
+                QByteArray str_color;
+                std::string color_bytes;
+
+                ret = GetIconInfo(cursor_info.hCursor, &icon_info);
+                if (icon_info.hbmMask == NULL) {
+                    continue;
+                }
+                int x = icon_info.xHotspot;
+                int y = icon_info.yHotspot;
+                qWarning() << "Icon x " << x << " y " << y;
+
+                GetObject(icon_info.hbmMask, sizeof(bmMask), &bmMask);
+                if (bmMask.bmPlanes != 1 || bmMask.bmBitsPixel != 1) {
+                    continue;
+                }
+                //qWarning() << "hbmMask " << bmMask.bmWidth << " " << bmMask.bmHeight << " " << bmMask.bmWidthBytes << " " << bmMask.bmType;
+                char* mask_buffer = new char[bmMask.bmWidthBytes * bmMask.bmHeight];
+                GetBitmapBits(icon_info.hbmMask, bmMask.bmWidthBytes * bmMask.bmHeight, mask_buffer);
+                DeleteObject(icon_info.hbmMask);
+                str_mask = QByteArray(mask_buffer, bmMask.bmWidthBytes * bmMask.bmHeight).toBase64();
+                mask_bytes = QString(str_mask).toStdString();
+                delete []mask_buffer;
+
+                if (icon_info.hbmColor != NULL) {
+                    GetObject(icon_info.hbmColor,sizeof(bmColor),&bmColor);
+                    //qWarning() << "hbmColor " << bmColor.bmWidth << " " << bmColor.bmHeight << " " << bmColor.bmWidthBytes << " " << bmColor.bmType;
+                    char* color_buffer = new char[bmColor.bmWidthBytes * bmColor.bmHeight];
+                    GetBitmapBits(icon_info.hbmColor, bmColor.bmWidthBytes * bmColor.bmHeight, color_buffer);
+                    DeleteObject(icon_info.hbmColor);
+                    str_color = QByteArray(color_buffer, bmColor.bmWidthBytes * bmColor.bmHeight).toBase64();
+                    color_bytes = QString(str_color).toStdString();
+                    delete []color_buffer;
+
+                    /*str_mask = QByteArray::fromBase64(QByteArray(mask_bytes.c_str(), mask_bytes.length()));
+                    str_color = QByteArray::fromBase64(QByteArray(color_bytes.c_str(), color_bytes.length()));
+                    QBitmap bitmap_mask = QBitmap::fromData(QSize(bmMask.bmWidth, bmMask.bmHeight), (uchar*)str_mask.data(), QImage::Format_Alpha8);
+                    QBitmap bitmap_color = QBitmap::fromData(QSize(bmColor.bmWidth, bmColor.bmHeight), (uchar*)str_color.data(), QImage::Format_ARGB32);
+
+                    QString mask_name = QString("mask%1.bmp").arg(count);
+                    QString color_name = QString("color%1.bmp").arg(count);
+                    count++;
+                    bitmap_mask.save(mask_name);
+                    bitmap_color.save(color_name);*/
+                }
+                m_cursor = cursor_info.hCursor;
+
+                qWarning() << "send cursor shape mask len=" << mask_bytes.length() << " color len=" << color_bytes.length();
+                daemon_send_cursor_shape(x, y, bmMask.bmWidth, bmMask.bmHeight, color_bytes, mask_bytes);
+            }
+        }
+    }
 }
 
 void Widget::mouseMoveEvent(QMouseEvent* event)

@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 #ifdef WIN32
 #define DAEMON_API __declspec(dllexport)
@@ -40,6 +41,15 @@ typedef void (*MouseCallback)(unsigned int x, unsigned int y, unsigned int butto
 	is_pressed：true——按下；false——抬起
 */
 typedef void (*KeyboardCallback)(unsigned int key_val, bool is_pressed);
+/* 收到鼠标形状后的回调
+	x: 鼠标位置横坐标
+	y: 鼠标位置纵坐标
+	w: 鼠标形状图宽
+	h: 鼠标形状图高
+	color_bytes: 鼠标形状图颜色空间RGB数据
+	mask_bytes: 鼠标形状图阿尔法通道数据
+*/
+typedef void (*CursorShapeCallback)(int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
 
 //启动daemon(包含网络初始连接)
 DAEMON_API bool daemon_start(const char* url);
@@ -73,6 +83,10 @@ DAEMON_API void daemon_set_mouse_callback(MouseCallback on_mouse);
 DAEMON_API void daemon_send_keyboard_event(unsigned int key_val, bool is_pressed);
 //设置收到键盘事件后的回调
 DAEMON_API void daemon_set_keyboard_callback(KeyboardCallback on_keyboard);
+//发送鼠标形状
+DAEMON_API void daemon_send_cursor_shape(int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
+//设置收到鼠标形状后的回调
+DAEMON_API void daemon_set_cursor_shape_callback(CursorShapeCallback on_cursor_shape);
 //获取播放参与者信息
 DAEMON_API void daemon_get_users_info(UsersInfo* info);
 

@@ -123,6 +123,16 @@ void Daemon::set_keyboard_callback(KeyboardCallback on_keyboard)
 	m_ProxyClient.set_keyboard_callback(on_keyboard);
 }
 
+void Daemon::send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes)
+{
+	m_ProxyClient.send_cursor_shape(x, y, w, h, color_bytes, mask_bytes);
+}
+
+void Daemon::set_cursor_shape_callback(CursorShapeCallback on_cursor_shape)
+{
+	m_ProxyClient.set_cursor_shape_callback(on_cursor_shape);
+}
+
 UsersInfoInternal Daemon::get_users_info()
 {
 	return m_ProxyClient.get_users_info();

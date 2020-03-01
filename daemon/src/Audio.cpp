@@ -22,6 +22,7 @@ Audio::Audio() :m_bQuit(false), m_bPause(false)
 	m_nhnsActualDuration = 0;
 	m_pAudioClient = NULL;
 	m_pCaptureClient = NULL;
+	m_pRenderClient = NULL;
 #endif
 	onEncoded = NULL;
 	m_pAudioBuf = new unsigned char[AUDIO_CAPTURE_BUF_SIZE];
@@ -134,7 +135,7 @@ int Audio::InitCapture()
 	return 0;
 }
 
-int InitRender()
+int Audio::InitRender()
 {
 #ifdef WIN32
 

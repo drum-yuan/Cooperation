@@ -33,4 +33,5 @@ FORMS    += widget.ui
 INCLUDEPATH += ..\daemon\src
 LIBS += ..\daemon\Release\capture.lib \
         ..\daemon\Release\daemon.lib \
-        user32.lib
+        user32.lib \
+        gdi32.lib

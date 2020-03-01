@@ -24,10 +24,6 @@ void verboseMessageHandler(QtMsgType type, const QMessageLogContext &context, co
         QTextStream text_stream(&file);
         text_stream << message << "\r\n";
         file.close();
-        if (type == QtFatalMsg)
-        {
-            abort();
-        }
     }
 }
 

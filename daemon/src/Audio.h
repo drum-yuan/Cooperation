@@ -9,6 +9,7 @@ struct OpusEncoder;
 #ifdef WIN32
 struct IAudioClient;
 struct IAudioCaptureClient;
+struct IAudioRenderClient;
 
 #ifndef REFERENCE_TIME
 typedef long long REFERENCE_TIME;

@@ -57,10 +57,12 @@ SocketsClient::SocketsClient() : m_Proxy(false),
 	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
 	m_pVideo = NULL;
 	m_CallbackStream = NULL;
+	m_CallbackStop = NULL;
 	m_CallbackPicture = NULL;
 	m_CallbackOperater = NULL;
 	m_CallbackMouse = NULL;
 	m_CallbackKeyboard = NULL;
+	m_CallbackCursorShape = NULL;
 }
 
 SocketsClient::~SocketsClient()
@@ -302,6 +304,11 @@ void SocketsClient::set_keyboard_callback(KeyboardCallback on_keyboard)
 	m_CallbackKeyboard = on_keyboard;
 }
 
+void SocketsClient::set_cursor_shape_callback(CursorShapeCallback on_cursor_shape)
+{
+	m_CallbackCursorShape = on_cursor_shape;
+}
+
 void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 {
 	WebSocketHeader* pWebHeader = (WebSocketHeader*)in;
@@ -486,6 +493,20 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		m_UsersInfo.user_list = tHeartbeat.UserList;
 		m_UsersInfo.publisher = tHeartbeat.Publisher;
 		m_UsersInfo.operater = tHeartbeat.Operater;
+	}
+		break;
+	case kMsgTypeCursorShape:
+	{
+		CursorShapeUpdate_S2C tCursorShape;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tCursorShape, result)) {
+			printf("parser json string fail %s\n", pPayload);
+			break;
+		}
+		if (m_CallbackCursorShape) {
+			m_CallbackCursorShape(tCursorShape.xhot, tCursorShape.yhot, tCursorShape.width, tCursorShape.height, tCursorShape.color_bytes_base64, tCursorShape.mask_bytes_base64);
+		}
 	}
 		break;
 	default:
@@ -750,6 +771,29 @@ void SocketsClient::send_audio_data(unsigned char* data, int len, unsigned int f
 	AudioDataHeader audioheader;
 	audioheader.timestamp = Swap32IfLE((unsigned int)clock());
 	audioheader.numFrames = Swap32IfLE(frams_num);
+}
+
+void SocketsClient::send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes)
+{
+	CursorShapeUpdate_S2C tUpdate;
+	tUpdate.xhot = x;
+	tUpdate.yhot = y;
+	tUpdate.width = w;
+	tUpdate.height = h;
+	tUpdate.color_bytes_base64 = color_bytes;
+	tUpdate.color_size = color_bytes.size();
+	tUpdate.mask_bytes_base64 = mask_bytes;
+	tUpdate.mask_size = mask_bytes.size();
+	string str = autojsoncxx::to_json_string(tUpdate);
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeCursorShape);
+	header.length = Swap32IfLE(str.size());
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
 }
 
 UsersInfoInternal SocketsClient::get_users_info()

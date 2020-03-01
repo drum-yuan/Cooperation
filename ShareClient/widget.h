@@ -2,6 +2,7 @@
 #define WIDGET_H
 
 #include <QWidget>
+#include <thread>
 
 namespace Ui {
 class Widget;
@@ -22,13 +23,21 @@ public:
                               unsigned int mask, unsigned int down_flag, unsigned int up_flag);
     static void recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask);
     static void recv_keyboard_event_callback(unsigned int key_val, bool is_pressed);
+    static void recv_cursor_shape_callback(int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
 
 private:
+    void hide_buttons();
+    void show_buttons();
     void scale_to_screen(QPoint& point);
+    void monitor_thread();
 
     Ui::Widget *ui;
+    bool m_quit;
     bool m_can_operate;
+    bool m_is_streaming;
     unsigned int m_button_mask;
+    std::thread* m_monitor_thread;
+    HCURSOR m_cursor;
 
 signals:
 public slots:
@@ -36,9 +45,6 @@ public slots:
     void start_stream();
     void stop_stream();
     void set_operater();
-
-    void hide_buttons();
-    void show_buttons();
 
     void mouseMoveEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);

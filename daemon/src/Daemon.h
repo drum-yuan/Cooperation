@@ -23,6 +23,8 @@ public:
 	void set_mouse_callback(MouseCallback on_mouse);
 	void send_keyboard_event(unsigned int key_val, bool is_pressed);
 	void set_keyboard_callback(KeyboardCallback on_keyboard);
+	void send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
+	void set_cursor_shape_callback(CursorShapeCallback on_cursor_shape);
 	UsersInfoInternal get_users_info();
 
 private:

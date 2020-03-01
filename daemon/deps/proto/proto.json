@@ -49,6 +49,22 @@
         ["std::string", "Publisher", {"required":true}],
         ["std::string", "Operater", {"required":true}]
     ]
+},
+
+{
+    "name": "CursorShapeUpdate_S2C",
+    "namespace": "MCUProtocol",
+    "members":
+    [
+        ["int", "xhot", {"required": true}],
+        ["int", "yhot", {"required": true}],
+        ["int", "width", {"required": true}],
+        ["int", "height", {"required": true}],
+        ["int", "color_size", {"required": true}],
+        ["std::string", "color_bytes_base64", {"required": true}],
+        ["int", "mask_size", {"required": false}],
+        ["std::string", "mask_bytes_base64", {"required": false}]
+    ]
 }
 ]
 

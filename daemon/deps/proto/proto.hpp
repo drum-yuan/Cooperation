@@ -2244,3 +2244,745 @@ w.Key("\x4f\x70\x65\x72\x61\x74\x65\x72", 8, false); Serializer< Writerb4926d40d
 }
 
 
+// The MIT License (MIT)
+//
+// Copyright (c) 2014 Siyuan Ren (netheril96@gmail.com)
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#include <autojsoncxx/autojsoncxx.hpp>
+
+// The comments are reserved for replacement
+// such syntax is chosen so that the template file looks like valid C++
+
+namespace MCUProtocol { struct CursorShapeUpdate_S2C {
+ int xhot;
+int yhot;
+int width;
+int height;
+int color_size;
+std::string color_bytes_base64;
+int mask_size;
+std::string mask_bytes_base64;
+
+explicit CursorShapeUpdate_S2C():xhot(), yhot(), width(), height(), color_size(), color_bytes_base64(), mask_size(), mask_bytes_base64() {  }
+
+
+ 
+}; }
+
+
+namespace autojsoncxx {
+
+template <>
+class SAXEventHandler< ::MCUProtocol::CursorShapeUpdate_S2C > {
+private:
+    utility::scoped_ptr<error::ErrorBase> the_error;
+    int state;
+    int depth;
+
+    SAXEventHandler< int > handler_0;
+SAXEventHandler< int > handler_1;
+SAXEventHandler< int > handler_2;
+SAXEventHandler< int > handler_3;
+SAXEventHandler< int > handler_4;
+SAXEventHandler< std::string > handler_5;
+SAXEventHandler< int > handler_6;
+SAXEventHandler< std::string > handler_7;bool has_xhot;
+bool has_yhot;
+bool has_width;
+bool has_height;
+bool has_color_size;
+bool has_color_bytes_base64;
+
+    bool check_depth(const char* type)
+    {
+        if (depth <= 0) {
+            the_error.reset(new error::TypeMismatchError("object", type));
+            return false;
+        }
+        return true;
+    }
+
+    const char* current_member_name() const
+    {
+        switch (state) {
+            case 0:
+    return "xhot";
+case 1:
+    return "yhot";
+case 2:
+    return "width";
+case 3:
+    return "height";
+case 4:
+    return "color_size";
+case 5:
+    return "color_bytes_base64";
+case 6:
+    return "mask_size";
+case 7:
+    return "mask_bytes_base64";
+        default:
+            break;
+        }
+        return "<UNKNOWN>";
+    }
+
+    bool checked_event_forwarding(bool success)
+    {
+        if (!success)
+            the_error.reset(new error::ObjectMemberError(current_member_name()));
+        return success;
+    }
+
+    void set_missing_required(const char* name)
+    {
+        if (the_error.empty() || the_error->type() != error::MISSING_REQUIRED)
+            the_error.reset(new error::RequiredFieldMissingError());
+
+        std::vector<std::string>& missing =
+            static_cast<error::RequiredFieldMissingError*>(the_error.get())->missing_members();
+
+        missing.push_back(name);
+    }
+
+    void reset_flags()
+    {
+        has_xhot = false;
+has_yhot = false;
+has_width = false;
+has_height = false;
+has_color_size = false;
+has_color_bytes_base64 = false;
+
+
+    }
+
+public:
+    explicit SAXEventHandler( ::MCUProtocol::CursorShapeUpdate_S2C * obj)
+        : state(-1)
+        , depth(0)
+        , handler_0(&obj->xhot)
+, handler_1(&obj->yhot)
+, handler_2(&obj->width)
+, handler_3(&obj->height)
+, handler_4(&obj->color_size)
+, handler_5(&obj->color_bytes_base64)
+, handler_6(&obj->mask_size)
+, handler_7(&obj->mask_bytes_base64)
+    {
+        reset_flags();
+    }
+
+    bool Null()
+    {
+        if (!check_depth("null"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Null());
+
+case 1:
+    return checked_event_forwarding(handler_1.Null());
+
+case 2:
+    return checked_event_forwarding(handler_2.Null());
+
+case 3:
+    return checked_event_forwarding(handler_3.Null());
+
+case 4:
+    return checked_event_forwarding(handler_4.Null());
+
+case 5:
+    return checked_event_forwarding(handler_5.Null());
+
+case 6:
+    return checked_event_forwarding(handler_6.Null());
+
+case 7:
+    return checked_event_forwarding(handler_7.Null());
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Bool(bool b)
+    {
+        if (!check_depth("bool"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Bool(b));
+
+case 1:
+    return checked_event_forwarding(handler_1.Bool(b));
+
+case 2:
+    return checked_event_forwarding(handler_2.Bool(b));
+
+case 3:
+    return checked_event_forwarding(handler_3.Bool(b));
+
+case 4:
+    return checked_event_forwarding(handler_4.Bool(b));
+
+case 5:
+    return checked_event_forwarding(handler_5.Bool(b));
+
+case 6:
+    return checked_event_forwarding(handler_6.Bool(b));
+
+case 7:
+    return checked_event_forwarding(handler_7.Bool(b));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Int(int i)
+    {
+        if (!check_depth("int"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Int(i));
+
+case 1:
+    return checked_event_forwarding(handler_1.Int(i));
+
+case 2:
+    return checked_event_forwarding(handler_2.Int(i));
+
+case 3:
+    return checked_event_forwarding(handler_3.Int(i));
+
+case 4:
+    return checked_event_forwarding(handler_4.Int(i));
+
+case 5:
+    return checked_event_forwarding(handler_5.Int(i));
+
+case 6:
+    return checked_event_forwarding(handler_6.Int(i));
+
+case 7:
+    return checked_event_forwarding(handler_7.Int(i));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Uint(unsigned i)
+    {
+        if (!check_depth("unsigned"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Uint(i));
+
+case 1:
+    return checked_event_forwarding(handler_1.Uint(i));
+
+case 2:
+    return checked_event_forwarding(handler_2.Uint(i));
+
+case 3:
+    return checked_event_forwarding(handler_3.Uint(i));
+
+case 4:
+    return checked_event_forwarding(handler_4.Uint(i));
+
+case 5:
+    return checked_event_forwarding(handler_5.Uint(i));
+
+case 6:
+    return checked_event_forwarding(handler_6.Uint(i));
+
+case 7:
+    return checked_event_forwarding(handler_7.Uint(i));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Int64(utility::int64_t i)
+    {
+        if (!check_depth("int64_t"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Int64(i));
+
+case 1:
+    return checked_event_forwarding(handler_1.Int64(i));
+
+case 2:
+    return checked_event_forwarding(handler_2.Int64(i));
+
+case 3:
+    return checked_event_forwarding(handler_3.Int64(i));
+
+case 4:
+    return checked_event_forwarding(handler_4.Int64(i));
+
+case 5:
+    return checked_event_forwarding(handler_5.Int64(i));
+
+case 6:
+    return checked_event_forwarding(handler_6.Int64(i));
+
+case 7:
+    return checked_event_forwarding(handler_7.Int64(i));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Uint64(utility::uint64_t i)
+    {
+        if (!check_depth("uint64_t"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Uint64(i));
+
+case 1:
+    return checked_event_forwarding(handler_1.Uint64(i));
+
+case 2:
+    return checked_event_forwarding(handler_2.Uint64(i));
+
+case 3:
+    return checked_event_forwarding(handler_3.Uint64(i));
+
+case 4:
+    return checked_event_forwarding(handler_4.Uint64(i));
+
+case 5:
+    return checked_event_forwarding(handler_5.Uint64(i));
+
+case 6:
+    return checked_event_forwarding(handler_6.Uint64(i));
+
+case 7:
+    return checked_event_forwarding(handler_7.Uint64(i));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Double(double d)
+    {
+        if (!check_depth("double"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.Double(d));
+
+case 1:
+    return checked_event_forwarding(handler_1.Double(d));
+
+case 2:
+    return checked_event_forwarding(handler_2.Double(d));
+
+case 3:
+    return checked_event_forwarding(handler_3.Double(d));
+
+case 4:
+    return checked_event_forwarding(handler_4.Double(d));
+
+case 5:
+    return checked_event_forwarding(handler_5.Double(d));
+
+case 6:
+    return checked_event_forwarding(handler_6.Double(d));
+
+case 7:
+    return checked_event_forwarding(handler_7.Double(d));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool String(const char* str, SizeType length, bool copy)
+    {
+        if (!check_depth("string"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.String(str, length, copy));
+
+case 1:
+    return checked_event_forwarding(handler_1.String(str, length, copy));
+
+case 2:
+    return checked_event_forwarding(handler_2.String(str, length, copy));
+
+case 3:
+    return checked_event_forwarding(handler_3.String(str, length, copy));
+
+case 4:
+    return checked_event_forwarding(handler_4.String(str, length, copy));
+
+case 5:
+    return checked_event_forwarding(handler_5.String(str, length, copy));
+
+case 6:
+    return checked_event_forwarding(handler_6.String(str, length, copy));
+
+case 7:
+    return checked_event_forwarding(handler_7.String(str, length, copy));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool Key(const char* str, SizeType length, bool copy)
+    {
+        if (!check_depth("object"))
+            return false;
+
+        if (depth == 1) {
+            if (0) {
+            }
+            else if (utility::string_equal(str, length, "\x78\x68\x6f\x74", 4))
+                         { state=0; has_xhot = true; }
+else if (utility::string_equal(str, length, "\x79\x68\x6f\x74", 4))
+                         { state=1; has_yhot = true; }
+else if (utility::string_equal(str, length, "\x77\x69\x64\x74\x68", 5))
+                         { state=2; has_width = true; }
+else if (utility::string_equal(str, length, "\x68\x65\x69\x67\x68\x74", 6))
+                         { state=3; has_height = true; }
+else if (utility::string_equal(str, length, "\x63\x6f\x6c\x6f\x72\x5f\x73\x69\x7a\x65", 10))
+                         { state=4; has_color_size = true; }
+else if (utility::string_equal(str, length, "\x63\x6f\x6c\x6f\x72\x5f\x62\x79\x74\x65\x73\x5f\x62\x61\x73\x65\x36\x34", 18))
+                         { state=5; has_color_bytes_base64 = true; }
+else if (utility::string_equal(str, length, "\x6d\x61\x73\x6b\x5f\x73\x69\x7a\x65", 9))
+                         { state=6;  }
+else if (utility::string_equal(str, length, "\x6d\x61\x73\x6b\x5f\x62\x79\x74\x65\x73\x5f\x62\x61\x73\x65\x36\x34", 17))
+                         { state=7;  }
+            else {
+                state = -1;
+                return true;
+            }
+
+        } else {
+            switch (state) {
+
+            case 0:
+    return checked_event_forwarding(handler_0.Key(str, length, copy));
+
+case 1:
+    return checked_event_forwarding(handler_1.Key(str, length, copy));
+
+case 2:
+    return checked_event_forwarding(handler_2.Key(str, length, copy));
+
+case 3:
+    return checked_event_forwarding(handler_3.Key(str, length, copy));
+
+case 4:
+    return checked_event_forwarding(handler_4.Key(str, length, copy));
+
+case 5:
+    return checked_event_forwarding(handler_5.Key(str, length, copy));
+
+case 6:
+    return checked_event_forwarding(handler_6.Key(str, length, copy));
+
+case 7:
+    return checked_event_forwarding(handler_7.Key(str, length, copy));
+
+            default:
+                break;
+            }
+        }
+        return true;
+    }
+
+    bool StartArray()
+    {
+        if (!check_depth("array"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.StartArray());
+
+case 1:
+    return checked_event_forwarding(handler_1.StartArray());
+
+case 2:
+    return checked_event_forwarding(handler_2.StartArray());
+
+case 3:
+    return checked_event_forwarding(handler_3.StartArray());
+
+case 4:
+    return checked_event_forwarding(handler_4.StartArray());
+
+case 5:
+    return checked_event_forwarding(handler_5.StartArray());
+
+case 6:
+    return checked_event_forwarding(handler_6.StartArray());
+
+case 7:
+    return checked_event_forwarding(handler_7.StartArray());
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool EndArray(SizeType length)
+    {
+        if (!check_depth("array"))
+            return false;
+
+        switch (state) {
+
+        case 0:
+    return checked_event_forwarding(handler_0.EndArray(length));
+
+case 1:
+    return checked_event_forwarding(handler_1.EndArray(length));
+
+case 2:
+    return checked_event_forwarding(handler_2.EndArray(length));
+
+case 3:
+    return checked_event_forwarding(handler_3.EndArray(length));
+
+case 4:
+    return checked_event_forwarding(handler_4.EndArray(length));
+
+case 5:
+    return checked_event_forwarding(handler_5.EndArray(length));
+
+case 6:
+    return checked_event_forwarding(handler_6.EndArray(length));
+
+case 7:
+    return checked_event_forwarding(handler_7.EndArray(length));
+
+        default:
+            break;
+        }
+        return true;
+    }
+
+    bool StartObject()
+    {
+        ++depth;
+        if (depth > 1) {
+
+            switch (state) {
+
+            case 0:
+    return checked_event_forwarding(handler_0.StartObject());
+
+case 1:
+    return checked_event_forwarding(handler_1.StartObject());
+
+case 2:
+    return checked_event_forwarding(handler_2.StartObject());
+
+case 3:
+    return checked_event_forwarding(handler_3.StartObject());
+
+case 4:
+    return checked_event_forwarding(handler_4.StartObject());
+
+case 5:
+    return checked_event_forwarding(handler_5.StartObject());
+
+case 6:
+    return checked_event_forwarding(handler_6.StartObject());
+
+case 7:
+    return checked_event_forwarding(handler_7.StartObject());
+
+            default:
+                break;
+            }
+        }
+        return true;
+    }
+
+    bool EndObject(SizeType length)
+    {
+        --depth;
+        if (depth > 0) {
+
+            switch (state) {
+
+            case 0:
+    return checked_event_forwarding(handler_0.EndObject(length));
+
+case 1:
+    return checked_event_forwarding(handler_1.EndObject(length));
+
+case 2:
+    return checked_event_forwarding(handler_2.EndObject(length));
+
+case 3:
+    return checked_event_forwarding(handler_3.EndObject(length));
+
+case 4:
+    return checked_event_forwarding(handler_4.EndObject(length));
+
+case 5:
+    return checked_event_forwarding(handler_5.EndObject(length));
+
+case 6:
+    return checked_event_forwarding(handler_6.EndObject(length));
+
+case 7:
+    return checked_event_forwarding(handler_7.EndObject(length));
+
+            default:
+                break;
+            }
+        } else {
+            if (!has_xhot) set_missing_required("xhot");
+if (!has_yhot) set_missing_required("yhot");
+if (!has_width) set_missing_required("width");
+if (!has_height) set_missing_required("height");
+if (!has_color_size) set_missing_required("color_size");
+if (!has_color_bytes_base64) set_missing_required("color_bytes_base64");
+        }
+        return the_error.empty();
+    }
+
+    bool HasError() const
+    {
+        return !this->the_error.empty();
+    }
+
+    bool ReapError(error::ErrorStack& errs)
+    {
+        if (this->the_error.empty())
+            return false;
+
+        errs.push(this->the_error.release());
+
+        switch (state) {
+
+        case 0:
+     handler_0.ReapError(errs); break;
+case 1:
+     handler_1.ReapError(errs); break;
+case 2:
+     handler_2.ReapError(errs); break;
+case 3:
+     handler_3.ReapError(errs); break;
+case 4:
+     handler_4.ReapError(errs); break;
+case 5:
+     handler_5.ReapError(errs); break;
+case 6:
+     handler_6.ReapError(errs); break;
+case 7:
+     handler_7.ReapError(errs); break;
+
+        default:
+            break;
+        }
+
+        return true;
+    }
+
+    void PrepareForReuse()
+    {
+        depth = 0;
+        state = -1;
+        the_error.reset();
+        reset_flags();
+        handler_0.PrepareForReuse();
+handler_1.PrepareForReuse();
+handler_2.PrepareForReuse();
+handler_3.PrepareForReuse();
+handler_4.PrepareForReuse();
+handler_5.PrepareForReuse();
+handler_6.PrepareForReuse();
+handler_7.PrepareForReuse();
+
+    }
+};
+
+template < class Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344 >
+struct Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, ::MCUProtocol::CursorShapeUpdate_S2C > {
+
+    void operator()( Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344& w, const ::MCUProtocol::CursorShapeUpdate_S2C& value) const
+    {
+        w.StartObject();
+
+        w.Key("\x78\x68\x6f\x74", 4, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, int >()(w, value.xhot);
+w.Key("\x79\x68\x6f\x74", 4, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, int >()(w, value.yhot);
+w.Key("\x77\x69\x64\x74\x68", 5, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, int >()(w, value.width);
+w.Key("\x68\x65\x69\x67\x68\x74", 6, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, int >()(w, value.height);
+w.Key("\x63\x6f\x6c\x6f\x72\x5f\x73\x69\x7a\x65", 10, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, int >()(w, value.color_size);
+w.Key("\x63\x6f\x6c\x6f\x72\x5f\x62\x79\x74\x65\x73\x5f\x62\x61\x73\x65\x36\x34", 18, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, std::string >()(w, value.color_bytes_base64);
+w.Key("\x6d\x61\x73\x6b\x5f\x73\x69\x7a\x65", 9, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, int >()(w, value.mask_size);
+w.Key("\x6d\x61\x73\x6b\x5f\x62\x79\x74\x65\x73\x5f\x62\x61\x73\x65\x36\x34", 17, false); Serializer< Writera5ed756aab3ecfbac8697fcc20ed45f575bb006e5f32a654c689ae8fd133c344, std::string >()(w, value.mask_bytes_base64);
+
+        w.EndObject(8);
+    }
+
+};
+}
+
+
