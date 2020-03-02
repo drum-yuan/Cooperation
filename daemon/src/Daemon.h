@@ -34,7 +34,6 @@ private:
 	void HeartbeatThread();
 
 	SocketsClient m_McuClient;
-	SocketsClient m_ProxyClient;
 	Video m_Video;
 	Audio m_Audio;
 	string m_McuUrl;

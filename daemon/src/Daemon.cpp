@@ -22,7 +22,6 @@ Daemon::~Daemon()
 		stop_stream();
 	}
 	m_McuClient.stop();
-	m_ProxyClient.stop();
 }
 
 void Daemon::start_stream()
@@ -57,16 +56,10 @@ bool Daemon::connect_mcu(const string& url)
 		printf("connect mcu failed\n");
 		return false;
 	}
-	m_ProxyClient.set_proxy_flag(true);
-	if (!m_ProxyClient.connect(url, true, false)) {
-		printf("connect proxy failed\n");
-		return false;
-	}
 
 	printf("send connect msg\n");
 	m_McuClient.set_video_event(&m_Video);
 	m_McuClient.send_connect();
-	m_ProxyClient.send_connect();
 	m_bQuit = false;
 	m_pHeartbeatID = new thread(&Daemon::HeartbeatThread, this);
 	return true;
@@ -94,48 +87,48 @@ void Daemon::set_picture_callback(PictureCallback on_picture)
 
 void Daemon::start_operate()
 {
-	m_ProxyClient.send_operate();
+	m_McuClient.send_operate();
 	m_Video.SetOperater(true);
 }
 
 void Daemon::set_operater_callback(OperaterCallback on_operater)
 {
-	m_ProxyClient.set_operater_callback(on_operater);
+	m_McuClient.set_operater_callback(on_operater);
 }
 
 void Daemon::send_mouse_event(unsigned int x, unsigned int y, unsigned int button_mask)
 {
-	m_ProxyClient.send_mouse_event(x, y, button_mask);
+	m_McuClient.send_mouse_event(x, y, button_mask);
 }
 
 void Daemon::set_mouse_callback(MouseCallback on_mouse)
 {
-	m_ProxyClient.set_mouse_callback(on_mouse);
+	m_McuClient.set_mouse_callback(on_mouse);
 }
 
 void Daemon::send_keyboard_event(unsigned int key_val, bool is_pressed)
 {
-	m_ProxyClient.send_keyboard_event(key_val, is_pressed);
+	m_McuClient.send_keyboard_event(key_val, is_pressed);
 }
 
 void Daemon::set_keyboard_callback(KeyboardCallback on_keyboard)
 {
-	m_ProxyClient.set_keyboard_callback(on_keyboard);
+	m_McuClient.set_keyboard_callback(on_keyboard);
 }
 
 void Daemon::send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes)
 {
-	m_ProxyClient.send_cursor_shape(x, y, w, h, color_bytes, mask_bytes);
+	m_McuClient.send_cursor_shape(x, y, w, h, color_bytes, mask_bytes);
 }
 
 void Daemon::set_cursor_shape_callback(CursorShapeCallback on_cursor_shape)
 {
-	m_ProxyClient.set_cursor_shape_callback(on_cursor_shape);
+	m_McuClient.set_cursor_shape_callback(on_cursor_shape);
 }
 
 UsersInfoInternal Daemon::get_users_info()
 {
-	return m_ProxyClient.get_users_info();
+	return m_McuClient.get_users_info();
 }
 
 void Daemon::OnVideoEncoded(void* data)
@@ -179,24 +172,8 @@ void Daemon::HeartbeatThread()
 				else {
 					m_McuClient.continue_show_stream();
 				}
-				retry = 3;
-			}
-		}
-		if (!m_ProxyClient.is_connected() && retry)
-		{
-			if (!m_ProxyClient.connect(m_McuUrl, true, false))
-			{
-				printf("reconnect proxy failed\n");
-				if (!--retry)
-				{
-					break;
-				}
-			}
-			else
-			{
-				m_ProxyClient.send_connect();
 				if (m_Video.IsOperater()) {
-					m_ProxyClient.send_operate();
+					m_McuClient.send_operate();
 				}
 				retry = 3;
 			}

@@ -17,8 +17,7 @@ enum ClientConnState {
 	ConnectStateClosed = 4
 };
 
-SocketsClient::SocketsClient() : m_Proxy(false),
-								m_Exit(false),
+SocketsClient::SocketsClient() : m_Exit(false),
 								m_State(ConnectStateUnConnected),
 								m_UseSSL(false),
 								m_PicBuffer(NULL),
@@ -121,9 +120,6 @@ int SocketsClient::RunWebSocketClient()
 	if (lws_parse_uri((char*)m_ServerUrl.c_str(), &prot, &address, &port, &p))
 		return -1;
 
-	if (m_Proxy) {
-		port++;
-	}
 	uri[0] = '/';
 	strncpy(uri + 1, p, sizeof(uri) - 2);
 	uri[sizeof(uri) - 1] = '\0';
@@ -188,11 +184,6 @@ fail:
 	lwsl_notice("websocket client exited cleanly\n");
 
 	return 0;
-}
-
-void SocketsClient::set_proxy_flag(bool proxy)
-{
-	m_Proxy = proxy;
 }
 
 void SocketsClient::set_video_event(Video* pEvent)
@@ -517,36 +508,31 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 
 void SocketsClient::send_connect()
 {
-	string str;
-	if (m_Proxy) {
-		str = "{\"UserName\":\"";
+	string str = "{\"UserName\":\"";
 #ifdef WIN32
-		DWORD name_len = 0;
-		GetComputerName(NULL, &name_len);
-		char* name = new char[name_len];
-		GetComputerName(name, &name_len);
-		str += name;
-		str += "|";
-		delete[] name;
-		name_len = 0;
-		GetUserName(NULL, &name_len);
-		name = new char[name_len];
-		GetUserName(name, &name_len);
-		str += name;
-		delete[] name;
+	DWORD name_len = 0;
+	GetComputerName(NULL, &name_len);
+	char* name = new char[name_len];
+	GetComputerName(name, &name_len);
+	str += name;
+	str += "|";
+	delete[] name;
+	name_len = 0;
+	GetUserName(NULL, &name_len);
+	name = new char[name_len];
+	GetUserName(name, &name_len);
+	str += name;
+	delete[] name;
 #endif
-		str += "\"}";
-
-	}
+	str += "\"}";
 	WebSocketHeader header;
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypeConnect);
 	header.length = Swap32IfLE(str.size());
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
-	if (m_Proxy) {
-		m_SendBuf->append((unsigned char*)str.c_str(), str.size());
-	}
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
 }

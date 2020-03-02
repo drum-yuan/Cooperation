@@ -31,7 +31,6 @@ public:
 	SocketsClient();
 	~SocketsClient();
 
-	void set_proxy_flag(bool proxy);
 	void set_video_event(Video* pEvent);
 	bool connect(std::string url, bool blocking, bool ssl);
 	void stop();
@@ -71,7 +70,6 @@ private:
 	int RunWebSocketClient();
 	unsigned int CalcFrameSize(void* data);
 
-	bool m_Proxy;
 	bool m_Exit;
 	int  m_State;
 	bool   m_UseSSL;

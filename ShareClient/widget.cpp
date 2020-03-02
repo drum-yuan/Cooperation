@@ -149,7 +149,11 @@ void Widget::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
     DWORD buttons_change = 0;
     DWORD mouse_wheel = 0;
 
-    //qDebug() << "recv mouse event " << x << "-" << y << "-" << button_mask;
+    qDebug() << "recv mouse event " << x << "-" << y << "-" << button_mask;
+    if (_instance->m_can_operate) {
+        return;
+    }
+
     ZeroMemory(&_input, sizeof(INPUT));
     _input.type = INPUT_MOUSE;
 
@@ -314,6 +318,7 @@ void Widget::mouseMoveEvent(QMouseEvent* event)
     if (m_can_operate) {
         QPoint point = event->globalPos();
         scale_to_screen(point);
+        qDebug() << "send mouse point " << point.x() << "-" << point.y();
         daemon_send_mouse_event(point.x(), point.y(), m_button_mask);
     } else {
         QWidget::mouseMoveEvent(event);
