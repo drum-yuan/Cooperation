@@ -11,6 +11,7 @@ typedef struct tagWebSocketHeader
 typedef struct tagVideoDataHeader {
 	unsigned int eFrameType;
 	unsigned int sequence;
+	unsigned int option;
 } VideoDataHeader;
 
 typedef struct tagAudioDataHeader {
@@ -35,7 +36,8 @@ typedef enum tagMsgType
 	kMsgTypeStopStreamAck = 1012,
 	kMsgTypeHeartbeat = 1013,
 	kMsgTypeCursorShape = 1014,
-	kMsgTypeAudioData = 1015
+	kMsgTypeAudioData = 1015,
+	kMsgTypeStreamOnly = 1016
 } MsgType;
 
 #define Swap32IfLE(l) \

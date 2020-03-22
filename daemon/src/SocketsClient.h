@@ -18,13 +18,13 @@ typedef struct tagUsersInfoInternal {
 	string operater;
 } UsersInfoInternal;
 
-typedef void(*StartStreamCallback)(void);
-typedef void(*StopStreamCallback)(void);
-typedef void(*PictureCallback)(const char* file_path);
-typedef void(*OperaterCallback)(bool is_operater);
+typedef void(*StartStreamCallback)(int id);
+typedef void(*StopStreamCallback)(int id);
+typedef void(*PictureCallback)(int id, const char* file_path);
+typedef void(*OperaterCallback)(int id, bool is_operater);
 typedef void(*MouseCallback)(unsigned int x, unsigned int y, unsigned int button_mask);
 typedef void(*KeyboardCallback)(unsigned int key_val, bool is_pressed);
-typedef void(*CursorShapeCallback)(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
+typedef void(*CursorShapeCallback)(int id, int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
 class SocketsClient
 {
 public:
@@ -36,6 +36,7 @@ public:
 	void stop();
 	void reset();
 	bool is_connected();
+	void set_instance_id(int id);
 
 	int send_msg(unsigned char* payload, unsigned int msglen);
 	void continue_show_stream();
@@ -70,9 +71,11 @@ private:
 	int RunWebSocketClient();
 	unsigned int CalcFrameSize(void* data);
 
+	int m_InsId;
 	bool m_Exit;
 	int  m_State;
-	bool   m_UseSSL;
+	bool m_UseSSL;
+	bool m_WaitingKeyframe;
 	string m_ServerUrl;
 	unsigned char* m_PicBuffer;
 	int m_PicPos;

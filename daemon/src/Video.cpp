@@ -106,7 +106,7 @@ void Video::SetRenderWin(void* hWnd)
 #endif
 }
 
-bool Video::show(unsigned char* buffer, unsigned int len)
+bool Video::show(unsigned char* buffer, unsigned int len, bool is_show)
 {
 #ifdef HW_DECODE
 	int status = 0;
@@ -128,13 +128,17 @@ bool Video::show(unsigned char* buffer, unsigned int len)
 		return false;
 	}
 
-	DXVA2Render();
+	if (is_show) {
+		DXVA2Render();
+	}
 	return true;
 #else
 	SBufferInfo tDstInfo;
 	DECODING_STATE state = m_pDecoder->DecodeFrameNoDelay(buffer, len, m_pDecData, &tDstInfo);
 	if (state == 0) {
-		Render(&tDstInfo);
+		if (is_show) {
+			Render(&tDstInfo);
+		}
 		return true;
 	}
 	else {

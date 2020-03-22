@@ -20,6 +20,7 @@ enum ClientConnState {
 SocketsClient::SocketsClient() : m_Exit(false),
 								m_State(ConnectStateUnConnected),
 								m_UseSSL(false),
+								m_WaitingKeyframe(false),
 								m_PicBuffer(NULL),
 								m_PicPos(0),
 								m_wsi(NULL),
@@ -103,13 +104,12 @@ int SocketsClient::RunWebSocketClient()
 	struct lws_context_creation_info info;
 	char uri[256] = "/";
 	char ads_port[256 + 30];
-	const char *connect_protocol = "binary";
 	struct lws_client_connect_info i;
 	int debug_level = 7;
 
 	memset(&info, 0, sizeof info);
 	if (m_UseSSL)
-		use_ssl = 2;
+		use_ssl = 1;
 
 	if (!m_protocols)
 		return -1;
@@ -165,7 +165,7 @@ int SocketsClient::RunWebSocketClient()
 			i.path = uri;
 			i.host = ads_port;
 			i.origin = ads_port;
-			i.protocol = connect_protocol;
+			i.protocol = "binary";
 			i.client_exts = m_exts;
 			i.userdata = this;
 
@@ -244,6 +244,11 @@ bool SocketsClient::is_connected()
 	return m_State == ConnectStateEstablished;
 }
 
+void SocketsClient::set_instance_id(int id)
+{
+	m_InsId = id;
+}
+
 int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 {
 	if (m_State != ConnectStateEstablished)
@@ -261,7 +266,7 @@ int SocketsClient::send_msg(unsigned char* payload, unsigned int msglen)
 void SocketsClient::continue_show_stream()
 {
 	if (m_CallbackStream) {
-		m_CallbackStream();
+		m_CallbackStream(m_InsId);
 	}
 }
 
@@ -307,7 +312,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	unsigned short uType = Swap16IfLE(pWebHeader->type);
 	unsigned int uPayloadLen = Swap32IfLE(pWebHeader->length);
 
-	printf("handle in type %u\n", uType);
+	//printf("handle in type %u\n", uType);
 	switch (uType)
 	{
 	case kMsgTypePublishAck:
@@ -316,21 +321,60 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			m_pVideo->stop();
 		}
 		if (m_CallbackStream) {
-			m_CallbackStream();
+			m_CallbackStream(m_InsId);
 		}
 	}
 		break;
 	case kMsgTypeVideoData:
 	{
+		if (m_pVideo == NULL) {
+			break;
+		}
 		VideoDataHeader* pVideoHeader = (VideoDataHeader*)((uint8_t*)in + sizeof(WebSocketHeader));
 		unsigned int sequence = Swap32IfLE(pVideoHeader->sequence);
-		unsigned int len = uPayloadLen - sizeof(VideoDataHeader);
-		if (m_pVideo) {
-			if (!(m_pVideo->show((uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader), len))) {
-				send_keyframe_request(false);
+		unsigned int option = Swap32IfLE(pVideoHeader->option);
+		unsigned int len1 = uPayloadLen - sizeof(VideoDataHeader);
+		unsigned int len2 = 0;
+
+		if (option > 2) {
+			len2 = len1 - option;
+			len1 = option;
+		}
+		else if (option == 2) {
+			len2 = len1;
+			len1 = 0;
+		}
+		uint8_t* p = (uint8_t*)in + sizeof(WebSocketHeader) + sizeof(VideoDataHeader);
+		unsigned int offset = 0;
+		unsigned int rect_num = 0;
+		if (sequence != 0xffffffff) {
+			send_video_ack(sequence);
+		}
+		if (len1 > 0) {
+			if (option != 0) {
+				rect_num = *(unsigned int*)p;
+				offset = rect_num * 8 + 4;
+			}
+			if (!m_pVideo->show(p + offset, len1 - offset, true)) {
+				if (!m_WaitingKeyframe) {
+					send_keyframe_request(false);
+					m_WaitingKeyframe = true;
+				}
+			}
+			else {
+				m_WaitingKeyframe = false;
 			}
 		}
-		send_video_ack(sequence);
+		if (len2 > 0) {
+			rect_num = *(unsigned int*)(p + len1);
+			offset = rect_num * 8 + 4;
+			if (!m_pVideo->show(p + len1 + offset, len2 - offset, false)) {
+				if (!m_WaitingKeyframe) {
+					send_keyframe_request(false);
+					m_WaitingKeyframe = true;
+				}
+			}
+		}
 	}
 		break;
 	case kMsgTypeVideoAck:
@@ -414,7 +458,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			fwrite(decompressed, 1, decompressed_len, fp);
 			fclose(fp);
 			if (m_CallbackPicture) {
-				m_CallbackPicture(file_path);
+				m_CallbackPicture(m_InsId, file_path);
 			}
 		}
 	}
@@ -422,14 +466,14 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	case kMsgTypeOperate:
 	{
 		if (m_CallbackOperater) {
-			m_CallbackOperater(true);
+			m_CallbackOperater(m_InsId, true);
 		}
 	}
 		break;
 	case kMsgTypeOperateAck:
 	{
 		if (m_CallbackOperater) {
-			m_CallbackOperater(false);
+			m_CallbackOperater(m_InsId, false);
 		}
 		if (m_pVideo) {
 			m_pVideo->SetOperater(false);
@@ -467,7 +511,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	case kMsgTypeStopStreamAck:
 	{
 		if (m_CallbackStop) {
-			m_CallbackStop();
+			m_CallbackStop(m_InsId);
 		}
 	}
 		break;
@@ -496,7 +540,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			break;
 		}
 		if (m_CallbackCursorShape) {
-			m_CallbackCursorShape(tCursorShape.xhot, tCursorShape.yhot, tCursorShape.width, tCursorShape.height, tCursorShape.color_bytes_base64, tCursorShape.mask_bytes_base64);
+			m_CallbackCursorShape(m_InsId, tCursorShape.xhot, tCursorShape.yhot, tCursorShape.width, tCursorShape.height, tCursorShape.color_bytes_base64, tCursorShape.mask_bytes_base64);
 		}
 	}
 		break;
@@ -583,6 +627,7 @@ void SocketsClient::send_video_data(void* data)
 	videoheader.eFrameType = Swap32IfLE(frame_type);
 	unsigned int sequence = m_pVideo->get_capture_seq();
 	videoheader.sequence = Swap32IfLE(sequence);
+	videoheader.option = 0;
 	m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
 	m_SendBuf->append((unsigned char*)lockBitstreamData->bitstreamBufferPtr, lockBitstreamData->bitstreamSizeInBytes);
 #else
@@ -605,6 +650,7 @@ void SocketsClient::send_video_data(void* data)
 	videoheader.eFrameType = Swap32IfLE(sFbi->eFrameType);
 	unsigned int sequence = cap_get_capture_sequence();
 	videoheader.sequence = Swap32IfLE(sequence);
+	videoheader.option = 0;
 	m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
 
 	int iLayer = 0;

@@ -8,7 +8,8 @@ public:
 	Daemon();
 	~Daemon();
 
-	void start_stream();
+	void set_instance_id(int id);
+	void start_stream(bool is_desktop);
 	void stop_stream();
 	void show_stream(void* hWnd);
 	void get_stream_size(int* width, int* height);

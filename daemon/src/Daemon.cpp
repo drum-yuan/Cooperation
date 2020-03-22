@@ -24,12 +24,19 @@ Daemon::~Daemon()
 	m_McuClient.stop();
 }
 
-void Daemon::start_stream()
+void Daemon::set_instance_id(int id)
 {
-	m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
-	m_Audio.SetOnEncoded(std::bind(&Daemon::OnAudioEncoded, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+	m_McuClient.set_instance_id(id);
+}
+
+void Daemon::start_stream(bool is_desktop)
+{
 	m_McuClient.send_publish();
-	m_Video.start();
+	if (is_desktop) {
+		m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
+		m_Audio.SetOnEncoded(std::bind(&Daemon::OnAudioEncoded, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+		m_Video.start();
+	}
 }
 
 void Daemon::stop_stream()
@@ -170,6 +177,7 @@ void Daemon::HeartbeatThread()
 					m_McuClient.send_publish();
 				}
 				else {
+					m_McuClient.send_keyframe_request(true);
 					m_McuClient.continue_show_stream();
 				}
 				if (m_Video.IsOperater()) {

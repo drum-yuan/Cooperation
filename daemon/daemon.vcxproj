@@ -102,10 +102,10 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)$(Configuration)\daemon.lib ..\MFCClient\libs\
-copy $(SolutionDir)\src\DaemonApi.h ..\MFCClient
-copy $(SolutionDir)$(Configuration)\daemon.dll ..\MFCClient\$(Configuration)\
-copy $(SolutionDir)$(Configuration)\capture.dll ..\MFCClient\$(Configuration)\</Command>
+      <Command>copy $(SolutionDir)$(Configuration)\daemon.lib ..\co-client\deps\libs
+copy $(SolutionDir)\src\DaemonApi.h ..\co-client\src
+copy $(SolutionDir)$(Configuration)\daemon.dll ..\co-client\$(Configuration)\
+copy $(SolutionDir)$(Configuration)\capture.dll ..\co-client\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
