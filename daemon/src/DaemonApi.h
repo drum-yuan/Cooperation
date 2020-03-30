@@ -23,6 +23,12 @@ typedef void(*StartStreamCallback)(int id);
 /* 收到停播通知后的回调
 */
 typedef void(*StopStreamCallback)(int id);
+/* 收到打开云应用通知后的回调
+*/
+typedef void(*VappStartCallback)();
+/* 收到关闭云应用通知后的回调
+*/
+typedef void(*VappStopCallback)();
 /* 收完图片文件后的回调
 	file_path：图片文件路径名
 */
@@ -52,12 +58,16 @@ typedef void (*KeyboardCallback)(unsigned int key_val, bool is_pressed);
 */
 typedef void (*CursorShapeCallback)(int id, int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
 
+//创建daemon
+DAEMON_API int daemon_create();
 //启动daemon(包含网络初始连接)
-DAEMON_API int daemon_start(const std::string& url);
+DAEMON_API void daemon_start(int id, const std::string& url);
 //停止daemon(包含断开连接)
 DAEMON_API void daemon_stop(int id);
+//开始发布
+DAEMON_API void daemon_start_publish(int id);
 //开始直播
-DAEMON_API void daemon_start_stream(int id, bool is_desktop);
+DAEMON_API void daemon_start_stream(int id);
 //停止直播
 DAEMON_API void daemon_stop_stream(int id);
 //显示直播画面
@@ -67,7 +77,11 @@ DAEMON_API void daemon_get_stream_size(int id, int* width, int* height);
 //设置接收直播通知后的回调
 DAEMON_API void daemon_set_start_stream_callback(int id, StartStreamCallback on_stream);
 //设置接收停播通知后的回调
-DAEMON_API void daemon_set_stop_stream_callback(int id, StopStreamCallback on_stream);
+DAEMON_API void daemon_set_stop_stream_callback(int id, StopStreamCallback on_stop);
+//设置打开云应用的通知回调
+DAEMON_API void daemon_set_vapp_start_callback(int id, VappStartCallback on_vapp);
+//设置关闭云应用的通知回调
+DAEMON_API void daemon_set_vapp_stop_callback(int id, VappStopCallback on_vapp_stop);
 //锁屏后发送无损图片
 DAEMON_API void daemon_send_picture(int id);
 //设置接收图片完成后的回调

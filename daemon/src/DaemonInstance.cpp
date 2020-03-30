@@ -3,18 +3,27 @@
 
 static vector<Daemon*> vecDaemon;
 
-int daemon_start(const string& url)
+int daemon_create()
 {
 	Daemon* pDaemon = new Daemon();
-	if (pDaemon->connect_mcu(url)) {
+	if (pDaemon != NULL) {
 		vecDaemon.push_back(pDaemon);
 		int ins_id = vecDaemon.size() - 1;
 		pDaemon->set_instance_id(ins_id);
 		return ins_id;
 	}
 	else {
-		delete pDaemon;
 		return -1;
+	}
+}
+
+void daemon_start(int id, const string& url)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		if (!pDaemon->connect_mcu(url)) {
+			delete pDaemon;
+		}
 	}
 }
 
@@ -26,11 +35,19 @@ void daemon_stop(int id)
 	}
 }
 
-void daemon_start_stream(int id, bool is_desktop)
+void daemon_start_publish(int id)
 {
 	Daemon* pDaemon = vecDaemon[id];
 	if (pDaemon != NULL) {
-		pDaemon->start_stream(is_desktop);
+		pDaemon->start_publish();
+	}
+}
+
+void daemon_start_stream(int id)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->start_stream();
 	}
 }
 
@@ -71,6 +88,22 @@ void daemon_set_stop_stream_callback(int id, StopStreamCallback on_stop)
 	Daemon* pDaemon = vecDaemon[id];
 	if (pDaemon != NULL) {
 		pDaemon->set_stop_stream_callback(on_stop);
+	}
+}
+
+void daemon_set_vapp_start_callback(int id, VappStartCallback on_vapp)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->set_vapp_start_callback(on_vapp);
+	}
+}
+
+void daemon_set_vapp_stop_callback(int id, VappStopCallback on_vapp_stop)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->set_vapp_stop_callback(on_vapp_stop);
 	}
 }
 

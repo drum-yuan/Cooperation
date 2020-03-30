@@ -43,12 +43,13 @@
 *.exp
 *.log
 *.idb
+*.ib_pdb_index
+*.filters
 /daemon/.vs/daemon/v15
 /daemon/.vs/daemon/v16
-*.ib_pdb_index
 /MFCClient/.vs/MFCClient/v15/ipch
 /MFCClient/Release/MFCClient.res
 /MFCClient/DaemonApi.h
-/MFCClient/MFCClient.vcxproj.filters
 /MFCClient/ipch
-
+/co-client/.vs/co-client/v15/ipch
+/co-client/src/DaemonApi.h

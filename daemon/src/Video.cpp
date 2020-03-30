@@ -25,6 +25,7 @@ typedef struct DXVA2DevicePriv {
 Video::Video():m_iFrameW(0),
 				m_iFrameH(0),
 				m_iFrameRate(30),
+				m_Bitrate(ENCODER_BITRATE),
 				m_bPublisher(false),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
@@ -303,7 +304,7 @@ void Video::CaptureLoopProc(void* param)
 		if (fbcRes == NVFBC_SUCCESS && video->m_pEncoder)
 		{
 			if (video->m_iFrameW == 0 && video->m_iFrameH == 0) {
-				if (S_OK != video->m_pEncoder->SetupEncoder(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, ENCODER_BITRATE, 
+				if (S_OK != video->m_pEncoder->SetupEncoder(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, m_Bitrate,
 					video->m_maxDisplayW, video->m_maxDisplayH, 0, video->m_apD3D9RGB8Surf, false, false, false, NULL, false, 48))
 				{
 					printf("Failed when calling Encoder::SetupEncoder()\n");
@@ -315,7 +316,7 @@ void Video::CaptureLoopProc(void* param)
 			if ((video->m_iFrameW != video->m_frameGrabInfo.dwBufferWidth) || (video->m_iFrameH != video->m_frameGrabInfo.dwHeight) || video->m_bForceKeyframe)
 			{
 				printf("Encoder reset %d\n", video->m_bForceKeyframe);
-				video->m_pEncoder->Reconfigure(video->m_frameGrabInfo.dwWidth, video->m_frameGrabInfo.dwHeight, ENCODER_BITRATE);
+				video->m_pEncoder->Reconfigure(video->m_frameGrabInfo.dwWidth, video->m_frameGrabInfo.dwHeight, m_Bitrate);
 				video->m_iFrameW = video->m_frameGrabInfo.dwBufferWidth;
 				video->m_iFrameH = video->m_frameGrabInfo.dwHeight;
 				if (video->m_bForceKeyframe) {
@@ -545,6 +546,16 @@ void Video::CleanupNvfbcEncoder()
 }
 
 #else
+void Video::increase_encoder_bitrate(int delta_bitrate)
+{
+	if (m_pEncoder && ((m_Bitrate > 500000 && delta_bitrate < 0) || (m_Bitrate < 4000000 && delta_bitrate > 0))) {
+		SBitrateInfo info;
+		info.iLayer = SPATIAL_LAYER_ALL;
+		info.iBitrate = m_Bitrate + delta_bitrate;
+		m_pEncoder->SetOption(ENCODER_OPTION_BITRATE, &info);
+	}
+}
+
 void Video::onFrame(CallbackFrameInfo* frame, void* param)
 {
 	Video* video = (Video*)param;
@@ -637,7 +648,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.fMaxFrameRate = 30;    // input frame rate
 	sParam.iPicWidth = m_iFrameW;         // width of picture in samples
 	sParam.iPicHeight = m_iFrameH;         // height of picture in samples
-	sParam.iTargetBitrate = ENCODER_BITRATE; // target bitrate desired
+	sParam.iTargetBitrate = m_Bitrate; // target bitrate desired
 	sParam.iMaxBitrate = UNSPECIFIED_BIT_RATE;
 	sParam.iRCMode = RC_BITRATE_MODE;      //  rc mode control
 	sParam.iTemporalLayerNum = 1;          // layer number at temporal level
@@ -655,46 +666,15 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.iComplexityMode = LOW_COMPLEXITY;
 	sParam.bSimulcastAVC = false;
 	sParam.iMaxQp = 48;
-	sParam.iMinQp = 24;
+	sParam.iMinQp = 0;
 	sParam.uiMaxNalSize = 0;
-	int iIndexLayer = 0;
-	sParam.sSpatialLayers[iIndexLayer].uiProfileIdc = PRO_BASELINE;
-	sParam.sSpatialLayers[iIndexLayer].iVideoWidth = 160;
-	sParam.sSpatialLayers[iIndexLayer].iVideoHeight = 90;
-	sParam.sSpatialLayers[iIndexLayer].fFrameRate = 7.5f;
-	sParam.sSpatialLayers[iIndexLayer].iSpatialBitrate = 64000;
-	sParam.sSpatialLayers[iIndexLayer].iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
-
-	++iIndexLayer;
-	sParam.sSpatialLayers[iIndexLayer].uiProfileIdc = PRO_SCALABLE_BASELINE;
-	sParam.sSpatialLayers[iIndexLayer].iVideoWidth = 320;
-	sParam.sSpatialLayers[iIndexLayer].iVideoHeight = 180;
-	sParam.sSpatialLayers[iIndexLayer].fFrameRate = 15.0f;
-	sParam.sSpatialLayers[iIndexLayer].iSpatialBitrate = 160000;
-	sParam.sSpatialLayers[iIndexLayer].iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
-
-	++iIndexLayer;
-	sParam.sSpatialLayers[iIndexLayer].uiProfileIdc = PRO_SCALABLE_BASELINE;
-	sParam.sSpatialLayers[iIndexLayer].iVideoWidth = 640;
-	sParam.sSpatialLayers[iIndexLayer].iVideoHeight = 360;
-	sParam.sSpatialLayers[iIndexLayer].fFrameRate = 30.0f;
-	sParam.sSpatialLayers[iIndexLayer].iSpatialBitrate = 512000;
-	sParam.sSpatialLayers[iIndexLayer].iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
-
-	++iIndexLayer;
-	sParam.sSpatialLayers[iIndexLayer].uiProfileIdc = PRO_SCALABLE_BASELINE;
-	sParam.sSpatialLayers[iIndexLayer].iVideoWidth = 1280;
-	sParam.sSpatialLayers[iIndexLayer].iVideoHeight = 720;
-	sParam.sSpatialLayers[iIndexLayer].fFrameRate = 30.0f;
-	sParam.sSpatialLayers[iIndexLayer].iSpatialBitrate = 1500000;
-	sParam.sSpatialLayers[iIndexLayer].iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
 
 	//layer cfg
 	SSpatialLayerConfig *pDLayer = &sParam.sSpatialLayers[0];
 	pDLayer->iVideoWidth = m_iFrameW;
 	pDLayer->iVideoHeight = m_iFrameH;
 	pDLayer->fFrameRate = (float)m_iFrameRate;
-	pDLayer->iSpatialBitrate = ENCODER_BITRATE;
+	pDLayer->iSpatialBitrate = m_Bitrate;
 	pDLayer->iMaxSpatialBitrate = UNSPECIFIED_BIT_RATE;
 }
 
@@ -878,6 +858,9 @@ void Video::WriteYUVBuffer(int iStride[2], int iWidth, int iHeight, int iFormat)
 #ifdef HW_DECODE
 void Video::DXVA2Render()
 {
+	if (m_hRenderWin == NULL) {
+		return;
+	}
 	AVFrame* avVideoFrame = m_AVVideoFrame;
 	if (!m_Hwctx) {
 		goto COMMON_RENDER;

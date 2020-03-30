@@ -18,6 +18,7 @@ CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 
 	m_Quit = FALSE;
 	m_Pause = FALSE;
+	m_ForceFrame = FALSE;
 
 	memset(&m_Mirror, 0, sizeof(m_Mirror));
 	memset(&m_Directx, 0, sizeof(m_Directx));
@@ -142,7 +143,7 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 		}
 		if (bQuit)break;
 		if (!capture->m_Pause) {
-			while ((!capture->m_Quit) && (capture->m_CaptureSeq - capture->m_AckSeq > capture->m_IntervalCnt)) {
+			while ((!capture->m_Quit) && (capture->m_CaptureSeq > capture->m_AckSeq + capture->m_IntervalCnt)) {
 				//printf("Sequence D-value %d\n", capture->m_CaptureSeq - capture->m_AckSeq);
 				SleepEx(10, TRUE);
 			}
@@ -302,6 +303,7 @@ void CCapture::set_capture_sequence(unsigned int seq)
 void CCapture::reset_sequence()
 {
 	m_AckSeq = m_CaptureSeq;
+	m_ForceFrame = TRUE;
 }
 
 void CCapture::set_frame_rate(unsigned int rate)
@@ -633,8 +635,9 @@ void CCapture::capture_mirror()
 	}
 
 	//printf("mirror buffer counter %d\n", m_Mirror.buffer.buffer->counter);
-	if (m_Mirror.buffer.buffer->counter != m_Mirror.index) {
+	if (m_Mirror.buffer.buffer->counter != m_Mirror.index || m_ForceFrame) {
 		m_Mirror.index = m_Mirror.buffer.buffer->counter;
+		m_ForceFrame = FALSE;
 
 		CallbackFrameInfo frm;
 		frm.width = GetSystemMetrics(SM_CXSCREEN);
@@ -743,7 +746,8 @@ void CCapture::capture_dxgi()
 	m_Directx.d11ctx->CopyResource(m_Directx.dxgi_text2d, image2d);
 
 L:
-	if (FrameInfo.TotalMetadataBufferSize > 0) {
+	if (FrameInfo.TotalMetadataBufferSize > 0 || m_ForceFrame) {
+		m_ForceFrame = FALSE;
 		CallbackFrameInfo frm;
 		frm.width = m_Directx.cx;
 		frm.height = m_Directx.cy;
@@ -780,7 +784,8 @@ void CCapture::capture_gdi()
 			m_GDI.bitcount, &rc_array, &rc_count);
 		DeleteObject(region);
 	}
-	if (rc_count > 0) {
+	if (rc_count > 0 || m_ForceFrame) {
+		m_ForceFrame = FALSE;
 		memcpy(m_GDI.back_buf, m_GDI.buffer, m_GDI.line_stride * m_GDI.cy);
 		CallbackFrameInfo frm;
 		frm.width = m_GDI.cx;

@@ -280,6 +280,16 @@ void SocketsClient::set_stop_stream_callback(StopStreamCallback on_stop)
 	m_CallbackStop = on_stop;
 }
 
+void SocketsClient::set_vapp_start_callback(VappStartCallback on_vapp)
+{
+	m_CallbackVapp = on_vapp;
+}
+
+void SocketsClient::set_vapp_stop_callback(VappStopCallback on_vapp_stop)
+{
+	m_CallbackVappStop = on_vapp_stop;
+}
+
 void SocketsClient::set_picture_callback(PictureCallback on_recv)
 {
 	m_CallbackPicture = on_recv;
@@ -317,6 +327,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	{
 	case kMsgTypePublishAck:
 	{
+		printf("receive stream start %d\n", m_InsId);
 		if (m_pVideo && m_pVideo->IsPublisher()) {
 			m_pVideo->stop();
 		}
@@ -335,6 +346,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		unsigned int option = Swap32IfLE(pVideoHeader->option);
 		unsigned int len1 = uPayloadLen - sizeof(VideoDataHeader);
 		unsigned int len2 = 0;
+		printf("recv length %u\n", uPayloadLen + sizeof(WebSocketHeader));
 
 		if (option > 2) {
 			len2 = len1 - option;
@@ -355,6 +367,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 				rect_num = *(unsigned int*)p;
 				offset = rect_num * 8 + 4;
 			}
+			printf("decode 1 offset=%d len=%d\n", offset, len1-offset);
 			if (!m_pVideo->show(p + offset, len1 - offset, true)) {
 				if (!m_WaitingKeyframe) {
 					send_keyframe_request(false);
@@ -368,17 +381,16 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		if (len2 > 0) {
 			rect_num = *(unsigned int*)(p + len1);
 			offset = rect_num * 8 + 4;
-			if (!m_pVideo->show(p + len1 + offset, len2 - offset, false)) {
-				if (!m_WaitingKeyframe) {
-					send_keyframe_request(false);
-					m_WaitingKeyframe = true;
-				}
-			}
+			printf("decode 2 offset=%d len=%d\n", offset, len2 - offset);
+			m_pVideo->show(p + len1 + offset, len2 - offset, false);
 		}
 	}
 		break;
 	case kMsgTypeVideoAck:
 	{
+		if (m_pVideo == NULL) {
+			break;
+		}
 		VideoAck_C2S tVideoAck;
 		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
 		autojsoncxx::ParsingResult result;
@@ -388,26 +400,33 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		}
 		unsigned int sequence = tVideoAck.sequence;
 #ifdef HW_ENCODE
-		if (m_pVideo) {
-			m_pVideo->set_ack_seq(sequence);
-		}
+		m_pVideo->set_ack_seq(sequence);
 #else
 		cap_set_ack_sequence(sequence);
+		if (cap_get_capture_sequence() < sequence + 5) {
+			m_pVideo->increase_encoder_bitrate(200000);
+		}
+		else if (cap_get_capture_sequence() > sequence + 20) {
+			m_pVideo->increase_encoder_bitrate(-200000);
+		}
 #endif
 	}
 		break;
 	case kMsgTypeRequestKeyFrame:
 	{
-		RequestKeyFrame tRequestKeyFrame;
-		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
-		autojsoncxx::ParsingResult result;
-		if (!autojsoncxx::from_json_string(pPayload, tRequestKeyFrame, result)) {
-			printf("parser json string fail\n");
-			break;
-		}
-		bool is_reset = tRequestKeyFrame.resetSequence;
-		if (m_pVideo) {
+		if (m_pVideo && m_pVideo->IsPublisher()) {
+			RequestKeyFrame tRequestKeyFrame;
+			const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+			autojsoncxx::ParsingResult result;
+			if (!autojsoncxx::from_json_string(pPayload, tRequestKeyFrame, result)) {
+				printf("parser json string fail\n");
+				break;
+			}
+			bool is_reset = tRequestKeyFrame.resetSequence;
 			m_pVideo->reset_keyframe(is_reset);
+		}
+		else if (m_CallbackVapp) {
+			m_CallbackVapp();
 		}
 	}
 		break;
@@ -505,6 +524,16 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		}
 		if (m_CallbackKeyboard) {
 			m_CallbackKeyboard(tKeyboardInput.keyValue, tKeyboardInput.isPressed);
+		}
+	}
+		break;
+	case kMsgTypeStopStream:
+	{
+		if (m_pVideo && m_pVideo->IsPublisher()) {
+			m_pVideo->stop();
+		}
+		else if (m_CallbackVappStop) {
+			m_CallbackVappStop();
 		}
 	}
 		break;

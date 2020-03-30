@@ -9,13 +9,16 @@ public:
 	~Daemon();
 
 	void set_instance_id(int id);
-	void start_stream(bool is_desktop);
+	void start_publish();
+	void start_stream();
 	void stop_stream();
 	void show_stream(void* hWnd);
 	void get_stream_size(int* width, int* height);
 	bool connect_mcu(const string& url);
 	void set_start_stream_callback(StartStreamCallback on_stream);
 	void set_stop_stream_callback(StopStreamCallback on_stop);
+	void set_vapp_start_callback(VappStartCallback on_vapp);
+	void set_vapp_stop_callback(VappStopCallback on_vapp_stop);
 	void send_picture();
 	void set_picture_callback(PictureCallback on_picture);
 	void start_operate();
@@ -39,5 +42,6 @@ private:
 	Audio m_Audio;
 	string m_McuUrl;
 	thread* m_pHeartbeatID;
+	bool m_IsPublisher;
 	bool m_bQuit;
 };

@@ -150,6 +150,7 @@ private:
 	char			 m_DispName[32];
 	BOOL             m_Quit;
 	BOOL             m_Pause;
+	BOOL			 m_ForceFrame;
 	__mirror_cap_t   m_Mirror;
 	__d3d_cap_t      m_Directx;
 	__gdi_cap_t      m_GDI;

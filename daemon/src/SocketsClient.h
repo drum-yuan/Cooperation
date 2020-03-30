@@ -20,6 +20,8 @@ typedef struct tagUsersInfoInternal {
 
 typedef void(*StartStreamCallback)(int id);
 typedef void(*StopStreamCallback)(int id);
+typedef void(*VappStartCallback)();
+typedef void(*VappStopCallback)();
 typedef void(*PictureCallback)(int id, const char* file_path);
 typedef void(*OperaterCallback)(int id, bool is_operater);
 typedef void(*MouseCallback)(unsigned int x, unsigned int y, unsigned int button_mask);
@@ -42,6 +44,8 @@ public:
 	void continue_show_stream();
 	void set_start_stream_callback(StartStreamCallback on_stream);
 	void set_stop_stream_callback(StopStreamCallback on_stop);
+	void set_vapp_start_callback(VappStartCallback on_vapp);
+	void set_vapp_stop_callback(VappStopCallback on_vapp_stop);
 	void set_picture_callback(PictureCallback on_recv);
 	void set_operater_callback(OperaterCallback on_operater);
 	void set_mouse_callback(MouseCallback on_mouse);
@@ -90,6 +94,8 @@ private:
 	Video* m_pVideo;
 	StartStreamCallback m_CallbackStream;
 	StopStreamCallback m_CallbackStop;
+	VappStartCallback m_CallbackVapp;
+	VappStopCallback m_CallbackVappStop;
 	PictureCallback m_CallbackPicture;
 	OperaterCallback m_CallbackOperater;
 	MouseCallback m_CallbackMouse;

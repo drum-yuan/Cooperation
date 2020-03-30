@@ -5,6 +5,7 @@
 Daemon::Daemon()
 {
 	m_pHeartbeatID = NULL;
+	m_IsPublisher = false;
 	m_bQuit = true;
 }
 
@@ -14,13 +15,17 @@ Daemon::~Daemon()
 	if (m_pHeartbeatID) {
 		if (m_pHeartbeatID->joinable()) {
 			m_pHeartbeatID->join();
+			delete m_pHeartbeatID;
 		}
-		delete m_pHeartbeatID;
 		m_pHeartbeatID = NULL;
 	}
 	if (m_Video.IsPublisher()) {
 		stop_stream();
 	}
+	else if (m_Video.IsOperater()) {
+		m_McuClient.send_stop_stream();
+	}
+	m_IsPublisher = false;
 	m_McuClient.stop();
 }
 
@@ -29,14 +34,17 @@ void Daemon::set_instance_id(int id)
 	m_McuClient.set_instance_id(id);
 }
 
-void Daemon::start_stream(bool is_desktop)
+void Daemon::start_publish()
 {
 	m_McuClient.send_publish();
-	if (is_desktop) {
-		m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
-		m_Audio.SetOnEncoded(std::bind(&Daemon::OnAudioEncoded, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-		m_Video.start();
-	}
+	m_IsPublisher = true;
+}
+
+void Daemon::start_stream()
+{
+	m_Video.SetOnEncoded(std::bind(&Daemon::OnVideoEncoded, this, std::placeholders::_1));
+	m_Audio.SetOnEncoded(std::bind(&Daemon::OnAudioEncoded, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+	m_Video.start();
 }
 
 void Daemon::stop_stream()
@@ -80,6 +88,16 @@ void Daemon::set_start_stream_callback(StartStreamCallback on_stream)
 void Daemon::set_stop_stream_callback(StopStreamCallback on_stop)
 {
 	m_McuClient.set_stop_stream_callback(on_stop);
+}
+
+void Daemon::set_vapp_start_callback(VappStartCallback on_vapp)
+{
+	m_McuClient.set_vapp_start_callback(on_vapp);
+}
+
+void Daemon::set_vapp_stop_callback(VappStopCallback on_vapp_stop)
+{
+	m_McuClient.set_vapp_stop_callback(on_vapp_stop);
 }
 
 void Daemon::send_picture()
@@ -173,7 +191,7 @@ void Daemon::HeartbeatThread()
 			else
 			{
 				m_McuClient.send_connect();
-				if (m_Video.IsPublisher()) {
+				if (m_IsPublisher) {
 					m_McuClient.send_publish();
 				}
 				else {

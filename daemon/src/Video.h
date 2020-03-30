@@ -33,7 +33,7 @@ extern "C" {
 #define MAX_FRAME_WIDTH		4096
 #define MAX_FRAME_HEIGHT	2160
 #endif
-#define ENCODER_BITRATE		4000000
+#define ENCODER_BITRATE		2000000
 
 typedef std::function<void(void* data)> onEncode_fp;
 typedef std::function<void(unsigned char* data, int len)> onLockScreen_fp;
@@ -64,6 +64,7 @@ public:
 	unsigned int get_capture_seq();
 	unsigned int get_frame_type(NV_ENC_PIC_TYPE type);
 #else
+	void increase_encoder_bitrate(int delta_bitrate);
 	static void onFrame(CallbackFrameInfo* frame, void* param);
 #endif
 #ifdef HW_DECODE
@@ -119,6 +120,7 @@ private:
 	int m_iFrameW;
 	int m_iFrameH;
 	int m_iFrameRate;
+	int m_Bitrate;
 	bool m_bPublisher;
 	bool m_bOperater;
 	bool m_bResetSequence;
