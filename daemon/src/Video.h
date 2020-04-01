@@ -126,6 +126,7 @@ private:
 	bool m_bResetSequence;
 	bool m_bForceKeyframe;
 	bool m_bLockScreen;
+	bool m_bShow;
 
 	void* m_hRenderWin;
 #ifdef HW_DECODE

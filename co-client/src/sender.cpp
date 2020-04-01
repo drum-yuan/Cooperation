@@ -55,12 +55,16 @@ Sender::~Sender()
 	if (m_MonitorThread && m_MonitorThread->joinable()) {
 		m_MonitorThread->join();
 		delete m_MonitorThread;
-		m_MonitorThread = NULL;
 	}
+	m_MonitorThread = NULL;
 }
 
 bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_info, string& app_guid)
 {
+	if (m_DaemonId != -1) {
+		printf("this compute node is already registered\n");
+		return false;
+	}
 	m_AppName = app_name;
 	m_RDSHInfo = rdsh_info;
 	string strUrl = "http://" + m_Url + "/add-node";
@@ -96,7 +100,7 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 
 	int ins_id = daemon_create();
 	if (ins_id < 0) {
-		printf("daemon start fail\n");
+		printf("daemon create fail\n");
 		return false;
 	}
 	daemon_set_mouse_callback(ins_id, recv_mouse_event_callback);
@@ -131,6 +135,28 @@ void Sender::unregister_compute_node(const string& app_guid)
 	m_Quit = true;
 	daemon_stop(m_DaemonId);
 	m_DaemonId = -1;
+}
+
+bool Sender::start_compute_node(const string& app_name, const RDSHInfo& rdsh_info)
+{
+	string app_guid;
+	bool ret = register_compute_node(app_name, rdsh_info, m_AppGuid);
+	if (ret) {
+		daemon_set_vapp_start_callback(m_DaemonId, NULL);
+
+		start_vapp();
+		m_Quit = false;
+		if (m_MonitorThread == NULL) {
+			m_MonitorThread = new thread(&Sender::monitor_thread, _instance);
+		}
+	}
+	return ret;
+}
+
+void Sender::stop_compute_node()
+{
+	system("taskkill /IM xtapp.exe /F");
+	unregister_compute_node(m_AppGuid);
 }
 
 void Sender::monitor_thread()
@@ -182,6 +208,30 @@ void Sender::monitor_thread()
 	}
 }
 
+void Sender::start_vapp()
+{
+	char param[1024];
+	if (m_AppName == "desktop") {
+		sprintf_s(param, sizeof(param), "/v:%s /d:%s /u:%s /p:%s /cert-ignore /gfx:avc444 /drive:LOCAL,C:\\ /drive:hotplug,DynamicDrives /f /sirius:\"%s\"",
+			m_RDSHInfo.rdsh_ip.c_str(), m_RDSHInfo.domain.c_str(), m_RDSHInfo.user.c_str(), m_RDSHInfo.password.c_str(), m_SiriusUrl.c_str());
+	}
+	else {
+		sprintf_s(param, sizeof(param), "/v:%s /d:%s /u:%s /p:%s /cert-ignore /gfx:avc444 /drive:LOCAL,C:\\ /drive:hotplug,DynamicDrives /f /app:\"||%s\" /sirius:\"%s\"",
+			m_RDSHInfo.rdsh_ip.c_str(), m_RDSHInfo.domain.c_str(), m_RDSHInfo.user.c_str(), m_RDSHInfo.password.c_str(), m_AppName.c_str(), m_SiriusUrl.c_str());
+	}
+	printf("start vapp: %s\n", param);
+	SHELLEXECUTEINFO  ShExecInfo = { 0 };
+	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+	ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+	ShExecInfo.hwnd = NULL;
+	ShExecInfo.lpVerb = "open";
+	ShExecInfo.lpFile = "xtapp";
+	ShExecInfo.lpParameters = param;
+	ShExecInfo.lpDirectory = NULL;
+	ShExecInfo.nShow = SW_SHOW;
+	ShExecInfo.hInstApp = NULL;
+	ShellExecuteEx(&ShExecInfo);
+}
 
 
 static int get_buttons_change(unsigned int last_buttons_state, unsigned int new_buttons_state,
@@ -288,38 +338,26 @@ void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 void Sender::recv_vapp_start_callback()
 {
 #ifdef WIN32
-	if (_instance->m_AppName == "desktop") {
+	if (_instance->m_AppName == "") {
 		daemon_start_stream(_instance->m_DaemonId);
 	}
 	else {
 		system("taskkill /IM xtapp.exe /F");
 
-		char param[1024];
-		sprintf_s(param, sizeof(param), "/v:%s /d:%s /u:%s /p:Xietong1234567 /cert-ignore /gfx:avc444 /f /app:\"||%s\" /sirius:\"%s\"",
-			_instance->m_RDSHInfo.rdsh_ip.c_str(), _instance->m_RDSHInfo.domain.c_str(), _instance->m_RDSHInfo.user.c_str(), _instance->m_AppName.c_str(), _instance->m_SiriusUrl.c_str());
-		printf("start vapp: %s\n", param);
-		SHELLEXECUTEINFO  ShExecInfo = { 0 };
-		ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-		ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-		ShExecInfo.hwnd = NULL;
-		ShExecInfo.lpVerb = "open";
-		ShExecInfo.lpFile = "xtapp";
-		ShExecInfo.lpParameters = param;
-		ShExecInfo.lpDirectory = NULL;
-		ShExecInfo.nShow = SW_SHOW;
-		ShExecInfo.hInstApp = NULL;
-		ShellExecuteEx(&ShExecInfo);
+		_instance->start_vapp();
 	}
 	printf("daemon start stream %d\n", _instance->m_DaemonId);
 	_instance->m_Quit = false;
-	_instance->m_MonitorThread = new thread(&Sender::monitor_thread, _instance);
+	if (_instance->m_MonitorThread == NULL) {
+		_instance->m_MonitorThread = new thread(&Sender::monitor_thread, _instance);
+	}
 #endif
 }
 
 void Sender::recv_vapp_stop_callback()
 {
 #ifdef WIN32
-	if (_instance->m_AppName != "desktop") {
+	if (_instance->m_AppName != "") {
 		system("taskkill /IM xtapp.exe /F");
 	}
 	printf("daemon stop stream %d\n", _instance->m_DaemonId);
@@ -327,7 +365,7 @@ void Sender::recv_vapp_stop_callback()
 	if (_instance->m_MonitorThread && _instance->m_MonitorThread->joinable()) {
 		_instance->m_MonitorThread->join();
 		delete _instance->m_MonitorThread;
-		_instance->m_MonitorThread = NULL;
 	}
+	_instance->m_MonitorThread = NULL;
 #endif
 }

@@ -74,6 +74,10 @@ DAEMON_API void daemon_stop_stream(int id);
 DAEMON_API void daemon_show_stream(int id, void* hwnd);
 //获取直播画面的原始宽高
 DAEMON_API void daemon_get_stream_size(int id, int* width, int* height);
+//暂停显示直播画面
+DAEMON_API void daemon_pause_show(int id);
+//恢复显示直播画面
+DAEMON_API void daemon_resume_show(int id);
 //设置接收直播通知后的回调
 DAEMON_API void daemon_set_start_stream_callback(int id, StartStreamCallback on_stream);
 //设置接收停播通知后的回调

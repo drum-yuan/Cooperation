@@ -126,12 +126,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\cjson.cpp" />
+    <ClCompile Include="src\floatbar.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\receiver.cpp" />
     <ClCompile Include="src\sender.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\cjson.h" />
+    <ClInclude Include="src\floatbar.h" />
     <ClInclude Include="src\receiver.h" />
     <ClInclude Include="src\sender.h" />
   </ItemGroup>

@@ -64,6 +64,16 @@ void Daemon::get_stream_size(int* width, int* height)
 	m_Video.GetStreamSize(width, height);
 }
 
+void Daemon::pause_show()
+{
+	m_Video.pause();
+}
+
+void Daemon::resume_show()
+{
+	m_Video.resume();
+}
+
 bool Daemon::connect_mcu(const string& url)
 {
 	m_McuUrl = url;

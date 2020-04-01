@@ -10,6 +10,7 @@ struct RDSHInfo {
 	string rdsh_ip;
 	string domain;
 	string user;
+	string password;
 };
 
 class Sender
@@ -20,6 +21,8 @@ public:
 
 	bool register_compute_node(const string& app_name, const RDSHInfo& rdsh_info, string& app_guid);
 	void unregister_compute_node(const string& app_guid);
+	bool start_compute_node(const string& app_name, const RDSHInfo& rdsh_info);
+	void stop_compute_node();
 
 	static void recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask);
 	static void recv_keyboard_event_callback(unsigned int key_val, bool is_pressed);
@@ -28,6 +31,7 @@ public:
 
 private:
 	void monitor_thread();
+	void start_vapp();
 
 	string m_Url;
 	string m_ServerIP;
@@ -37,6 +41,7 @@ private:
 	bool m_Quit;
 	HCURSOR m_hCursor;
 	RDSHInfo m_RDSHInfo;
+	string m_AppGuid;
 	string m_AppName;
 	string m_SiriusUrl;
 };

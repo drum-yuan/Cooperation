@@ -2,6 +2,9 @@
 #include "DaemonApi.h"
 #include "restbed"
 #include "cjson.h"
+#include "floatbar.h"
+#include "imm.h"
+#pragma comment(lib, "imm32.lib")
 
 using namespace restbed;
 
@@ -50,6 +53,9 @@ int Receiver::get_compute_node_list(vector<NodeInfo>& node_list)
 	}
 	int body_len = stoi(response->get_header("Content-Length"));
 	printf("response body len %d\n", body_len);
+	if (body_len == 0) {
+		return 0;
+	}
 	Http::fetch(body_len, response);
 	std::string content((char*)response->get_body().data(), body_len);
 	printf("get node list request succeed %s\n", content.c_str());
@@ -82,12 +88,12 @@ int Receiver::get_compute_node_list(vector<NodeInfo>& node_list)
 	return node_list.size();
 }
 
-bool Receiver::start(const NodeInfo& node)
+int Receiver::start(const NodeInfo& node)
 {
 	int ins_id = daemon_create();
 	if (ins_id < 0) {
 		printf("daemon start fail\n");
-		return false;
+		return -1;
 	}
 	m_WinThreadMap.insert(pair<int, thread*>(ins_id, NULL));
 	daemon_set_start_stream_callback(ins_id, start_stream_callback);
@@ -99,9 +105,10 @@ bool Receiver::start(const NodeInfo& node)
 	info.app_guid = node.app_guid;
 	info.hwnd = NULL;
 	info.can_operate = false;
+	info.is_fullscreen = false;
 	m_DaemonMap.insert(pair<int, DaemonInfo>(ins_id, info));
 	printf("daemon start %d guid %s name %s\n", ins_id, node.app_guid.c_str(), node.app_name.c_str());
-	return true;
+	return ins_id;
 }
 
 void Receiver::stop(int ins_id)
@@ -116,6 +123,13 @@ void Receiver::start_operate(int ins_id)
 {
 	printf("daemon start operate %d\n", ins_id);
 	daemon_start_operate(ins_id);
+}
+
+void Receiver::set_fullscreen(int ins_id)
+{
+	if (m_DaemonMap.find(ins_id) != m_DaemonMap.end()) {
+		m_DaemonMap[ins_id].is_fullscreen = true;
+	}
 }
 
 void Receiver::set_cursor_shape()
@@ -276,6 +290,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 		PostQuitMessage(0);
 		return 0;
 	}
+	case WM_USER + MSG_PAUSE_RENDER:
+	{
+		daemon_pause_show(_instance->get_id_from_daemon_map(hWnd));
+	}
+		break;
+	case WM_USER + MSG_RESUME_RENDER:
+	{
+		daemon_resume_show(_instance->get_id_from_daemon_map(hWnd));
+	}
+		break;
 	case WM_MOUSEWHEEL:
 	{
 		if (_instance->get_can_operate_from_daemon_map(hWnd)) {
@@ -295,6 +319,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			else {
 				_dwButtonState &= ~AGENT_DBUTTON_MASK;
 			}
+			return 0;
 		}
 	}
 	break;
@@ -308,6 +333,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 				scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 				daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
 			}
+			return 0;
 		}
 	}
 	break;
@@ -318,6 +344,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 			_dwButtonState |= AGENT_LBUTTON_MASK;
 			daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
+			return 0;
 		}
 	}
 	break;
@@ -328,6 +355,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 			_dwButtonState |= AGENT_MBUTTON_MASK;
 			daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
+			return 0;
 		}
 	}
 	break;
@@ -338,6 +366,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 			_dwButtonState |= AGENT_RBUTTON_MASK;
 			daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
+			return 0;
 		}
 	}
 	break;
@@ -348,6 +377,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 			_dwButtonState &= ~AGENT_LBUTTON_MASK;
 			daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
+			return 0;
 		}
 	}
 	break;
@@ -358,6 +388,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 			_dwButtonState &= ~AGENT_MBUTTON_MASK;
 			daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
+			return 0;
 		}
 	}
 	break;
@@ -368,6 +399,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 			_dwButtonState &= ~AGENT_RBUTTON_MASK;
 			daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
+			return 0;
 		}
 	}
 	break;
@@ -377,6 +409,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 		if (_instance->get_can_operate_from_daemon_map(hWnd)) {
 			int ins_id = _instance->get_id_from_daemon_map(hWnd);
 			daemon_send_keyboard_event(ins_id, wParam, true);
+			return 0;
 		}
 		else {
 			if (wParam == 17) {
@@ -391,6 +424,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 		if (_instance->get_can_operate_from_daemon_map(hWnd)) {
 			int ins_id = _instance->get_id_from_daemon_map(hWnd);
 			daemon_send_keyboard_event(ins_id, wParam, false);
+			return 0;
 		}
 	}
 	break;
@@ -425,10 +459,24 @@ void Receiver::CreateWndInThread(int id)
 	wcex.hIconSm = 0;
 	RegisterClassExA(&wcex);
 
-	HWND hwnd = CreateWindowA(szApp, nullptr, WS_OVERLAPPEDWINDOW, 0, 0, 1366, 768, NULL, NULL, wcex.hInstance, 0);
+	DWORD dwStyle = WS_OVERLAPPEDWINDOW;
+	int width = 1366;
+	int height = 768;
+	if (m_DaemonMap[id].is_fullscreen) {
+		dwStyle = WS_POPUP;
+		width = GetSystemMetrics(SM_CXSCREEN);
+		height = GetSystemMetrics(SM_CYSCREEN);
+	}
+	HWND hwnd = CreateWindowA(szApp, nullptr, dwStyle, 0, 0, width, height, NULL, NULL, wcex.hInstance, 0);
 
 	ShowWindow(hwnd, SW_SHOW);
 	UpdateWindow(hwnd);
+	ImmDisableIME(0);
+
+	if (m_DaemonMap[id].is_fullscreen) {
+		FloatBar* floatbar = new FloatBar(hwnd);
+		floatbar->floatbar_window_create();
+	}
 
 	m_DaemonMap[id].hwnd = hwnd;
 	daemon_show_stream(id, hwnd);

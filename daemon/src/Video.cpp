@@ -29,7 +29,8 @@ Video::Video():m_iFrameW(0),
 				m_bPublisher(false),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
-				m_bLockScreen(false)
+				m_bLockScreen(false),
+				m_bShow(true)
 {
 #ifdef HW_ENCODE
 	m_pNVFBCLib = NULL;
@@ -129,7 +130,7 @@ bool Video::show(unsigned char* buffer, unsigned int len, bool is_show)
 		return false;
 	}
 
-	if (is_show) {
+	if (is_show && m_bShow) {
 		DXVA2Render();
 	}
 	return true;
@@ -137,7 +138,7 @@ bool Video::show(unsigned char* buffer, unsigned int len, bool is_show)
 	SBufferInfo tDstInfo;
 	DECODING_STATE state = m_pDecoder->DecodeFrameNoDelay(buffer, len, m_pDecData, &tDstInfo);
 	if (state == 0) {
-		if (is_show) {
+		if (is_show && m_bShow) {
 			Render(&tDstInfo);
 		}
 		return true;
@@ -206,6 +207,7 @@ void Video::pause()
 #else
 	cap_pause_capture_screen();
 #endif
+	m_bShow = false;
 }
 
 void Video::resume()
@@ -215,6 +217,7 @@ void Video::resume()
 #else
 	cap_resume_capture_screen();
 #endif
+	m_bShow = true;
 }
 
 void Video::reset_keyframe(bool reset_ack)

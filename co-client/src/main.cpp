@@ -32,38 +32,57 @@ int main(int argc, char** argv)
 			else if (line.substr(0, 5) == "USER=") {
 				rdsh_info.user = line.substr(5);
 			}
+			else if (line.substr(0, 4) == "KEY=") {
+				rdsh_info.password = line.substr(4);
+			}
 		}
 		server_ini.close();
 	}
 	if (server_url.length() == 0) {
 		return -1;
 	}
-
-	Sender* pSender;
-	Receiver* pReceiver;
-	string app_guid;
-	std::vector<NodeInfo> node_list;
-	if (strncmp(argv[1], "/Sender", 7) == 0) {
+	printf("server url %s\n", server_url.c_str());
+	Sender* pSender = NULL;
+	Receiver* pReceiver = NULL;
+	if (strncmp(argv[1], "/Start", 6) == 0) {
 		pSender = new Sender(server_url);
-		printf("As sender %s\n", server_url.c_str());
+		if (!pSender) {
+			return -1;
+		}
 		if (argc > 2 && argv[2] != NULL) {
-			if (pSender) {
-				pSender->register_compute_node(string(argv[2]), rdsh_info, app_guid);
-			}
+			pSender->start_compute_node(string(argv[2]), rdsh_info);
+		}
+		while (getchar() != 'q') {
+			Sleep(1000);
+		}
+		pSender->stop_compute_node();
+	} else if (strncmp(argv[1], "/Sender", 7) == 0) {
+		pSender = new Sender(server_url);
+		if (!pSender) {
+			return -1;
+		}
+		printf("As sender\n");
+		string app_guid;
+		if (argc > 2 && argv[2] != NULL) {
+			pSender->register_compute_node(string(argv[2]), rdsh_info, app_guid);
 		}
 		else {
-			if (pSender) {
-				pSender->register_compute_node(string("desktop"), rdsh_info, app_guid);
-			}
+			pSender->register_compute_node("", rdsh_info, app_guid);
 		}
 		while (getchar() != 'q') {
 			Sleep(1000);
 		}
 	}
-	else if (strncmp(argv[1], "/Receiver", 7) == 0) {
+	else if (strncmp(argv[1], "/Receiver", 9) == 0) {
 		pReceiver = new Receiver(server_url);
+		if (!pReceiver) {
+			return -1;
+		}
+		printf("As receiver\n");
+		vector<NodeInfo> node_list;
 		int num = pReceiver->get_compute_node_list(node_list);
 		if (num == 0) {
+			printf("compute node is not exist\n");
 			return 0;
 		}
 		printf("Current node list:\n");
@@ -74,11 +93,15 @@ int main(int argc, char** argv)
 		printf("Please choose the order number!\n");
 		int app_no = 0;
 		while (scanf("%d", &app_no) > 0) {
-			if (app_no > 0 && app_no <= node_list.size() && pReceiver) {
-				pReceiver->start(node_list[app_no - 1]);
+			if (app_no > 0 && app_no <= node_list.size()) {
+				int ins_id = pReceiver->start(node_list[app_no - 1]);
+				pReceiver->set_fullscreen(ins_id);
 			}
 			Sleep(1000);
 		}
+	}
+	else {
+		printf("parameters error!\n");
 	}
 
 	return 0;

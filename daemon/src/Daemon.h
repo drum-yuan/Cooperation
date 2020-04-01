@@ -14,6 +14,8 @@ public:
 	void stop_stream();
 	void show_stream(void* hWnd);
 	void get_stream_size(int* width, int* height);
+	void pause_show();
+	void resume_show();
 	bool connect_mcu(const string& url);
 	void set_start_stream_callback(StartStreamCallback on_stream);
 	void set_stop_stream_callback(StopStreamCallback on_stop);

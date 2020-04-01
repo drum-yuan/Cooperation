@@ -75,6 +75,22 @@ void daemon_get_stream_size(int id, int* width, int* height)
 	}
 }
 
+void daemon_pause_show(int id)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->pause_show();
+	}
+}
+
+void daemon_resume_show(int id)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->resume_show();
+	}
+}
+
 void daemon_set_start_stream_callback(int id, StartStreamCallback on_stream)
 {
 	Daemon* pDaemon = vecDaemon[id];

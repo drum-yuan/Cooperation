@@ -11,7 +11,7 @@ static LPSTR dispCode[7] = {
 
 CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 {
-	m_GrabType = 3;
+	m_GrabType = 0;
 	m_MonitorID = id;
 	onFrame = on_frame;
 	onframe_param = param;

@@ -538,6 +538,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	}
 		break;
 	case kMsgTypeStopStreamAck:
+	case kMsgTypeStreamQuit:
 	{
 		if (m_CallbackStop) {
 			m_CallbackStop(m_InsId);
