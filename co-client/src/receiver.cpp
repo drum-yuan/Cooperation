@@ -10,13 +10,14 @@
 
 using namespace restbed;
 
-#ifdef WIN32
 #define AGENT_LBUTTON_MASK (1 << 1)
 #define AGENT_MBUTTON_MASK (1 << 2)
 #define AGENT_RBUTTON_MASK (1 << 3)
 #define AGENT_UBUTTON_MASK (1 << 4)
 #define AGENT_DBUTTON_MASK (1 << 5)
-#endif
+
+typedef unsigned long  DWORD;
+
 static DWORD _dwButtonState = 0;
 static uint64_t _lastMouseMove = 0;
 static Receiver* _instance = NULL;
@@ -29,8 +30,9 @@ Receiver::Receiver(const string& url)
 	if (pos != string::npos) {
 		m_ServerIP = m_Url.substr(0, pos);
 	}
+#ifdef WIN32
 	m_hCursor = NULL;
-
+#endif
 	_instance = this;
 }
 
@@ -223,12 +225,12 @@ void Receiver::recv_cursor_shape_callback(int id, int x, int y, int w, int h, co
 	info.hbmColor = CreateBitmap(w, h, 1, 32, color_bytes.c_str());
 	_instance->m_hCursor = CreateIconIndirect(&info);
 #else
-	HWND hwnd = get_hwnd_from_ins_id(id);
+	HWND hwnd = _instance->get_hwnd_from_ins_id(id);
 	if (hwnd == NULL) {
 		return;
 	}
-	GdkPixbuf *cursor_buf = gdk_pixbuf_new_from_data(color_bytes, GDK_COLORSPACE_RGB, TRUE, 8, w, h, w * 4, (GdkPixbufDestroyNotify)g_free, NULL);
-	GdkCursor *cursor = gdk_cursor_new_from_pixbuf(gtk_widget_get_display(hwnd), color_bytes, x, y);
+	GdkPixbuf *cursor_buf = gdk_pixbuf_new_from_data((guchar*)color_bytes.c_str(), GDK_COLORSPACE_RGB, TRUE, 8, w, h, w * 4, (GdkPixbufDestroyNotify)g_free, NULL);
+	GdkCursor *cursor = gdk_cursor_new_from_pixbuf(gtk_widget_get_display(hwnd), cursor_buf, x, y);
 	GdkWindow *window = GDK_WINDOW(gtk_widget_get_window(hwnd));
 	if (gdk_window_get_cursor(window) != cursor) {
 		gdk_window_set_cursor(window, cursor);
@@ -508,10 +510,10 @@ static void motion_notify_event(GtkWidget *widget, GdkEventMotion *motion)
 		return;
 	}
 	uint64_t cur_timestamp = get_cur_timestamp();
-	if (cur_timestamp < s_lastMouseMove + 10) {
+	if (cur_timestamp < _lastMouseMove + 10) {
 		return;
 	}
-	s_lastMouseMove = cur_timestamp;
+	_lastMouseMove = cur_timestamp;
 
 	unsigned int x = 0;
 	unsigned int y = 0;
@@ -600,10 +602,10 @@ void Receiver::CreateWndInThread(int id)
 	GdkScreen* screen = gdk_screen_get_default();
 	int width = gdk_screen_get_width(screen);
 	int height = gdk_screen_get_height(screen);
-	gtk_window_set_default_size(GTK_WINDOW(s_hwnd), width, height);
+	gtk_window_set_default_size(GTK_WINDOW(hwnd), width, height);
 	gtk_window_fullscreen(GTK_WINDOW(hwnd));
 
-	gtk_widget_set_events(s_hwnd, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_SCROLL_MASK |
+	gtk_widget_set_events(hwnd, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_SCROLL_MASK |
 		GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK);
 	g_signal_connect(G_OBJECT(hwnd), "destroy", G_CALLBACK(on_window_closed), NULL);
 	g_signal_connect(G_OBJECT(hwnd), "button_press_event", G_CALLBACK(button_press_event), NULL);
@@ -612,7 +614,7 @@ void Receiver::CreateWndInThread(int id)
 	g_signal_connect(G_OBJECT(hwnd), "key_press_event", G_CALLBACK(key_press_event), NULL);
 	g_signal_connect(G_OBJECT(hwnd), "key_release_event", G_CALLBACK(key_release_event), NULL);
 
-	gtk_widget_show(s_hwnd);
+	gtk_widget_show(hwnd);
 
 	m_DaemonMap[id].hwnd = hwnd;
 	daemon_show_stream(id, hwnd);

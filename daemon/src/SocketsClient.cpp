@@ -346,7 +346,7 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		unsigned int option = Swap32IfLE(pVideoHeader->option);
 		unsigned int len1 = uPayloadLen - sizeof(VideoDataHeader);
 		unsigned int len2 = 0;
-		printf("recv length %u\n", uPayloadLen + sizeof(WebSocketHeader));
+		//printf("recv length %u\n", uPayloadLen + sizeof(WebSocketHeader));
 
 		if (option > 2) {
 			len2 = len1 - option;

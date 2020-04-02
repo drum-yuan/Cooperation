@@ -7,7 +7,7 @@
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
 
-typedef (GtkWidget*)  HWND
+typedef GtkWidget  *HWND;
 #endif
 
 using namespace std;
@@ -48,9 +48,9 @@ public:
 	static void stop_stream_callback(int id);
 	static void start_operate_callback(int id, bool is_operater);
 	static void recv_cursor_shape_callback(int id, int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
-
+#ifdef WIN32
 	HCURSOR m_hCursor;
-
+#endif
 private:
 	void CreateWndInThread(int id);
 

@@ -4,19 +4,25 @@
 #include "restbed"
 #include "cjson.h"
 
-using namespace restbed;
-
 #ifdef WIN32
 #define AGENT_LBUTTON_MASK (1 << 1)
 #define AGENT_MBUTTON_MASK (1 << 2)
 #define AGENT_RBUTTON_MASK (1 << 3)
 #define AGENT_UBUTTON_MASK (1 << 4)
 #define AGENT_DBUTTON_MASK (1 << 5)
+#else
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+typedef unsigned long  DWORD;
+#define sprintf_s snprintf
+#endif
+
+using namespace restbed;
 
 static DWORD _dwButtonState = 0;
 static DWORD _dwInputTime = 0;
-#endif
-
 static Sender* _instance = NULL;
 Sender::Sender(const string& url)
 {
@@ -161,12 +167,9 @@ void Sender::stop_compute_node()
 
 void Sender::monitor_thread()
 {
-	while (!m_Quit) {
 #ifdef WIN32
+	while (!m_Quit) {
 		Sleep(50);
-#else
-		usleep(50000);
-#endif
 		CURSORINFO cursor_info;
 		cursor_info.cbSize = sizeof(CURSORINFO);
 		BOOL ret = GetCursorInfo(&cursor_info);
@@ -206,11 +209,23 @@ void Sender::monitor_thread()
 			daemon_send_cursor_shape(m_DaemonId, x, y, bmMask.bmWidth, bmMask.bmHeight, color_bytes, mask_bytes);
 		}
 	}
+#endif
 }
+
+#ifndef WIN32
+static void sigchld_handler(int sig)
+{
+    if (sig == SIGCHLD) {
+        int status = 0;
+        int pid = waitpid(-1, &status, WNOHANG);
+        printf("recv sigchld pid %d\n", pid);
+    }
+}
+#endif
 
 void Sender::start_vapp()
 {
-	char param[1024];
+	char param[4096];
 	if (m_AppName == "desktop") {
 		sprintf_s(param, sizeof(param), "/v:%s /d:%s /u:%s /p:%s /cert-ignore /gfx:avc444 /drive:LOCAL,C:\\ /drive:hotplug,DynamicDrives /f /sirius:\"%s\"",
 			m_RDSHInfo.rdsh_ip.c_str(), m_RDSHInfo.domain.c_str(), m_RDSHInfo.user.c_str(), m_RDSHInfo.password.c_str(), m_SiriusUrl.c_str());
@@ -220,6 +235,7 @@ void Sender::start_vapp()
 			m_RDSHInfo.rdsh_ip.c_str(), m_RDSHInfo.domain.c_str(), m_RDSHInfo.user.c_str(), m_RDSHInfo.password.c_str(), m_AppName.c_str(), m_SiriusUrl.c_str());
 	}
 	printf("start vapp: %s\n", param);
+#ifdef WIN32
 	SHELLEXECUTEINFO  ShExecInfo = { 0 };
 	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -231,6 +247,16 @@ void Sender::start_vapp()
 	ShExecInfo.nShow = SW_SHOW;
 	ShExecInfo.hInstApp = NULL;
 	ShellExecuteEx(&ShExecInfo);
+#else
+    pid_t pid = vfork();
+    if (pid == 0) {
+        execl("./xtapp", "xtapp", param, NULL);
+        exit(0);
+    } else {
+        printf("pid=%d, getpid=%d\n", pid, getpid());
+        signal(SIGCHLD, sigchld_handler);
+    }
+#endif
 }
 
 

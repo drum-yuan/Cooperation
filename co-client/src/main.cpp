@@ -1,8 +1,8 @@
 #include <string.h>
-#include <fstream> 
-#include <iostream> 
-#include "Sender.h"
-#include "Receiver.h"
+#include <fstream>
+#include <iostream>
+#include "sender.h"
+#include "receiver.h"
 
 
 int main(int argc, char** argv)
@@ -53,7 +53,11 @@ int main(int argc, char** argv)
 			pSender->start_compute_node(string(argv[2]), rdsh_info);
 		}
 		while (getchar() != 'q') {
+#ifdef WIN32
 			Sleep(1000);
+#else
+            usleep(1000000);
+#endif
 		}
 		pSender->stop_compute_node();
 	} else if (strncmp(argv[1], "/Sender", 7) == 0) {
@@ -70,7 +74,11 @@ int main(int argc, char** argv)
 			pSender->register_compute_node("", rdsh_info, app_guid);
 		}
 		while (getchar() != 'q') {
+#ifdef WIN32
 			Sleep(1000);
+#else
+            usleep(1000000);
+#endif
 		}
 	}
 	else if (strncmp(argv[1], "/Receiver", 9) == 0) {
@@ -87,7 +95,7 @@ int main(int argc, char** argv)
 		}
 		printf("Current node list:\n");
 		for (int i = 0; i < node_list.size(); i++) {
-			printf("    %d. app guid:%s app name:%s sirius url:%s status:%d\n", 
+			printf("    %d. app guid:%s app name:%s sirius url:%s status:%d\n",
 				i + 1, node_list[i].app_guid.c_str(), node_list[i].app_name.c_str(), node_list[i].sirius_url.c_str(), node_list[i].status);
 		}
 		printf("Please choose the order number!\n");
@@ -97,7 +105,11 @@ int main(int argc, char** argv)
 				int ins_id = pReceiver->start(node_list[app_no - 1]);
 				pReceiver->set_fullscreen(ins_id);
 			}
+#ifdef WIN32
 			Sleep(1000);
+#else
+            usleep(1000000);
+#endif
 		}
 	}
 	else {

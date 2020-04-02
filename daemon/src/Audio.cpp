@@ -1,6 +1,6 @@
 #include "Audio.h"
-#include "opus.h"
 #ifdef WIN32
+#include "opus.h"
 #include <wmcodecdsp.h>      // CLSID_CWMAudioAEC
 // (must be before audioclient.h)
 #include <Audioclient.h>     // WASAPI
@@ -63,12 +63,16 @@ void Audio::stop()
 void Audio::pause()
 {
 	m_bPause = true;
+#ifdef WIN32
 	m_pAudioClient->Stop();
+#endif
 }
 
 void Audio::resume()
 {
+#ifdef WIN32
 	m_pAudioClient->Start();
+#endif
 	m_bPause = true;
 }
 

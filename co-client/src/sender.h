@@ -2,6 +2,8 @@
 #include <thread>
 #ifdef WIN32
 #include <windows.h>
+#else
+typedef void  *HCURSOR;
 #endif
 
 using namespace std;

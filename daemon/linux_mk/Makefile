@@ -18,7 +18,7 @@ LIBDIR =
 LIB = 
 LDFLAGS = 
 
-INC_RELEASE = $(INC) -I../deps/libwebsocket -I../deps/capture -I../deps/proto -I../deps/lz4 -I../deps/openh264 -I../deps/yuv
+INC_RELEASE = $(INC) -I../deps/libwebsockets -I../deps/capture -I../deps/proto -I../deps/lz4 -I../deps/openh264 -I../deps/yuv
 CFLAGS_RELEASE = $(CFLAGS) -O2 -std=c++11 -fPIC
 RESINC_RELEASE = $(RESINC)
 RCFLAGS_RELEASE = $(RCFLAGS)
@@ -27,9 +27,9 @@ LIB_RELEASE = $(LIB)
 LDFLAGS_RELEASE = $(LDFLAGS)
 OBJDIR_RELEASE = obj/Release
 DEP_RELEASE = 
-OUT_RELEASE = bin/Release/daemon.so
+OUT_RELEASE = bin/Release/libdaemon.so
 
-OBJ_RELEASE = $(OBJDIR_RELEASE)/__/src/Buffer.o $(OBJDIR_RELEASE)/__/src/Daemon.o $(OBJDIR_RELEASE)/__/src/DaemonInstance.o $(OBJDIR_RELEASE)/__/src/SocketsClient.o $(OBJDIR_RELEASE)/__/src/Video.o
+OBJ_RELEASE = $(OBJDIR_RELEASE)/__/src/Audio.o $(OBJDIR_RELEASE)/__/src/Buffer.o $(OBJDIR_RELEASE)/__/src/Daemon.o $(OBJDIR_RELEASE)/__/src/DaemonInstance.o $(OBJDIR_RELEASE)/__/src/SocketsClient.o $(OBJDIR_RELEASE)/__/src/Video.o
 
 all: release
 
@@ -45,6 +45,9 @@ release: before_release out_release after_release
 
 out_release: before_release $(OBJ_RELEASE) $(DEP_RELEASE)
 	$(LD) -shared $(LIBDIR_RELEASE) $(OBJ_RELEASE)  -o $(OUT_RELEASE) $(LDFLAGS_RELEASE) $(LIB_RELEASE)
+
+$(OBJDIR_RELEASE)/__/src/Audio.o: ../src/Audio.cpp
+	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c ../src/Audio.cpp -o $(OBJDIR_RELEASE)/__/src/Audio.o
 
 $(OBJDIR_RELEASE)/__/src/Buffer.o: ../src/Buffer.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c ../src/Buffer.cpp -o $(OBJDIR_RELEASE)/__/src/Buffer.o
