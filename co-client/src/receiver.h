@@ -4,9 +4,10 @@
 #ifdef WIN32
 #include <windows.h>
 #else
+#include <gdk/gdkx.h>
 #include <gtk/gtk.h>
 
-#define HWND		(GtkWidget*)
+typedef (GtkWidget*)  HWND
 #endif
 
 using namespace std;
@@ -41,6 +42,7 @@ public:
 	string get_guid_from_daemon_map(HWND hwnd);
 	int get_id_from_daemon_map(HWND hwnd);
 	bool get_can_operate_from_daemon_map(HWND hwnd);
+	HWND get_hwnd_from_ins_id(int id);
 
 	static void start_stream_callback(int id);
 	static void stop_stream_callback(int id);
