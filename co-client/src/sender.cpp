@@ -114,7 +114,13 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 	daemon_set_vapp_start_callback(ins_id, recv_vapp_start_callback);
 	daemon_set_vapp_stop_callback(ins_id, recv_vapp_stop_callback);
 	printf("daemon start %s\n", m_SiriusUrl.c_str());
-	daemon_start(ins_id, m_SiriusUrl);
+	while (!daemon_start(ins_id, m_SiriusUrl)) {
+#ifdef WIN32
+		Sleep(1000);
+#else
+		usleep(1000000);
+#endif
+	}
 	daemon_start_publish(ins_id);
 	m_DaemonId = ins_id;
 	return true;

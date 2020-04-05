@@ -88,7 +88,6 @@ private:
 	thread* m_wsthread;
 	condition_variable m_cv;
 	struct lws_protocols* m_protocols;
-	struct lws_extension* m_exts;
 
 	Buffer* m_SendBuf;
 	Video* m_pVideo;

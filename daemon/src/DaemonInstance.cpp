@@ -17,14 +17,17 @@ int daemon_create()
 	}
 }
 
-void daemon_start(int id, const string& url)
+bool daemon_start(int id, const string& url)
 {
 	Daemon* pDaemon = vecDaemon[id];
 	if (pDaemon != NULL) {
 		if (!pDaemon->connect_mcu(url)) {
 			delete pDaemon;
+			pDaemon = NULL;
+			return false;
 		}
 	}
+	return true;
 }
 
 void daemon_stop(int id)
@@ -32,6 +35,7 @@ void daemon_stop(int id)
 	Daemon* pDaemon = vecDaemon[id];
 	if (pDaemon != NULL) {
 		delete pDaemon;
+		pDaemon = NULL;
 	}
 }
 

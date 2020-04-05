@@ -25,8 +25,7 @@ SocketsClient::SocketsClient() : m_Exit(false),
 								m_PicPos(0),
 								m_wsi(NULL),
 								m_wsthread(NULL),
-								m_protocols(NULL),
-								m_exts(NULL)
+								m_protocols(NULL)
 {
 	m_protocols = (struct lws_protocols*)malloc(sizeof(struct lws_protocols) * 2);
 	if (m_protocols)
@@ -43,15 +42,6 @@ SocketsClient::SocketsClient() : m_Exit(false),
 		m_protocols[1].per_session_data_size = 0;
 		m_protocols[1].rx_buffer_size = 0;
 		m_protocols[1].user = NULL;
-	}
-
-	m_exts = (struct lws_extension*)malloc(sizeof(struct lws_extension));
-	if (m_exts)
-	{
-		memset(m_exts, 0, sizeof(struct lws_extension));
-		m_exts[0].name = NULL;
-		m_exts[0].callback = NULL;
-		m_exts[0].client_offer = NULL;
 	}
 
 	m_SendBuf = new Buffer(WEBSOCKET_MAX_BUFFER_SIZE);
@@ -72,12 +62,6 @@ SocketsClient::~SocketsClient()
 	{
 		free(m_protocols);
 		m_protocols = NULL;
-	}
-
-	if (m_exts)
-	{
-		free(m_exts);
-		m_exts = NULL;
 	}
 
 	delete m_SendBuf;
@@ -140,10 +124,6 @@ int SocketsClient::RunWebSocketClient()
 	info.uid = -1;
 	info.options |= LWS_SERVER_OPTION_VALIDATE_UTF8;
 
-#ifndef LWS_NO_EXTENSIONS
-	info.extensions = m_exts;
-#endif
-
 	context = lws_create_context(&info);
 	if (context == NULL) {
 		lwsl_err("libwebsocket init failed\n");
@@ -166,13 +146,11 @@ int SocketsClient::RunWebSocketClient()
 			i.host = ads_port;
 			i.origin = ads_port;
 			i.protocol = "binary";
-			i.client_exts = m_exts;
 			i.userdata = this;
 
 			m_wsi = lws_client_connect_via_info(&i);
 			if (!m_wsi) {
-				lwsl_err("Client failed to connect to %s:%u\n",
-					address, port);
+				lwsl_err("Client failed to connect to %s:%u\n", address, port);
 				goto fail;
 			}
 		}

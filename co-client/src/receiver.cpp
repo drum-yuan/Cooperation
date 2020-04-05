@@ -246,8 +246,8 @@ static void scale_to_video(int id, HWND hwnd, short x, short y, unsigned int& sc
 		return;
 	}
 
-	int video_w = 0;
-	int video_h = 0;
+	int video_w = 1366;
+	int video_h = 768;
 	daemon_get_stream_size(id, &video_w, &video_h);
 #ifdef WIN32
 	RECT rect;

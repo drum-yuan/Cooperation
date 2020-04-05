@@ -67,11 +67,19 @@ int main(int argc, char** argv)
 		}
 		printf("As sender\n");
 		string app_guid;
+		string app_name;
 		if (argc > 2 && argv[2] != NULL) {
-			pSender->register_compute_node(string(argv[2]), rdsh_info, app_guid);
+			app_name = argv[2];
 		}
 		else {
-			pSender->register_compute_node("", rdsh_info, app_guid);
+			app_name = "";
+		}
+		while (!pSender->register_compute_node(app_name, rdsh_info, app_guid)) {
+#ifdef WIN32
+			Sleep(1000);
+#else
+			usleep(1000000);
+#endif
 		}
 		while (getchar() != 'q') {
 #ifdef WIN32

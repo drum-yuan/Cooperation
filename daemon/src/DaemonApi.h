@@ -61,7 +61,7 @@ typedef void (*CursorShapeCallback)(int id, int x, int y, int w, int h, const st
 //创建daemon
 DAEMON_API int daemon_create();
 //启动daemon(包含网络初始连接)
-DAEMON_API void daemon_start(int id, const std::string& url);
+DAEMON_API bool daemon_start(int id, const std::string& url);
 //停止daemon(包含断开连接)
 DAEMON_API void daemon_stop(int id);
 //开始发布

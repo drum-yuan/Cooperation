@@ -1137,6 +1137,8 @@ void Video::SetOperater(bool is_operater)
 
 void Video::GetStreamSize(int* width, int* height)
 {
-	*width = m_iFrameW;
-	*height = m_iFrameH;
+	if (m_iFrameW > 0 && m_iFrameH > 0) {
+		*width = m_iFrameW;
+		*height = m_iFrameH;
+	}
 }
