@@ -1,6 +1,7 @@
 #include <vector>
 #include <map>
 #include <thread>
+#include "util.h"
 #ifdef WIN32
 #include <windows.h>
 #else
@@ -9,8 +10,6 @@
 
 typedef GtkWidget  *HWND;
 #endif
-
-using namespace std;
 
 struct NodeInfo {
 	string app_guid;

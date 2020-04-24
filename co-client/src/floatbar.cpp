@@ -1,5 +1,6 @@
 #ifdef WIN32
 #include "FloatBar.h"
+#include "util.h"
 #include <stdio.h>
 
 FloatBar::FloatBar(void* parent_win)
@@ -168,7 +169,7 @@ LRESULT CALLBACK FloatBar::floatbar_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 				pos_y = (lParam >> 16) & 0xffff;
 
 				if (!floatbar->m_Shown) {
-					printf("floatbar show\n");
+					LOG_INFO("floatbar show\n");
 					PostMessage(floatbar->m_Parent, WM_USER + MSG_PAUSE_RENDER, 0, 0);
 					floatbar->floatbar_animation(TRUE);
 				}
@@ -226,7 +227,7 @@ LRESULT CALLBACK FloatBar::floatbar_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 				{	
 					MoveWindow(floatbar->m_Hwnd, floatbar->m_Rect.left, -height + 1, width, height, TRUE);
 					KillTimer(hWnd, wParam);
-					printf("resume render\n");
+					LOG_INFO("resume render");
 					PostMessage(floatbar->m_Parent, WM_USER + MSG_RESUME_RENDER, 0, 0);
 
 					break;
@@ -296,7 +297,7 @@ void FloatBar::floatbar_window_create()
 
 	barWnd = CreateWindowEx(WS_EX_TOPMOST, "floatbar", "floatbar", WS_CHILD, x, 0,
 	                        BACKGROUND_W, BACKGROUND_H, (HWND)m_Parent, NULL, GetModuleHandle(NULL), this);
-	printf("Create floatbar %p\n", barWnd);
+	LOG_INFO("Create floatbar %p", barWnd);
 	if (barWnd == NULL)
 		return;
 	ShowWindow(barWnd, SW_SHOWNORMAL);

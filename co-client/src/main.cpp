@@ -4,14 +4,11 @@
 #include "sender.h"
 #include "receiver.h"
 
+ofstream log_file("co-client.log", ios_base::out | ios_base::app);
 
 int main(int argc, char** argv)
 {
-	if (argc < 2) {
-		return -1;
-	}
-
-	printf("read server.ini\n");
+	LOG_INFO("read server.ini");
 	string line;
 	string server_url;
 	RDSHInfo rdsh_info;
@@ -41,64 +38,30 @@ int main(int argc, char** argv)
 	if (server_url.length() == 0) {
 		return -1;
 	}
-	printf("server url %s\n", server_url.c_str());
+	LOG_INFO("server url %s", server_url.c_str());
 	Sender* pSender = NULL;
 	Receiver* pReceiver = NULL;
-	if (strncmp(argv[1], "/Start", 6) == 0) {
+	if (argc > 1 && strncmp(argv[1], "/Start", 6) == 0) {
 		pSender = new Sender(server_url);
 		if (!pSender) {
 			return -1;
 		}
 		if (argc > 2 && argv[2] != NULL) {
 			pSender->start_compute_node(string(argv[2]), rdsh_info);
-		}
-		while (getchar() != 'q') {
-#ifdef WIN32
-			Sleep(1000);
-#else
-            usleep(1000000);
-#endif
-		}
-		pSender->stop_compute_node();
-	} else if (strncmp(argv[1], "/Sender", 7) == 0) {
-		pSender = new Sender(server_url);
-		if (!pSender) {
-			return -1;
-		}
-		printf("As sender\n");
-		string app_guid;
-		string app_name;
-		if (argc > 2 && argv[2] != NULL) {
-			app_name = argv[2];
-		}
-		else {
-			app_name = "";
-		}
-		while (!pSender->register_compute_node(app_name, rdsh_info, app_guid)) {
-#ifdef WIN32
-			Sleep(1000);
-#else
-			usleep(1000000);
-#endif
-		}
-		while (getchar() != 'q') {
-#ifdef WIN32
-			Sleep(1000);
-#else
-            usleep(1000000);
-#endif
+			pSender->run();
+			pSender->stop_compute_node();
 		}
 	}
-	else if (strncmp(argv[1], "/Receiver", 9) == 0) {
+	else if (argc > 1 && strncmp(argv[1], "/Receiver", 9) == 0) {
 		pReceiver = new Receiver(server_url);
 		if (!pReceiver) {
 			return -1;
 		}
-		printf("As receiver\n");
+		LOG_INFO("As receiver");
 		vector<NodeInfo> node_list;
 		int num = pReceiver->get_compute_node_list(node_list);
 		if (num == 0) {
-			printf("compute node is not exist\n");
+			LOG_ERROR("compute node is not exist\n");
 			return 0;
 		}
 		printf("Current node list:\n");
@@ -113,15 +76,21 @@ int main(int argc, char** argv)
 				int ins_id = pReceiver->start(node_list[app_no - 1]);
 				pReceiver->set_fullscreen(ins_id);
 			}
-#ifdef WIN32
-			Sleep(1000);
-#else
-            usleep(1000000);
-#endif
+			util_sleep(1000);
 		}
 	}
 	else {
-		printf("parameters error!\n");
+		pSender = new Sender(server_url);
+		if (!pSender) {
+			return -1;
+		}
+		LOG_INFO("As sender");
+		string app_guid;
+		while (!pSender->register_compute_node("", rdsh_info, app_guid)) {
+			util_sleep(1000);
+		}
+		pSender->run();
+		pSender->unregister_compute_node(app_guid);
 	}
 
 	return 0;

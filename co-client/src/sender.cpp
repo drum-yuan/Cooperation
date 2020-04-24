@@ -5,6 +5,8 @@
 #include "cjson.h"
 
 #ifdef WIN32
+#include <tchar.h>
+#include <Wtsapi32.h>
 #define AGENT_LBUTTON_MASK (1 << 1)
 #define AGENT_MBUTTON_MASK (1 << 2)
 #define AGENT_RBUTTON_MASK (1 << 3)
@@ -21,6 +23,7 @@ typedef unsigned long  DWORD;
 
 using namespace restbed;
 
+static INPUT _input;
 static DWORD _dwButtonState = 0;
 static DWORD _dwInputTime = 0;
 static Sender* _instance = NULL;
@@ -30,7 +33,9 @@ Sender::Sender(const string& url)
 	m_HostName = "";
 	m_DaemonId = -1;
 	m_MonitorThread = NULL;
-	m_Quit = true;
+	m_VappQuit = true;
+	m_EventRunning = false;
+	m_DesktopSwitch = false;
 	m_hCursor = NULL;
 #ifdef WIN32
 	DWORD name_len = 0;
@@ -57,7 +62,7 @@ Sender::Sender(const string& url)
 
 Sender::~Sender()
 {
-	m_Quit = true;
+	m_VappQuit = true;
 	if (m_MonitorThread && m_MonitorThread->joinable()) {
 		m_MonitorThread->join();
 		delete m_MonitorThread;
@@ -68,14 +73,14 @@ Sender::~Sender()
 bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_info, string& app_guid)
 {
 	if (m_DaemonId != -1) {
-		printf("this compute node is already registered\n");
+		LOG_ERROR("this compute node is already registered");
 		return false;
 	}
 	m_AppName = app_name;
 	m_RDSHInfo = rdsh_info;
 	string strUrl = "http://" + m_Url + "/add-node";
 	string strPost = string("{\"app_name\": \"") + app_name + string("\",\"host_name\": \"") + m_HostName + string("\"}");
-	printf("str url %s\npost %s\n", strUrl.c_str(), strPost.c_str());
+	LOG_INFO("str url %s\npost %s", strUrl.c_str(), strPost.c_str());
 	auto request = std::make_shared< Request >(Uri(strUrl));
 	request->set_header("Content-Type", "application/json");
 	request->set_method("POST");
@@ -84,20 +89,20 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 	request->set_body(strPost);
 	auto response = Http::sync(request);
 	if (response->get_status_code() != OK) {
-		printf("response status code %d\n", response->get_status_code());
+		LOG_ERROR("response status code %d", response->get_status_code());
 		return false;
 	}
 	int body_len = stoi(response->get_header("Content-Length"));
 	Http::fetch(body_len, response);
 	std::string content((char*)response->get_body().data(), body_len);
-	printf("add-node request succeed %s\n", content.c_str());
+	LOG_INFO("add-node request succeed %s", content.c_str());
 
 	cJSON *root = cJSON_Parse(content.c_str());
 	cJSON *item = cJSON_GetObjectItem(root, "app_guid");
 	if (item != NULL) {
 		app_guid = string(item->valuestring);
 	}
-	printf("app_guid %s\n", app_guid.c_str());
+	LOG_INFO("app_guid %s", app_guid.c_str());
 	item = cJSON_GetObjectItem(root, "sirius_port");
 	if (item != NULL) {
 		m_SiriusUrl = m_ServerIP + ":" + to_string(item->valueint);
@@ -106,20 +111,16 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 
 	int ins_id = daemon_create();
 	if (ins_id < 0) {
-		printf("daemon create fail\n");
+		LOG_ERROR("daemon create fail");
 		return false;
 	}
 	daemon_set_mouse_callback(ins_id, recv_mouse_event_callback);
 	daemon_set_keyboard_callback(ins_id, recv_keyboard_event_callback);
 	daemon_set_vapp_start_callback(ins_id, recv_vapp_start_callback);
 	daemon_set_vapp_stop_callback(ins_id, recv_vapp_stop_callback);
-	printf("daemon start %s\n", m_SiriusUrl.c_str());
+	LOG_INFO("daemon start %s", m_SiriusUrl.c_str());
 	while (!daemon_start(ins_id, m_SiriusUrl)) {
-#ifdef WIN32
-		Sleep(1000);
-#else
-		usleep(1000000);
-#endif
+		util_sleep(1000);
 	}
 	daemon_start_publish(ins_id);
 	m_DaemonId = ins_id;
@@ -130,7 +131,7 @@ void Sender::unregister_compute_node(const string& app_guid)
 {
 	string strUrl = "http://" + m_Url + "/del-node";
 	string strPost = string("{\"app_guid\": \"") + app_guid + string("\"}");
-	printf("str url %s\npost %s\n", strUrl.c_str(), strPost.c_str());
+	LOG_INFO("str url %s\npost %s", strUrl.c_str(), strPost.c_str());
 	auto request = std::make_shared< Request >(Uri(strUrl));
 	request->set_header("Content-Type", "application/json");
 	request->set_method("POST");
@@ -140,11 +141,11 @@ void Sender::unregister_compute_node(const string& app_guid)
 	auto response = std::make_shared< Response >();
 	response = Http::sync(request);
 	if (response->get_status_code() != OK) {
-		printf("response status code %d\n", response->get_status_code());
+		LOG_ERROR("response status code %d", response->get_status_code());
 		return;
 	}
 
-	m_Quit = true;
+	m_VappQuit = true;
 	daemon_stop(m_DaemonId);
 	m_DaemonId = -1;
 }
@@ -157,7 +158,7 @@ bool Sender::start_compute_node(const string& app_name, const RDSHInfo& rdsh_inf
 		daemon_set_vapp_start_callback(m_DaemonId, NULL);
 
 		start_vapp();
-		m_Quit = false;
+		m_VappQuit = false;
 		if (m_MonitorThread == NULL) {
 			m_MonitorThread = new thread(&Sender::monitor_thread, _instance);
 		}
@@ -171,10 +172,28 @@ void Sender::stop_compute_node()
 	unregister_compute_node(m_AppGuid);
 }
 
+void Sender::run()
+{
+	m_EventRunning = true;
+#ifdef WIN32
+	DWORD event_thread_id;
+	HANDLE event_thread = CreateThread(NULL, 0, event_thread_proc, this, 0, &event_thread_id);
+	if (!event_thread) {
+		LOG_ERROR("CreateThread() failed: %lu", GetLastError());
+		return;
+	}
+
+	while (m_EventRunning) {
+		input_desktop_message_loop();
+	}
+	CloseHandle(event_thread);
+#endif
+}
+
 void Sender::monitor_thread()
 {
 #ifdef WIN32
-	while (!m_Quit) {
+	while (!m_VappQuit) {
 		Sleep(50);
 		CURSORINFO cursor_info;
 		cursor_info.cbSize = sizeof(CURSORINFO);
@@ -224,7 +243,7 @@ static void sigchld_handler(int sig)
     if (sig == SIGCHLD) {
         int status = 0;
         int pid = waitpid(-1, &status, WNOHANG);
-        printf("recv sigchld pid %d\n", pid);
+		LOG_INFO("recv sigchld pid %d", pid);
     }
 }
 #endif
@@ -240,7 +259,7 @@ void Sender::start_vapp()
 		sprintf_s(param, sizeof(param), "/v:%s /d:%s /u:%s /p:%s /cert-ignore /gfx:avc444 /drive:LOCAL,C:\\ /drive:hotplug,DynamicDrives /f /app:\"||%s\" /sirius:\"%s\"",
 			m_RDSHInfo.rdsh_ip.c_str(), m_RDSHInfo.domain.c_str(), m_RDSHInfo.user.c_str(), m_RDSHInfo.password.c_str(), m_AppName.c_str(), m_SiriusUrl.c_str());
 	}
-	printf("start vapp: %s\n", param);
+	LOG_INFO("start vapp: %s", param);
 #ifdef WIN32
 	SHELLEXECUTEINFO  ShExecInfo = { 0 };
 	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
@@ -259,12 +278,75 @@ void Sender::start_vapp()
         execl("./xtapp", "xtapp", param, NULL);
         exit(0);
     } else {
-        printf("pid=%d, getpid=%d\n", pid, getpid());
+		LOG_INFO("pid=%d, getpid=%d", pid, getpid());
         signal(SIGCHLD, sigchld_handler);
     }
 #endif
 }
 
+void Sender::switch_desktop()
+{
+	m_DesktopSwitch = true;
+}
+
+#ifdef WIN32
+LRESULT CALLBACK sender_win_proc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
+{
+	return DefWindowProc(hWnd, wMsg, wParam, lParam);
+}
+#endif
+
+void Sender::input_desktop_message_loop()
+{
+#ifdef WIN32
+	TCHAR desktop_name[MAX_PATH];
+	HDESK hdesk;
+	BOOL ret = FALSE;
+
+	hdesk = OpenInputDesktop(0, FALSE, GENERIC_ALL);
+	if (!hdesk) {
+		LOG_ERROR("OpenInputDesktop() failed: %lu", GetLastError());
+		m_EventRunning = false;
+		return;
+	}
+	if (!SetThreadDesktop(hdesk)) {
+		LOG_ERROR("SetThreadDesktop failed %lu", GetLastError());
+		CloseDesktop(hdesk);
+		m_EventRunning = false;
+		return;
+	}
+	if (GetUserObjectInformation(hdesk, UOI_NAME, desktop_name, sizeof(desktop_name), NULL)) {
+		LOG_INFO("Desktop: %s", desktop_name);
+	}
+	else {
+		LOG_ERROR("GetUserObjectInformation failed %lu", GetLastError());
+	}
+	CloseDesktop(hdesk);
+
+	WNDCLASS wcls;
+	memset(&wcls, 0, sizeof(wcls));
+	wcls.lpfnWndProc = sender_win_proc;
+	wcls.lpszClassName = "CO-CLIENT";
+	RegisterClassA(&wcls);
+	m_DesktopHwnd = CreateWindowA("CO-CLIENT", NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
+	if (!m_DesktopHwnd) {
+		LOG_ERROR("CreateWindow() failed: %lu", GetLastError());
+		m_EventRunning = false;
+		return;
+	}
+	if (!WTSRegisterSessionNotification(m_DesktopHwnd, NOTIFY_FOR_ALL_SESSIONS)) {
+		LOG_ERROR("WTSRegisterSessionNotification() failed: %lu", GetLastError());
+	}
+
+	while (m_EventRunning && !m_DesktopSwitch) {
+		util_sleep(1000);
+	}
+	m_DesktopSwitch = false;
+
+	WTSUnRegisterSessionNotification(m_DesktopHwnd);
+	DestroyWindow(m_DesktopHwnd);
+#endif
+}
 
 static int get_buttons_change(unsigned int last_buttons_state, unsigned int new_buttons_state,
 								unsigned int mask, unsigned int down_flag, unsigned int up_flag)
@@ -282,7 +364,6 @@ static int get_buttons_change(unsigned int last_buttons_state, unsigned int new_
 void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask)
 {
 #ifdef WIN32
-	INPUT _input;
 	DWORD mouse_move = 0;
 	DWORD buttons_change = 0;
 	DWORD mouse_wheel = 0;
@@ -324,8 +405,11 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 	_input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | mouse_move |
 		mouse_wheel | buttons_change;
 
-	if ((mouse_move && GetTickCount() - _dwInputTime > 10) || buttons_change || mouse_wheel) {
-		SendInput(1, &_input, sizeof(INPUT));
+	if ((mouse_move && GetTickCount() - _dwInputTime > 20) || buttons_change || mouse_wheel) {
+		UINT hr = SendInput(1, &_input, sizeof(INPUT));
+		if (!hr) {
+			LOG_INFO("send input fail, %u", GetLastError());
+		}
 		_dwInputTime = GetTickCount();
 	}
 #endif
@@ -334,23 +418,21 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 {
 #ifdef WIN32
-	/*printf("recv key event %u %d\n", key_val, is_pressed);
-	if (is_pressed) {
+	/*if (is_pressed) {
 		keybd_event(key_val, 0, 0, 0);
 	}
 	else {
 		keybd_event(key_val, 0, KEYEVENTF_KEYUP, 0);
 	}*/
-	INPUT inp[1];
-	ZeroMemory(inp, sizeof(inp));
+	ZeroMemory(&_input, sizeof(INPUT));
 
-	inp[0].type = INPUT_KEYBOARD;
-	inp[0].ki.wVk = key_val;
-	inp[0].ki.wScan = MapVirtualKey(key_val, 0);
+	_input.type = INPUT_KEYBOARD;
+	_input.ki.wVk = key_val;
+	_input.ki.wScan = MapVirtualKey(key_val, 0);
 
 	if (!is_pressed)
 	{
-		inp[0].ki.dwFlags |= KEYEVENTF_KEYUP;
+		_input.ki.dwFlags |= KEYEVENTF_KEYUP;
 	}
 
 	switch (key_val)
@@ -359,11 +441,15 @@ void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 	case VK_DOWN:
 	case VK_LEFT:
 	case VK_RIGHT:
-		inp[0].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+		_input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
 		break;
 	}
 
-	UINT hr = SendInput(1, inp, sizeof(INPUT));
+	LOG_INFO("recv key event %u %d", key_val, is_pressed);
+	UINT hr = SendInput(1, &_input, sizeof(INPUT));
+	if (!hr) {
+		LOG_INFO("send input fail, %u", GetLastError());
+	}
 #endif
 }
 
@@ -378,8 +464,8 @@ void Sender::recv_vapp_start_callback()
 
 		_instance->start_vapp();
 	}
-	printf("daemon start stream %d\n", _instance->m_DaemonId);
-	_instance->m_Quit = false;
+	LOG_INFO("daemon start stream %d", _instance->m_DaemonId);
+	_instance->m_VappQuit = false;
 	if (_instance->m_MonitorThread == NULL) {
 		_instance->m_MonitorThread = new thread(&Sender::monitor_thread, _instance);
 	}
@@ -392,8 +478,8 @@ void Sender::recv_vapp_stop_callback()
 	if (_instance->m_AppName != "") {
 		system("taskkill /IM xtapp.exe /F");
 	}
-	printf("daemon stop stream %d\n", _instance->m_DaemonId);
-	_instance->m_Quit = true;
+	LOG_INFO("daemon stop stream %d", _instance->m_DaemonId);
+	_instance->m_VappQuit = true;
 	if (_instance->m_MonitorThread && _instance->m_MonitorThread->joinable()) {
 		_instance->m_MonitorThread->join();
 		delete _instance->m_MonitorThread;
@@ -401,3 +487,30 @@ void Sender::recv_vapp_stop_callback()
 	_instance->m_MonitorThread = NULL;
 #endif
 }
+
+#ifdef WIN32
+DWORD WINAPI Sender::event_thread_proc(LPVOID param)
+{
+	Sender *sender = static_cast<Sender *>(param);
+	HANDLE desktop_event = OpenEvent(SYNCHRONIZE, FALSE, "WinSta0_DesktopSwitch");
+	if (!desktop_event) {
+		LOG_ERROR("OpenEvent() failed: %lu", GetLastError());
+		return 1;
+	}
+	while (sender->m_EventRunning) {
+		DWORD wait_ret = WaitForSingleObject(desktop_event, INFINITE);
+		switch (wait_ret) {
+		case WAIT_OBJECT_0:
+		{
+			sender->switch_desktop();
+		}
+			break;
+		case WAIT_TIMEOUT:
+		default:
+			LOG_WARN("WaitForSingleObject(): %lu", wait_ret);
+		}
+	}
+	CloseHandle(desktop_event);
+	return 0;
+}
+#endif

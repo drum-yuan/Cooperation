@@ -107,7 +107,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>./deps/libs</AdditionalLibraryDirectories>
-      <AdditionalDependencies>restbed.lib;daemon.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>restbed.lib;daemon.lib;wtsapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -130,12 +130,14 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\receiver.cpp" />
     <ClCompile Include="src\sender.cpp" />
+    <ClCompile Include="src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\cjson.h" />
     <ClInclude Include="src\floatbar.h" />
     <ClInclude Include="src\receiver.h" />
     <ClInclude Include="src\sender.h" />
+    <ClInclude Include="src\util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

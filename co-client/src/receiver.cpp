@@ -45,23 +45,23 @@ int Receiver::get_compute_node_list(vector<NodeInfo>& node_list)
 {
 	node_list.clear();
 	string strUrl = "http://" + m_Url + "/nodelist";
-	printf("str url %s\n", strUrl.c_str());
+	LOG_INFO("str url %s", strUrl.c_str());
 	auto request = std::make_shared< Request >(Uri(strUrl));
 	request->set_method("GET");
 	request->set_header("Host", m_ServerIP);
 	auto response = Http::sync(request);
 	if (response->get_status_code() != OK) {
-		printf("response status code %d\n", response->get_status_code());
+		LOG_ERROR("response status code %d", response->get_status_code());
 		return -1;
 	}
 	int body_len = stoi(response->get_header("Content-Length"));
-	printf("response body len %d\n", body_len);
+	LOG_INFO("response body len %d", body_len);
 	if (body_len == 0) {
 		return 0;
 	}
 	Http::fetch(body_len, response);
 	std::string content((char*)response->get_body().data(), body_len);
-	printf("get node list request succeed %s\n", content.c_str());
+	LOG_INFO("get node list request succeed %s", content.c_str());
 
 	cJSON *root = cJSON_Parse(content.c_str());
 	int node_num = cJSON_GetArraySize(root);
@@ -85,7 +85,7 @@ int Receiver::get_compute_node_list(vector<NodeInfo>& node_list)
 		if (sub_item != NULL) {
 			info.status = sub_item->valueint;
 		}
-		printf("node %s name %s sirius url %s\n", info.app_guid.c_str(), info.app_name.c_str(), info.sirius_url.c_str());
+		LOG_INFO("node %s name %s sirius url %s", info.app_guid.c_str(), info.app_name.c_str(), info.sirius_url.c_str());
 		node_list.push_back(info);
 	}
 	return node_list.size();
@@ -95,7 +95,7 @@ int Receiver::start(const NodeInfo& node)
 {
 	int ins_id = daemon_create();
 	if (ins_id < 0) {
-		printf("daemon start fail\n");
+		LOG_ERROR("daemon start fail");
 		return -1;
 	}
 	m_WinThreadMap.insert(pair<int, thread*>(ins_id, NULL));
@@ -110,13 +110,13 @@ int Receiver::start(const NodeInfo& node)
 	info.can_operate = false;
 	info.is_fullscreen = false;
 	m_DaemonMap.insert(pair<int, DaemonInfo>(ins_id, info));
-	printf("daemon start %d guid %s name %s\n", ins_id, node.app_guid.c_str(), node.app_name.c_str());
+	LOG_INFO("daemon start %d guid %s name %s", ins_id, node.app_guid.c_str(), node.app_name.c_str());
 	return ins_id;
 }
 
 void Receiver::stop(int ins_id)
 {
-	printf("daemon stop %d\n", ins_id);
+	LOG_INFO("daemon stop %d", ins_id);
 	daemon_stop(ins_id);
 	m_DaemonMap.erase(ins_id);
 	m_WinThreadMap[ins_id] = NULL;
@@ -124,7 +124,7 @@ void Receiver::stop(int ins_id)
 
 void Receiver::start_operate(int ins_id)
 {
-	printf("daemon start operate %d\n", ins_id);
+	LOG_INFO("daemon start operate %d", ins_id);
 	daemon_start_operate(ins_id);
 }
 
@@ -190,7 +190,7 @@ HWND Receiver::get_hwnd_from_ins_id(int id)
 
 void Receiver::start_stream_callback(int id)
 {
-	printf("id %d start stream callback\n", id);
+	LOG_INFO("id %d start stream callback", id);
 	if (_instance->m_WinThreadMap[id] == NULL) {
 		_instance->m_WinThreadMap[id] = new thread(&Receiver::CreateWndInThread, _instance, id);
 	}
@@ -198,7 +198,7 @@ void Receiver::start_stream_callback(int id)
 
 void Receiver::stop_stream_callback(int id)
 {
-	printf("id %d stop stream callback\n", id);
+	LOG_INFO("id %d stop stream callback", id);
 	if (_instance->m_DaemonMap[id].hwnd != NULL) {
 #ifdef WIN32
 		::PostMessage(_instance->m_DaemonMap[id].hwnd, WM_CLOSE, 0, 0);
@@ -210,7 +210,7 @@ void Receiver::stop_stream_callback(int id)
 
 void Receiver::start_operate_callback(int id, bool is_operater)
 {
-	printf("id %d start operate callback %d\n", id, is_operater);
+	LOG_INFO("id %d start operate callback %d", id, is_operater);
 	_instance->m_DaemonMap[id].can_operate = is_operater;
 }
 
@@ -264,27 +264,6 @@ static void scale_to_video(int id, HWND hwnd, short x, short y, unsigned int& sc
 		scale_x = x * video_w / win_w;
 		scale_y = y * video_h / win_h;
 	}
-}
-
-uint64_t get_cur_timestamp()
-{
-#ifdef WIN32
-	LARGE_INTEGER liTime;
-	LARGE_INTEGER liFrequency;
-
-	liTime.QuadPart = 0;
-	liFrequency.QuadPart = 1;
-
-	::QueryPerformanceCounter(&liTime);
-	::QueryPerformanceFrequency(&liFrequency);
-
-	return (liTime.QuadPart * 1000 / liFrequency.QuadPart);
-#else
-	struct timespec t = { 0,0 };
-	clock_gettime(CLOCK_MONOTONIC, &t);
-
-	return (t.tv_sec * 1000 + t.tv_nsec / 1000000);
-#endif
 }
 
 #ifdef WIN32
@@ -350,7 +329,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 		if (_instance->get_can_operate_from_daemon_map(hWnd)) {
 			int ins_id = _instance->get_id_from_daemon_map(hWnd);
 			uint64_t cur_timestamp = get_cur_timestamp();
-			if (cur_timestamp > _lastMouseMove + 10) {
+			if (cur_timestamp > _lastMouseMove + 20) {
 				_lastMouseMove = cur_timestamp;
 				scale_to_video(ins_id, hWnd, LOWORD(lParam), HIWORD(lParam), x, y);
 				daemon_send_mouse_event(ins_id, x, y, _dwButtonState);
