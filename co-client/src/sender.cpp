@@ -63,6 +63,7 @@ Sender::Sender(const string& url)
 Sender::~Sender()
 {
 	m_VappQuit = true;
+	m_EventRunning = false;
 	if (m_MonitorThread && m_MonitorThread->joinable()) {
 		m_MonitorThread->join();
 		delete m_MonitorThread;
@@ -176,17 +177,25 @@ void Sender::run()
 {
 	m_EventRunning = true;
 #ifdef WIN32
-	DWORD event_thread_id;
-	HANDLE event_thread = CreateThread(NULL, 0, event_thread_proc, this, 0, &event_thread_id);
-	if (!event_thread) {
-		LOG_ERROR("CreateThread() failed: %lu", GetLastError());
+	HANDLE desktop_event = OpenEvent(SYNCHRONIZE, FALSE, "WinSta0_DesktopSwitch");
+	if (!desktop_event) {
+		LOG_ERROR("OpenEvent() failed: %lu", GetLastError());
 		return;
 	}
-
 	while (m_EventRunning) {
-		input_desktop_message_loop();
+		DWORD wait_ret = WaitForSingleObject(desktop_event, INFINITE);
+		switch (wait_ret) {
+		case WAIT_OBJECT_0:
+		{
+			m_DesktopSwitch = true;
+		}
+		break;
+		case WAIT_TIMEOUT:
+		default:
+			LOG_WARN("WaitForSingleObject(): %lu", wait_ret);
+		}
 	}
-	CloseHandle(event_thread);
+	CloseHandle(desktop_event);
 #endif
 }
 
@@ -284,35 +293,20 @@ void Sender::start_vapp()
 #endif
 }
 
-void Sender::switch_desktop()
-{
-	m_DesktopSwitch = true;
-}
-
-#ifdef WIN32
-LRESULT CALLBACK sender_win_proc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
-{
-	return DefWindowProc(hWnd, wMsg, wParam, lParam);
-}
-#endif
-
-void Sender::input_desktop_message_loop()
+void Sender::switch_input_desktop()
 {
 #ifdef WIN32
 	TCHAR desktop_name[MAX_PATH];
 	HDESK hdesk;
-	BOOL ret = FALSE;
 
 	hdesk = OpenInputDesktop(0, FALSE, GENERIC_ALL);
 	if (!hdesk) {
 		LOG_ERROR("OpenInputDesktop() failed: %lu", GetLastError());
-		m_EventRunning = false;
 		return;
 	}
 	if (!SetThreadDesktop(hdesk)) {
 		LOG_ERROR("SetThreadDesktop failed %lu", GetLastError());
 		CloseDesktop(hdesk);
-		m_EventRunning = false;
 		return;
 	}
 	if (GetUserObjectInformation(hdesk, UOI_NAME, desktop_name, sizeof(desktop_name), NULL)) {
@@ -322,29 +316,7 @@ void Sender::input_desktop_message_loop()
 		LOG_ERROR("GetUserObjectInformation failed %lu", GetLastError());
 	}
 	CloseDesktop(hdesk);
-
-	WNDCLASS wcls;
-	memset(&wcls, 0, sizeof(wcls));
-	wcls.lpfnWndProc = sender_win_proc;
-	wcls.lpszClassName = "CO-CLIENT";
-	RegisterClassA(&wcls);
-	m_DesktopHwnd = CreateWindowA("CO-CLIENT", NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
-	if (!m_DesktopHwnd) {
-		LOG_ERROR("CreateWindow() failed: %lu", GetLastError());
-		m_EventRunning = false;
-		return;
-	}
-	if (!WTSRegisterSessionNotification(m_DesktopHwnd, NOTIFY_FOR_ALL_SESSIONS)) {
-		LOG_ERROR("WTSRegisterSessionNotification() failed: %lu", GetLastError());
-	}
-
-	while (m_EventRunning && !m_DesktopSwitch) {
-		util_sleep(1000);
-	}
 	m_DesktopSwitch = false;
-
-	WTSUnRegisterSessionNotification(m_DesktopHwnd);
-	DestroyWindow(m_DesktopHwnd);
 #endif
 }
 
@@ -364,6 +336,10 @@ static int get_buttons_change(unsigned int last_buttons_state, unsigned int new_
 void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask)
 {
 #ifdef WIN32
+	if (_instance->m_DesktopSwitch) {
+		_instance->switch_input_desktop();
+	}
+
 	DWORD mouse_move = 0;
 	DWORD buttons_change = 0;
 	DWORD mouse_wheel = 0;
@@ -409,6 +385,7 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 		UINT hr = SendInput(1, &_input, sizeof(INPUT));
 		if (!hr) {
 			LOG_INFO("send input fail, %u", GetLastError());
+
 		}
 		_dwInputTime = GetTickCount();
 	}
@@ -491,26 +468,7 @@ void Sender::recv_vapp_stop_callback()
 #ifdef WIN32
 DWORD WINAPI Sender::event_thread_proc(LPVOID param)
 {
-	Sender *sender = static_cast<Sender *>(param);
-	HANDLE desktop_event = OpenEvent(SYNCHRONIZE, FALSE, "WinSta0_DesktopSwitch");
-	if (!desktop_event) {
-		LOG_ERROR("OpenEvent() failed: %lu", GetLastError());
-		return 1;
-	}
-	while (sender->m_EventRunning) {
-		DWORD wait_ret = WaitForSingleObject(desktop_event, INFINITE);
-		switch (wait_ret) {
-		case WAIT_OBJECT_0:
-		{
-			sender->switch_desktop();
-		}
-			break;
-		case WAIT_TIMEOUT:
-		default:
-			LOG_WARN("WaitForSingleObject(): %lu", wait_ret);
-		}
-	}
-	CloseHandle(desktop_event);
+
 	return 0;
 }
 #endif

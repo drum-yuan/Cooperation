@@ -19,7 +19,7 @@ extern ofstream log_file;
 #define LOG_LEVEL_INFO 		2
 #define LOG_LEVEL_DEBUG		3
 
-#define LEVEL 2
+#define LEVEL 3
 
 #define LOG_DEBUG(...)			if(LEVEL >= LOG_LEVEL_DEBUG){ char buf[1024]; snprintf(buf, 1024, ##__VA_ARGS__); log_file << buf << std::endl; }
 #ifdef WIN32

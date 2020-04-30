@@ -38,8 +38,7 @@ public:
 private:
 	void monitor_thread();
 	void start_vapp();
-	void switch_desktop();
-	void input_desktop_message_loop();
+	void switch_input_desktop();
 
 	string m_Url;
 	string m_ServerIP;
