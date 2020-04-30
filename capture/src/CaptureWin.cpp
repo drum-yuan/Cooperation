@@ -283,6 +283,11 @@ void CCapture::set_drop_interval(unsigned int count)
 	m_IntervalCnt = count;
 }
 
+unsigned int CCapture::get_ack_sequence()
+{
+	return m_AckSeq;
+}
+
 void CCapture::set_ack_sequence(unsigned int seq)
 {
 	if (seq > m_AckSeq) {

@@ -36,6 +36,7 @@ public:
 	void stop(int ins_id);
 	void start_operate(int ins_id);
 	void set_fullscreen(int ins_id);
+	void show_user_list(int ins_id);
 
 	void set_cursor_shape();
 	string get_guid_from_daemon_map(HWND hwnd);

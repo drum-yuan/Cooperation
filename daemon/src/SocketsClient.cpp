@@ -381,12 +381,6 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		m_pVideo->set_ack_seq(sequence);
 #else
 		cap_set_ack_sequence(sequence);
-		if (cap_get_capture_sequence() < sequence + 5) {
-			m_pVideo->increase_encoder_bitrate(200000);
-		}
-		else if (cap_get_capture_sequence() > sequence + 20) {
-			m_pVideo->increase_encoder_bitrate(-200000);
-		}
 #endif
 	}
 		break;

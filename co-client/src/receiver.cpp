@@ -135,6 +135,31 @@ void Receiver::set_fullscreen(int ins_id)
 	}
 }
 
+void Receiver::show_user_list(int ins_id)
+{
+	LOG_INFO("daemon get users info");
+	UsersInfo info;
+	daemon_get_users_info(ins_id, &info);
+	string user_list;
+	for (int i = 0; i < info.user_num; i++) {
+		if (info.publisher == info.user_list[i]) {
+			user_list += "[";
+			user_list += info.user_list[i];
+			user_list += "],";
+		}
+		else if (info.operater == info.user_list[i]) {
+			user_list += "(";
+			user_list += info.user_list[i];
+			user_list += "),";
+		}
+		else {
+			user_list += info.user_list[i];
+			user_list += ",";
+		}
+	}
+	LOG_WARN("Current users: %s", user_list.c_str());
+}
+
 void Receiver::set_cursor_shape()
 {
 #ifdef WIN32
@@ -489,7 +514,7 @@ static void motion_notify_event(GtkWidget *widget, GdkEventMotion *motion)
 		return;
 	}
 	uint64_t cur_timestamp = get_cur_timestamp();
-	if (cur_timestamp < _lastMouseMove + 10) {
+	if (cur_timestamp < _lastMouseMove + 20) {
 		return;
 	}
 	_lastMouseMove = cur_timestamp;

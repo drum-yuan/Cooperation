@@ -31,6 +31,8 @@ CAPTURE_API void cap_resume_capture_screen();
 
 CAPTURE_API void cap_set_drop_interval(unsigned int count);
 
+CAPTURE_API unsigned int cap_get_ack_sequence();
+
 CAPTURE_API void cap_set_ack_sequence(unsigned int seq);
 
 CAPTURE_API unsigned int cap_get_capture_sequence();

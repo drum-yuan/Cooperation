@@ -59,6 +59,14 @@ void cap_set_drop_interval(unsigned int count)
 	}
 }
 
+unsigned int cap_get_ack_sequence()
+{
+	if (s_pCapture == NULL) {
+		return 0;
+	}
+	return s_pCapture->get_ack_sequence();
+}
+
 void cap_set_ack_sequence(unsigned int seq)
 {
 	if (s_pCapture != NULL) {

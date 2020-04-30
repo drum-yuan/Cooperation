@@ -214,6 +214,16 @@ void Daemon::HeartbeatThread()
 				retry = 3;
 			}
 		}
+#ifndef HW_ENCODE
+		if (m_Video.IsPublisher()) {
+			if (cap_get_capture_sequence() < cap_get_ack_sequence() + 5) {
+				m_Video.increase_encoder_bitrate(200000);
+			}
+			else if (cap_get_capture_sequence() > cap_get_ack_sequence() + 20) {
+				m_Video.increase_encoder_bitrate(-200000);
+			}
+		}
+#endif
 #ifdef WIN32
 		Sleep(100);
 #else

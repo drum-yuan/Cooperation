@@ -104,6 +104,7 @@ public:
 	void pause();
 	void resume();
 	void set_drop_interval(unsigned int count);
+	unsigned int get_ack_sequence();
 	void set_ack_sequence(unsigned int seq);
 	unsigned int get_capture_sequence();
 	void set_capture_sequence(unsigned int seq);

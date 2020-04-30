@@ -177,7 +177,7 @@ void Video::start()
 	}
 #else
 	cap_start_capture_screen(1, Video::onFrame, this);
-	cap_set_drop_interval(25);
+	cap_set_drop_interval(30);
 	cap_set_frame_rate(m_iFrameRate);
 #endif
 }
@@ -669,7 +669,7 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 	sParam.iComplexityMode = LOW_COMPLEXITY;
 	sParam.bSimulcastAVC = false;
 	sParam.iMaxQp = 48;
-	sParam.iMinQp = 0;
+	sParam.iMinQp = 24;
 	sParam.uiMaxNalSize = 0;
 
 	//layer cfg

@@ -384,7 +384,7 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 	if ((mouse_move && GetTickCount() - _dwInputTime > 20) || buttons_change || mouse_wheel) {
 		UINT hr = SendInput(1, &_input, sizeof(INPUT));
 		if (!hr) {
-			LOG_INFO("send input fail, %u", GetLastError());
+			LOG_INFO("send input mouse fail, %u", GetLastError());
 
 		}
 		_dwInputTime = GetTickCount();
@@ -422,10 +422,9 @@ void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 		break;
 	}
 
-	LOG_INFO("recv key event %u %d", key_val, is_pressed);
 	UINT hr = SendInput(1, &_input, sizeof(INPUT));
 	if (!hr) {
-		LOG_INFO("send input fail, %u", GetLastError());
+		LOG_INFO("send input key %u-%d fail, %u", key_val, is_pressed, GetLastError());
 	}
 #endif
 }
