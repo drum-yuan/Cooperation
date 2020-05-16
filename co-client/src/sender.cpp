@@ -33,6 +33,7 @@ Sender::Sender(const string& url)
 	m_HostName = "";
 	m_DaemonId = -1;
 	m_MonitorThread = NULL;
+	m_DesktopEventThread = NULL;
 	m_VappQuit = true;
 	m_EventRunning = false;
 	m_DesktopSwitch = false;
@@ -69,6 +70,11 @@ Sender::~Sender()
 		delete m_MonitorThread;
 	}
 	m_MonitorThread = NULL;
+	if (m_DesktopEventThread && m_DesktopEventThread->joinable()) {
+		m_DesktopEventThread->join();
+		delete m_DesktopEventThread;
+	}
+	m_DesktopEventThread = NULL;
 }
 
 bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_info, string& app_guid)
@@ -125,6 +131,9 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 	}
 	daemon_start_publish(ins_id);
 	m_DaemonId = ins_id;
+	if (m_DesktopEventThread == NULL) {
+		m_DesktopEventThread = new thread(&Sender::desktop_event_thread, _instance);
+	}
 	return true;
 }
 
@@ -149,6 +158,7 @@ void Sender::unregister_compute_node(const string& app_guid)
 	m_VappQuit = true;
 	daemon_stop(m_DaemonId);
 	m_DaemonId = -1;
+	m_EventRunning = false;
 }
 
 bool Sender::start_compute_node(const string& app_name, const RDSHInfo& rdsh_info)
@@ -171,32 +181,6 @@ void Sender::stop_compute_node()
 {
 	system("taskkill /IM xtapp.exe /F");
 	unregister_compute_node(m_AppGuid);
-}
-
-void Sender::run()
-{
-	m_EventRunning = true;
-#ifdef WIN32
-	HANDLE desktop_event = OpenEvent(SYNCHRONIZE, FALSE, "WinSta0_DesktopSwitch");
-	if (!desktop_event) {
-		LOG_ERROR("OpenEvent() failed: %lu", GetLastError());
-		return;
-	}
-	while (m_EventRunning) {
-		DWORD wait_ret = WaitForSingleObject(desktop_event, INFINITE);
-		switch (wait_ret) {
-		case WAIT_OBJECT_0:
-		{
-			m_DesktopSwitch = true;
-		}
-		break;
-		case WAIT_TIMEOUT:
-		default:
-			LOG_WARN("WaitForSingleObject(): %lu", wait_ret);
-		}
-	}
-	CloseHandle(desktop_event);
-#endif
 }
 
 void Sender::monitor_thread()
@@ -246,7 +230,31 @@ void Sender::monitor_thread()
 #endif
 }
 
-#ifndef WIN32
+#ifdef WIN32
+void Sender::desktop_event_thread()
+{
+	m_EventRunning = true;
+	HANDLE desktop_event = OpenEvent(SYNCHRONIZE, FALSE, "WinSta0_DesktopSwitch");
+	if (!desktop_event) {
+		LOG_ERROR("OpenEvent() failed: %lu", GetLastError());
+		return;
+	}
+	while (m_EventRunning) {
+		DWORD wait_ret = WaitForSingleObject(desktop_event, INFINITE);
+		switch (wait_ret) {
+		case WAIT_OBJECT_0:
+		{
+			m_DesktopSwitch = true;
+		}
+		break;
+		case WAIT_TIMEOUT:
+		default:
+			LOG_WARN("WaitForSingleObject(): %lu", wait_ret);
+}
+	}
+	CloseHandle(desktop_event);
+}
+#else
 static void sigchld_handler(int sig)
 {
     if (sig == SIGCHLD) {
@@ -464,10 +472,3 @@ void Sender::recv_vapp_stop_callback()
 #endif
 }
 
-#ifdef WIN32
-DWORD WINAPI Sender::event_thread_proc(LPVOID param)
-{
-
-	return 0;
-}
-#endif

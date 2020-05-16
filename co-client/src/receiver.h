@@ -1,22 +1,15 @@
-#include <vector>
+#pragma once
+
+#include "co-interface.h"
 #include <map>
 #include <thread>
 #include "util.h"
-#ifdef WIN32
-#include <windows.h>
-#else
+#ifndef WIN32
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
 
 typedef GtkWidget  *HWND;
 #endif
-
-struct NodeInfo {
-	string app_guid;
-	string app_name;
-	string sirius_url;
-	int status;
-};
 
 struct DaemonInfo {
 	string app_guid;

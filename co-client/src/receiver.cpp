@@ -81,6 +81,10 @@ int Receiver::get_compute_node_list(vector<NodeInfo>& node_list)
 		if (sub_item != NULL) {
 			info.sirius_url = m_ServerIP + ":" + to_string(sub_item->valueint);
 		}
+		sub_item = cJSON_GetObjectItem(item, "host_name");
+		if (sub_item != NULL) {
+			info.host_name = sub_item->valuestring;
+		}
 		sub_item = cJSON_GetObjectItem(item, "status");
 		if (sub_item != NULL) {
 			info.status = sub_item->valueint;
@@ -436,11 +440,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 			int ins_id = _instance->get_id_from_daemon_map(hWnd);
 			daemon_send_keyboard_event(ins_id, wParam, true);
 			return 0;
-		}
-		else {
-			if (wParam == 17) {
-				_instance->start_operate(_instance->get_id_from_daemon_map(hWnd));
-			}
 		}
 	}
 	break;

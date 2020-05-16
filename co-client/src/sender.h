@@ -1,20 +1,13 @@
-#include <string>
+#pragma once
+
+#include "co-interface.h"
 #include <thread>
 #include <queue>
 #include "util.h"
-#ifdef WIN32
-#include <windows.h>
-#else
+#ifndef WIN32
 typedef void  *HCURSOR;
 typedef GtkWidget  *HWND;
 #endif
-
-struct RDSHInfo {
-	string rdsh_ip;
-	string domain;
-	string user;
-	string password;
-};
 
 class Sender
 {
@@ -26,17 +19,17 @@ public:
 	void unregister_compute_node(const string& app_guid);
 	bool start_compute_node(const string& app_name, const RDSHInfo& rdsh_info);
 	void stop_compute_node();
-	void run();
 
 	static void recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask);
 	static void recv_keyboard_event_callback(unsigned int key_val, bool is_pressed);
 	static void recv_vapp_start_callback();
 	static void recv_vapp_stop_callback();
-#ifdef WIN32
-	static DWORD WINAPI event_thread_proc(LPVOID param);
-#endif
+
 private:
 	void monitor_thread();
+#ifdef WIN32
+	void desktop_event_thread();
+#endif
 	void start_vapp();
 	void switch_input_desktop();
 
@@ -45,6 +38,7 @@ private:
 	string m_HostName;
 	int m_DaemonId;
 	thread* m_MonitorThread;
+	thread* m_DesktopEventThread;
 	bool m_VappQuit;
 	bool m_EventRunning;
 	bool m_DesktopSwitch;
@@ -53,5 +47,4 @@ private:
 	string m_AppGuid;
 	string m_AppName;
 	string m_SiriusUrl;
-	HWND m_DesktopHwnd;
 };

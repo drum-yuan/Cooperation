@@ -1,10 +1,15 @@
 #pragma once
+
 #include <fstream>
 #include <string>
 #ifdef WIN32
 #include <windows.h>
+#include <direct.h>
+#include <io.h>
 #else
+#include <unistd.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #endif
 
 using namespace std;
