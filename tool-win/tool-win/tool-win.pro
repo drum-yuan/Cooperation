@@ -20,6 +20,7 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
+    co-interface.h \
     mainwindow.h
 
 FORMS += \

@@ -44,7 +44,6 @@ private:
 	bool m_DesktopSwitch;
 	HCURSOR m_hCursor;
 	RDSHInfo m_RDSHInfo;
-	string m_AppGuid;
 	string m_AppName;
 	string m_SiriusUrl;
 };

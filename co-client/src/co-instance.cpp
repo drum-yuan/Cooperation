@@ -33,26 +33,11 @@ void coclient_create()
 	LOG_INFO("read server.ini");
 	string line;
 	string server_url;
-	RDSHInfo rdsh_info;
-	rdsh_info.rdsh_ip = "localhost";
-	rdsh_info.domain = "";
 	ifstream server_ini("server.ini");
 	if (server_ini.is_open()) {
 		while (getline(server_ini, line)) {
 			if (line.substr(0, 4) == "URL=") {
 				server_url = line.substr(4);
-			}
-			else if (line.substr(0, 5) == "RDSH=") {
-				rdsh_info.rdsh_ip = line.substr(5);
-			}
-			else if (line.substr(0, 7) == "DOMAIN=") {
-				rdsh_info.domain = line.substr(7);
-			}
-			else if (line.substr(0, 5) == "USER=") {
-				rdsh_info.user = line.substr(5);
-			}
-			else if (line.substr(0, 4) == "KEY=") {
-				rdsh_info.password = line.substr(4);
 			}
 		}
 		server_ini.close();

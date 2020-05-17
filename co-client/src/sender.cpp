@@ -163,9 +163,7 @@ void Sender::unregister_compute_node(const string& app_guid)
 
 bool Sender::start_compute_node(const string& app_name, const RDSHInfo& rdsh_info)
 {
-	string app_guid;
-	bool ret = register_compute_node(app_name, rdsh_info, m_AppGuid);
-	if (ret) {
+	if (m_DaemonId >= 0) {
 		daemon_set_vapp_start_callback(m_DaemonId, NULL);
 
 		start_vapp();
@@ -173,14 +171,20 @@ bool Sender::start_compute_node(const string& app_name, const RDSHInfo& rdsh_inf
 		if (m_MonitorThread == NULL) {
 			m_MonitorThread = new thread(&Sender::monitor_thread, _instance);
 		}
+		return true;
 	}
-	return ret;
+	else {
+		return false;
+	}
 }
 
 void Sender::stop_compute_node()
 {
-	system("taskkill /IM xtapp.exe /F");
-	unregister_compute_node(m_AppGuid);
+#ifdef WIN32
+	ShellExecute(NULL, "open", "taskkill", "/IM xtapp.exe /F", "", SW_HIDE);
+#else
+
+#endif
 }
 
 void Sender::monitor_thread()
