@@ -7,23 +7,23 @@
 #ifdef WIN32
 #include <tchar.h>
 #include <Wtsapi32.h>
+#else
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <X11/extensions/XTest.h>
+
+typedef unsigned long  DWORD;
+#define sprintf_s snprintf
+#endif
 #define AGENT_LBUTTON_MASK (1 << 1)
 #define AGENT_MBUTTON_MASK (1 << 2)
 #define AGENT_RBUTTON_MASK (1 << 3)
 #define AGENT_UBUTTON_MASK (1 << 4)
 #define AGENT_DBUTTON_MASK (1 << 5)
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-
-typedef unsigned long  DWORD;
-#define sprintf_s snprintf
-#endif
 
 using namespace restbed;
 
-static INPUT _input;
 static DWORD _dwButtonState = 0;
 static DWORD _dwInputTime = 0;
 static Sender* _instance = NULL;
@@ -355,17 +355,18 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 	DWORD mouse_move = 0;
 	DWORD buttons_change = 0;
 	DWORD mouse_wheel = 0;
+	INPUT input;
 
-	ZeroMemory(&_input, sizeof(INPUT));
-	_input.type = INPUT_MOUSE;
+	ZeroMemory(&input, sizeof(INPUT));
+	input.type = INPUT_MOUSE;
 
 	DWORD w = ::GetSystemMetrics(SM_CXSCREEN);
 	DWORD h = ::GetSystemMetrics(SM_CYSCREEN);
 	w = (w > 1) ? w - 1 : 1; /* coordinates are 0..w-1, protect w==0 */
 	h = (h > 1) ? h - 1 : 1; /* coordinates are 0..h-1, protect h==0 */
 	mouse_move = MOUSEEVENTF_MOVE;
-	_input.mi.dx = x * 0xffff / w;
-	_input.mi.dy = y * 0xffff / h;
+	input.mi.dx = x * 0xffff / w;
+	input.mi.dy = y * 0xffff / h;
 
 	if (button_mask != _dwButtonState) {
 		buttons_change = get_buttons_change(_dwButtonState, button_mask, AGENT_LBUTTON_MASK,
@@ -379,49 +380,103 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 	if (button_mask & (AGENT_UBUTTON_MASK | AGENT_DBUTTON_MASK)) {
 		mouse_wheel = MOUSEEVENTF_WHEEL;
 		if (button_mask & AGENT_UBUTTON_MASK) {
-			_input.mi.mouseData = WHEEL_DELTA;
+			input.mi.mouseData = WHEEL_DELTA;
 		}
 		else if (button_mask & AGENT_DBUTTON_MASK) {
-			_input.mi.mouseData = (DWORD)(-WHEEL_DELTA);
+			input.mi.mouseData = (DWORD)(-WHEEL_DELTA);
 		}
 	}
 	else {
 		mouse_wheel = 0;
-		_input.mi.mouseData = 0;
+		input.mi.mouseData = 0;
 	}
 
-	_input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | mouse_move |
+	input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | mouse_move |
 		mouse_wheel | buttons_change;
 
 	if ((mouse_move && GetTickCount() - _dwInputTime > 20) || buttons_change || mouse_wheel) {
-		UINT hr = SendInput(1, &_input, sizeof(INPUT));
+		UINT hr = SendInput(1, &input, sizeof(INPUT));
 		if (!hr) {
 			LOG_INFO("send input mouse fail, %u", GetLastError());
 
 		}
 		_dwInputTime = GetTickCount();
 	}
+#else
+	unsigned int button_state = 0;
+	bool is_pressed = false;
+	if ((button_mask & AGENT_LBUTTON_MASK) != (_dwButtonState & AGENT_LBUTTON_MASK)) {
+		button_state = Button1;
+		if (button_mask & AGENT_LBUTTON_MASK) {
+			is_pressed = true;
+		}
+		else {
+			is_pressed = false;
+		}
+	}
+	if ((button_mask & AGENT_MBUTTON_MASK) != (_dwButtonState & AGENT_MBUTTON_MASK)) {
+		button_state = Button2;
+		if (button_mask & AGENT_MBUTTON_MASK) {
+			is_pressed = true;
+		}
+		else {
+			is_pressed = false;
+		}
+	}
+	if ((button_mask & AGENT_RBUTTON_MASK) != (_dwButtonState & AGENT_RBUTTON_MASK)) {
+		button_state = Button3;
+		if (button_mask & AGENT_RBUTTON_MASK) {
+			is_pressed = true;
+		}
+		else {
+			is_pressed = false;
+		}
+	}
+	if (button_mask & AGENT_UBUTTON_MASK) {
+		button_state = Button4;
+		is_pressed = true;
+	}
+	if (button_mask & AGENT_DBUTTON_MASK) {
+		button_state = Button5;
+		is_pressed = true;
+	}
+
+	Display *dpy = NULL;
+	dpy = XOpenDisplay(NULL);
+	if (dpy != NULL)
+	{
+		XTestFakeMotionEvent(dpy, 0, x, y, 0);
+		XSync(dpy, 0);
+		if (button_state != 0)
+		{
+			XTestFakeButtonEvent(dpy, button_state, is_pressed, 0);
+			XSync(dpy, 0);
+			if (button_state >= Button4)
+			{
+				XTestFakeButtonEvent(dpy, button_state, false, 0);
+				XSync(dpy, 0);
+			}
+		}
+		XCloseDisplay(dpy);
+	}
+
+	_dwButtonState = button_mask;
 #endif
 }
 
 void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 {
 #ifdef WIN32
-	/*if (is_pressed) {
-		keybd_event(key_val, 0, 0, 0);
-	}
-	else {
-		keybd_event(key_val, 0, KEYEVENTF_KEYUP, 0);
-	}*/
-	ZeroMemory(&_input, sizeof(INPUT));
+	INPUT input;
 
-	_input.type = INPUT_KEYBOARD;
-	_input.ki.wVk = key_val;
-	_input.ki.wScan = MapVirtualKey(key_val, 0);
+	ZeroMemory(&input, sizeof(INPUT));
+	input.type = INPUT_KEYBOARD;
+	input.ki.wVk = key_val;
+	input.ki.wScan = MapVirtualKey(key_val, 0);
 
 	if (!is_pressed)
 	{
-		_input.ki.dwFlags |= KEYEVENTF_KEYUP;
+		input.ki.dwFlags |= KEYEVENTF_KEYUP;
 	}
 
 	switch (key_val)
@@ -430,14 +485,15 @@ void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 	case VK_DOWN:
 	case VK_LEFT:
 	case VK_RIGHT:
-		_input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+		input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
 		break;
 	}
 
-	UINT hr = SendInput(1, &_input, sizeof(INPUT));
+	UINT hr = SendInput(1, &input, sizeof(INPUT));
 	if (!hr) {
 		LOG_INFO("send input key %u-%d fail, %u", key_val, is_pressed, GetLastError());
 	}
+#else
 #endif
 }
 
