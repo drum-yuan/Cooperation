@@ -2,7 +2,8 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++11
+TARGET = tool-win
+TEMPLATE = app
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -26,7 +27,13 @@ HEADERS += \
 FORMS += \
     mainwindow.ui
 
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
+RC_ICONS = logo.ico
+
+win32 {
+    LIBS += D:\Cooperation\tool-win\tool-win\deps\co-client.lib -lwtsapi32 -ladvapi32
+}
+
+DISTFILES +=
+
+RESOURCES += \
+    tool-win.qrc

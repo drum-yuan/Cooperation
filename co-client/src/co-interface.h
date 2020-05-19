@@ -23,7 +23,7 @@ struct NodeInfo {
 	int status;
 };
 
-CO_API void coclient_create();
+CO_API void coclient_create(const std::string& server_url);
 
 CO_API void coclient_destroy();
 

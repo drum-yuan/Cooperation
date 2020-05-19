@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/background.png</file>
+        <file>res/cancel.png</file>
+        <file>res/cancel-hover.png</file>
+        <file>res/config.png</file>
+        <file>res/config-hover.png</file>
+        <file>res/confirm.png</file>
+        <file>res/confirm-hover.png</file>
+        <file>res/publish.png</file>
+        <file>res/publish-hover.png</file>
+        <file>res/query.png</file>
+        <file>res/query-hover.png</file>
+        <file>res/view.png</file>
+        <file>res/view-hover.png</file>
+    </qresource>
+</RCC>

@@ -7,11 +7,23 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>590</height>
    </rect>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>800</width>
+    <height>590</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>800</width>
+    <height>600</height>
+   </size>
+  </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>远程协作工具</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QPushButton" name="query">
@@ -24,7 +36,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>查询</string>
+     <string/>
     </property>
    </widget>
    <widget class="QPushButton" name="publish">
@@ -37,7 +49,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>发布</string>
+     <string/>
     </property>
    </widget>
    <widget class="QPushButton" name="config">
@@ -50,7 +62,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>配置</string>
+     <string/>
     </property>
    </widget>
    <widget class="QGroupBox" name="groupBox">
@@ -85,7 +97,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>确定</string>
+      <string/>
      </property>
     </widget>
     <widget class="QPushButton" name="cancel">
@@ -98,20 +110,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>取消</string>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="radioButton">
-     <property name="geometry">
-      <rect>
-       <x>20</x>
-       <y>10</y>
-       <width>401</width>
-       <height>19</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>RadioButton</string>
+      <string/>
      </property>
     </widget>
     <widget class="QLineEdit" name="server_url">
@@ -233,7 +232,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>浏览</string>
+      <string/>
      </property>
     </widget>
    </widget>
@@ -244,7 +243,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>26</height>
+     <height>23</height>
     </rect>
    </property>
   </widget>

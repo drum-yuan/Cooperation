@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "co-interface.h"
 #include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
@@ -25,7 +26,13 @@ public slots:
     void button_view_clicked();
 
 private:
+    std::string get_local_host_name();
+
     Ui::MainWindow *ui;
     int m_mode;
+    std::vector<NodeInfo> m_node_list;
+    RDSHInfo m_rdsh_info;
+    std::string m_app_guid;
+    QString m_server_url;
 };
 #endif // MAINWINDOW_H

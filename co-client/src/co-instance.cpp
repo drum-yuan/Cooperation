@@ -6,44 +6,13 @@ ofstream log_file;
 static Sender* _Sender = NULL;
 static Receiver* _Receiver = NULL;
 
-void coclient_create()
+void coclient_create(const std::string& server_url)
 {
-	string coclient_dir;
-#ifdef WIN32
-	char user_path[1024] = { 0 };
-	if (GetEnvironmentVariable("USERPROFILE", user_path, sizeof(user_path)) > 0) {
-		coclient_dir = string(user_path) + "/co-client";
-		if (_access(coclient_dir.c_str(), 0) != 0) {
-			_mkdir(coclient_dir.c_str());
-		}
-	}
-#else
-	char* p = getenv("HOME");
-	if (p) {
-		coclient_dir = string(p) + "/.co-client";
-		if (access(coclient_dir.c_str(), 0) != 0) {
-			mkdir(coclient_dir.c_str());
-		}
-	}
-#endif
-	if (coclient_dir.length() > 0) {
-		log_file.open(coclient_dir + "/co-client.log", ios_base::out | ios_base::app);
-	}
+	log_file.open("co-client.log", ios_base::out | ios_base::app);
 
-	LOG_INFO("read server.ini");
-	string line;
-	string server_url;
-	ifstream server_ini("server.ini");
-	if (server_ini.is_open()) {
-		while (getline(server_ini, line)) {
-			if (line.substr(0, 4) == "URL=") {
-				server_url = line.substr(4);
-			}
-		}
-		server_ini.close();
-	}
 	if (server_url.length() == 0) {
 		LOG_ERROR("server url null");
+		log_file.close();
 		return;
 	}
 	LOG_INFO("server url %s", server_url.c_str());

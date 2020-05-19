@@ -254,7 +254,7 @@ void Sender::desktop_event_thread()
 		case WAIT_TIMEOUT:
 		default:
 			LOG_WARN("WaitForSingleObject(): %lu", wait_ret);
-}
+		}
 	}
 	CloseHandle(desktop_event);
 }
