@@ -107,6 +107,7 @@ int Receiver::start(const NodeInfo& node)
 	daemon_set_stop_stream_callback(ins_id, stop_stream_callback);
 	daemon_set_operater_callback(ins_id, start_operate_callback);
 	daemon_set_cursor_shape_callback(ins_id, recv_cursor_shape_callback);
+	daemon_set_picture_callback(ins_id, recv_picture_callback);
 	daemon_start(ins_id, node.sirius_url);
 	DaemonInfo info;
 	info.app_guid = node.app_guid;
@@ -139,29 +140,15 @@ void Receiver::set_fullscreen(int ins_id)
 	}
 }
 
-void Receiver::show_user_list(int ins_id)
+void Receiver::get_users_info(int ins_id, CoUsersInfo& users_info)
 {
 	LOG_INFO("daemon get users info");
 	UsersInfo info;
 	daemon_get_users_info(ins_id, &info);
-	string user_list;
-	for (int i = 0; i < info.user_num; i++) {
-		if (info.publisher == info.user_list[i]) {
-			user_list += "[";
-			user_list += info.user_list[i];
-			user_list += "],";
-		}
-		else if (info.operater == info.user_list[i]) {
-			user_list += "(";
-			user_list += info.user_list[i];
-			user_list += "),";
-		}
-		else {
-			user_list += info.user_list[i];
-			user_list += ",";
-		}
-	}
-	LOG_WARN("Current users: %s", user_list.c_str());
+	users_info.user_num = info.user_num;
+	users_info.user_list = info.user_list;
+	users_info.publisher = info.publisher;
+	users_info.operater = info.operater;
 }
 
 void Receiver::set_cursor_shape()
@@ -228,11 +215,12 @@ void Receiver::start_stream_callback(int id)
 void Receiver::stop_stream_callback(int id)
 {
 	LOG_INFO("id %d stop stream callback", id);
-	if (_instance->m_DaemonMap[id].hwnd != NULL) {
+	HWND hwnd = _instance->get_hwnd_from_ins_id(id);
+	if (hwnd != NULL) {
 #ifdef WIN32
-		::PostMessage(_instance->m_DaemonMap[id].hwnd, WM_CLOSE, 0, 0);
+		::PostMessage(hwnd, WM_CLOSE, 0, 0);
 #else
-		g_signal_emit_by_name(G_OBJECT(_instance->m_DaemonMap[id].hwnd), "destroy", NULL);
+		g_signal_emit_by_name(G_OBJECT(hwnd), "destroy", NULL);
 #endif
 	}
 }
@@ -264,6 +252,16 @@ void Receiver::recv_cursor_shape_callback(int id, int x, int y, int w, int h, co
 	if (gdk_window_get_cursor(window) != cursor) {
 		gdk_window_set_cursor(window, cursor);
 	}
+#endif
+}
+
+void Receiver::recv_picture_callback(int id, const char* file_path)
+{
+#ifdef WIN32
+	LOG_INFO("recv picture %s", file_path);
+	ShellExecute(NULL, "open", "mspaint", file_path, NULL, SW_SHOW);
+	stop_stream_callback(id);
+#else
 #endif
 }
 
@@ -585,7 +583,7 @@ void Receiver::CreateWndInThread(int id)
 	ImmDisableIME(0);
 
 	if (m_DaemonMap[id].is_fullscreen) {
-		FloatBar* floatbar = new FloatBar(hwnd);
+		FloatBar* floatbar = new FloatBar(hwnd, this);
 		floatbar->floatbar_window_create();
 	}
 

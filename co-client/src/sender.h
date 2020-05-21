@@ -19,6 +19,7 @@ public:
 	void unregister_compute_node(const string& app_guid);
 	bool start_compute_node(const string& app_name, const RDSHInfo& rdsh_info);
 	void stop_compute_node();
+	void send_picture();
 
 	static void recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask);
 	static void recv_keyboard_event_callback(unsigned int key_val, bool is_pressed);

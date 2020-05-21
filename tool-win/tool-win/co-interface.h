@@ -23,7 +23,14 @@ struct NodeInfo {
 	int status;
 };
 
-CO_API void coclient_create(const std::string& coclient_path);
+struct CoUsersInfo {
+	unsigned int user_num;
+	std::vector<std::string> user_list;
+	std::string publisher;
+	std::string operater;
+};
+
+CO_API void coclient_create(const std::string& server_url);
 
 CO_API void coclient_destroy();
 
@@ -41,6 +48,8 @@ CO_API int coclient_start_receiver(const NodeInfo& node);
 
 CO_API void coclient_stop_receiver(int ins_id);
 
-CO_API void coclient_show_user_list(int ins_id);
+CO_API void coclient_get_users_info(int ins_id, CoUsersInfo& users_info);
 
 CO_API void coclient_start_operate(int ins_id);
+
+CO_API void coclient_send_picture();

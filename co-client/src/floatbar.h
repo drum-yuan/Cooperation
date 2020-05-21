@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef WIN32
-#include <windows.h>
+#include "receiver.h"
 
 /* TIMERs */
 #define TIMER_HIDE          1
@@ -9,14 +9,15 @@
 #define TIMER_ANIMAT_HIDE   3
 
 /* Button Type */
-#define BUTTON_MINIMIZE     0
-#define BUTTON_CLOSE        1
-#define BTN_MAX             2
+#define BUTTON_CTRL			0
+#define BUTTON_MINIMIZE     1
+#define BUTTON_CLOSE        2
+#define BTN_MAX             3
 
 /* bmp size */
-#define BACKGROUND_W        581
-#define BACKGROUND_H        29
-#define LOCK_X              13
+#define BACKGROUND_W        580
+#define BACKGROUND_H        30
+#define CTRL_X              15
 #define MINIMIZE_X          (BACKGROUND_W - 91)
 #define CLOSE_X             (BACKGROUND_W - 37)
 #define RESTORE_X           (BACKGROUND_W - 64)
@@ -47,7 +48,7 @@ typedef struct _Button
 class FloatBar
 {
 public:
-	FloatBar(void* parent_win);
+	FloatBar(void* parent_win, Receiver* receiver);
 	~FloatBar();
 
 	void floatbar_window_create();
@@ -71,5 +72,6 @@ private:
 	BOOL m_Shown;
 	HDC m_HdcMem;
 	HBITMAP m_Background;
+	Receiver* m_Receiver;
 };
 #endif

@@ -8,7 +8,10 @@ static Receiver* _Receiver = NULL;
 
 void coclient_create(const std::string& server_url)
 {
-	log_file.open("co-client.log", ios_base::out | ios_base::app);
+	char buffer[256];
+	GetTempPath(sizeof(buffer), buffer);
+	string log_path = string(buffer) + "/co-client.log";
+	log_file.open(log_path, ios_base::out | ios_base::app);
 
 	if (server_url.length() == 0) {
 		LOG_ERROR("server url null");
@@ -22,6 +25,7 @@ void coclient_create(const std::string& server_url)
 
 void coclient_destroy()
 {
+	LOG_INFO("coclient destroy");
 	delete _Sender;
 	delete _Receiver;
 	log_file.close();
@@ -90,10 +94,10 @@ void coclient_stop_receiver(int ins_id)
 	}
 }
 
-void coclient_show_user_list(int ins_id)
+void coclient_get_users_info(int ins_id, CoUsersInfo& users_info)
 {
 	if (_Receiver) {
-		_Receiver->show_user_list(ins_id);
+		_Receiver->get_users_info(ins_id, users_info);
 	}
 }
 
@@ -101,5 +105,12 @@ void coclient_start_operate(int ins_id)
 {
 	if (_Receiver) {
 		_Receiver->start_operate(ins_id);
+	}
+}
+
+void coclient_send_picture()
+{
+	if (_Sender) {
+		_Sender->send_picture();
 	}
 }

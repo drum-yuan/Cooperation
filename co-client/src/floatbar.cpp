@@ -3,12 +3,13 @@
 #include "util.h"
 #include <stdio.h>
 
-FloatBar::FloatBar(void* parent_win)
+FloatBar::FloatBar(void* parent_win, Receiver* receiver)
 {
 	m_Parent = (HWND)parent_win;
 	m_Hwnd = NULL;
 	m_Shown = TRUE;
 	m_HdcMem = NULL;
+	m_Receiver = receiver;
 }
 
 FloatBar::~FloatBar()
@@ -20,6 +21,13 @@ void FloatBar::button_hit(Button* button)
 {
 	switch (button->type)
 	{
+		case BUTTON_CTRL:
+		{
+			int ins_id = m_Receiver->get_id_from_daemon_map(m_Parent);
+			m_Receiver->start_operate(ins_id);
+		}
+			break;
+
 		case BUTTON_MINIMIZE:
 			ShowWindow(m_Parent, SW_MINIMIZE);
 			break;
@@ -80,7 +88,7 @@ void FloatBar::floatbar_paint(HDC hdc)
 	           BACKGROUND_W, BACKGROUND_H, SRCCOPY);
 
 	/* paint buttons */
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < BTN_MAX; i++)
 		button_paint(m_Buttons[i], hdc);
 }
 
@@ -290,9 +298,11 @@ void FloatBar::floatbar_window_create()
 	RegisterClassEx(&wnd_cls);
 
 	m_Background = (HBITMAP)LoadImage(GetModuleHandle(NULL), "resources/bg.bmp", IMAGE_BITMAP, BACKGROUND_W, BACKGROUND_H, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
-	m_Buttons[0] = floatbar_create_button(BUTTON_MINIMIZE,
+	m_Buttons[0] = floatbar_create_button(BUTTON_CTRL,
+		(char*)"resources/ctrl.bmp", (char*)"resources/ctrl_active.bmp", CTRL_X, BUTTON_Y, BUTTON_HEIGHT, BUTTON_WIDTH);
+	m_Buttons[1] = floatbar_create_button(BUTTON_MINIMIZE,
 		(char*)"resources/minimize.bmp", (char*)"resources/minimize_active.bmp", MINIMIZE_X, BUTTON_Y, BUTTON_HEIGHT, BUTTON_WIDTH);
-	m_Buttons[1] = floatbar_create_button(BUTTON_CLOSE,
+	m_Buttons[2] = floatbar_create_button(BUTTON_CLOSE,
 		(char*)"resources/close.bmp", (char*)"resources/close_active.bmp", CLOSE_X, BUTTON_Y, BUTTON_HEIGHT, BUTTON_WIDTH);
 
 	barWnd = CreateWindowEx(WS_EX_TOPMOST, "floatbar", "floatbar", WS_CHILD, x, 0,

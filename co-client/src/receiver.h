@@ -29,7 +29,7 @@ public:
 	void stop(int ins_id);
 	void start_operate(int ins_id);
 	void set_fullscreen(int ins_id);
-	void show_user_list(int ins_id);
+	void get_users_info(int ins_id, CoUsersInfo& users_info);
 
 	void set_cursor_shape();
 	string get_guid_from_daemon_map(HWND hwnd);
@@ -41,6 +41,7 @@ public:
 	static void stop_stream_callback(int id);
 	static void start_operate_callback(int id, bool is_operater);
 	static void recv_cursor_shape_callback(int id, int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
+	static void recv_picture_callback(int id, const char* file_path);
 #ifdef WIN32
 	HCURSOR m_hCursor;
 #endif

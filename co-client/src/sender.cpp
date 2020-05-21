@@ -70,11 +70,10 @@ Sender::~Sender()
 		delete m_MonitorThread;
 	}
 	m_MonitorThread = NULL;
-	if (m_DesktopEventThread && m_DesktopEventThread->joinable()) {
-		m_DesktopEventThread->join();
-		delete m_DesktopEventThread;
+	if (m_DesktopEventThread) {
+		TerminateThread(m_DesktopEventThread, 0);
+		m_DesktopEventThread = NULL;
 	}
-	m_DesktopEventThread = NULL;
 }
 
 bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_info, string& app_guid)
@@ -158,7 +157,7 @@ void Sender::unregister_compute_node(const string& app_guid)
 	m_VappQuit = true;
 	daemon_stop(m_DaemonId);
 	m_DaemonId = -1;
-	m_EventRunning = false;
+	LOG_INFO("daemon stopped");
 }
 
 bool Sender::start_compute_node(const string& app_name, const RDSHInfo& rdsh_info)
@@ -185,6 +184,12 @@ void Sender::stop_compute_node()
 #else
 
 #endif
+}
+
+void Sender::send_picture()
+{
+	LOG_INFO("send picture");
+	daemon_send_picture(m_DaemonId);
 }
 
 void Sender::monitor_thread()
@@ -467,8 +472,11 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 {
 #ifdef WIN32
+	if (key_val == 44) {	//PrintScreen Key
+		_instance->send_picture();
+		return;
+	}
 	INPUT input;
-
 	ZeroMemory(&input, sizeof(INPUT));
 	input.type = INPUT_KEYBOARD;
 	input.ki.wVk = key_val;

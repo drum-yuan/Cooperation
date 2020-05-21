@@ -568,6 +568,7 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 			video->onLockScreen((unsigned char*)frame->buffer, frame->length);
 		}
 		video->m_bLockScreen = false;
+		cap_stop_capture_screen();
 		return;
 	}
 

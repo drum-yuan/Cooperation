@@ -1,16 +1,18 @@
-#include "ui_mainwindow.h"
+
 #include "mainwindow.h"
+#include "ui_mainwindow.h"
 #include <QSettings>
 #include <QProcess>
 #include <QRadioButton>
 #include <QFileDialog>
 #include <QCoreApplication>
+#include <QDebug>
 #include <windows.h>
 #include <Wtsapi32.h>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::MainWindow)
 {
     setFocusPolicy(Qt::NoFocus);
     setWindowFlags(Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
@@ -53,10 +55,12 @@ MainWindow::MainWindow(QWidget *parent)
     ui->server_url->setText(m_server_url);
 
     coclient_create(m_server_url.toStdString());
+    mount_net_path();
 }
 
 MainWindow::~MainWindow()
 {
+    umount_net_path();
     coclient_destroy();
     delete ui;
 }
@@ -201,11 +205,15 @@ void MainWindow::button_confirm_clicked()
             QRadioButton* radio = (QRadioButton*)ui->list->itemWidget(item);
             int ins_id = -1;
             if (radio->isChecked()) {
-                if (m_node_list[i].host_name == get_local_host_name()) {
+                if (m_node_list[i].host_name == get_local_host_name() && !m_node_list[i].app_name.empty()) {
                     coclient_start_compute_node(m_node_list[i].app_name, m_rdsh_info);
                 } else {
                     ins_id = coclient_start_receiver(m_node_list[i]);
-                    coclient_start_operate(ins_id);
+                    CoUsersInfo users_info;
+                    coclient_get_users_info(ins_id, users_info);
+                    if (users_info.operater.empty() || users_info.operater == get_local_host_name()) {
+                        coclient_start_operate(ins_id);
+                    }
                 }
                 break;
             }
@@ -237,12 +245,6 @@ void MainWindow::button_cancel_clicked()
         coclient_unregister_compute_node(m_app_guid);
         ui->confirm->setEnabled(true);
         ui->publish_type->setEnabled(true);
-        ui->rdsh_url->setEnabled(true);
-        ui->rdsh_domain->setEnabled(true);
-        ui->rdsh_user->setEnabled(true);
-        ui->rdsh_password->setEnabled(true);
-        ui->app_alias->setEnabled(true);
-        ui->app_view->setEnabled(true);
     }
         break;
     case 2:
@@ -279,4 +281,23 @@ std::string MainWindow::get_local_host_name()
     host_name += name;
     delete[] name;
     return host_name;
+}
+
+void MainWindow::mount_net_path()
+{
+    /*QProcess process;
+    QStringList para;
+    para << "-o";
+    para << "nolock";
+    para << "119.45.119.227:/home/ubuntu/nfsdoc";
+    para << "N:";
+    process.start("mount", para);
+    process.waitForFinished(5000);
+    qDebug() << "result " << process.readAll();*/
+    QProcess::startDetached("mount_net_path.bat");
+}
+
+void MainWindow::umount_net_path()
+{
+    QProcess::startDetached("umount_net_path.bat");
 }

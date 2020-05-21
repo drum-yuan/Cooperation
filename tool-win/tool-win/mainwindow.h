@@ -4,9 +4,9 @@
 #include "co-interface.h"
 #include <QMainWindow>
 
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
+namespace Ui {
+class MainWindow;
+}
 
 class MainWindow : public QMainWindow
 {
@@ -27,6 +27,8 @@ public slots:
 
 private:
     std::string get_local_host_name();
+    void mount_net_path();
+    void umount_net_path();
 
     Ui::MainWindow *ui;
     int m_mode;

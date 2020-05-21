@@ -433,7 +433,9 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 #ifdef WIN32
 			SYSTEMTIME t;
 			GetLocalTime(&t);
-			sprintf(file_path, "pic%04d%02d%02d%02d%02d%02d.bmp", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+			char buffer[256];
+			GetTempPath(sizeof(buffer), buffer);
+			sprintf(file_path, "%s/pic%04d%02d%02d%02d%02d%02d.bmp", buffer, t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
 #else
             time_t now;
             struct tm* tm_now;
@@ -443,11 +445,13 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
                     tm_now->tm_year+1900, tm_now->tm_mon+1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 #endif
 			FILE* fp = fopen(file_path, "wb");
-			if (m_pVideo) {
-				m_pVideo->WriteBmpHeader(fp);
+			if (fp) {
+				if (m_pVideo) {
+					m_pVideo->WriteBmpHeader(fp);
+				}
+				fwrite(decompressed, 1, decompressed_len, fp);
+				fclose(fp);
 			}
-			fwrite(decompressed, 1, decompressed_len, fp);
-			fclose(fp);
 			if (m_CallbackPicture) {
 				m_CallbackPicture(m_InsId, file_path);
 			}
@@ -733,9 +737,9 @@ void SocketsClient::send_picture_data(unsigned char* data, int len)
 		send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 		m_SendBuf->reset();
 #ifdef WIN32
-		Sleep(3000);
+		Sleep(10000);
 #else
-        usleep(3000 * 1000);
+        usleep(10000 * 1000);
 #endif
 	}
 	once_len = compressed_len - send_len;

@@ -179,7 +179,6 @@ void Daemon::OnAudioEncoded(unsigned char* data, int len, unsigned int frame_num
 void Daemon::OnLockScreen(unsigned char* data, int len)
 {
 	m_McuClient.send_picture_data(data, len);
-	stop_stream();
 }
 
 void Daemon::HeartbeatThread()
