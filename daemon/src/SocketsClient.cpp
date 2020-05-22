@@ -2,9 +2,10 @@
 #include "proto.hpp"
 #include "autojsoncxx/autojsoncxx.hpp"
 #include "lz4.h"
+#include "libyuv.h"
 #include "SocketsClient.h"
 
-#define WEBSOCKET_MAX_BUFFER_SIZE (1024*1024)
+#define WEBSOCKET_MAX_BUFFER_SIZE (1024 * 1024 * 2)
 #define CONNECT_TIMEOUT 5000  //ms
 
 using namespace MCUProtocol;
@@ -405,7 +406,10 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 	case kMsgTypePicture:
 	{
 		unsigned char* pData = (uint8_t*)in + sizeof(WebSocketHeader);
-		int bound = LZ4_compressBound(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
+		int w = 0;
+		int h = 0;
+		m_pVideo->GetStreamSize(&w, &h);
+		int bound = LZ4_compressBound(w * h * 3 / 2);
 		if (m_PicBuffer == NULL) {
 			m_PicBuffer = (unsigned char*)malloc(bound);
 			m_PicPos = 0;
@@ -421,13 +425,13 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			break;
 		}
 		if (uMagic == 1) {
-			unsigned char* decompressed = (unsigned char*)malloc(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
-			if (decompressed == NULL) {
-				break;
-			}
-			int decompressed_len = LZ4_decompress_safe((char*)m_PicBuffer, (char*)decompressed, m_PicPos, MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 4);
+			unsigned char* decompressed = (unsigned char*)malloc(w * h * 3 / 2);
+			int decompressed_len = LZ4_decompress_safe((char*)m_PicBuffer, (char*)decompressed, m_PicPos, w * h * 3 / 2);
 			free(m_PicBuffer);
 			m_PicBuffer = NULL;
+			/*if (m_pVideo) {
+				m_pVideo->yuv_show(decompressed, w, h);
+			}*/
 
             char file_path[256];
 #ifdef WIN32
@@ -445,16 +449,18 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
                     tm_now->tm_year+1900, tm_now->tm_mon+1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 #endif
 			FILE* fp = fopen(file_path, "wb");
-			if (fp) {
-				if (m_pVideo) {
-					m_pVideo->WriteBmpHeader(fp);
-				}
-				fwrite(decompressed, 1, decompressed_len, fp);
+			if (fp && m_pVideo) {
+				m_pVideo->WriteBmpHeader(fp);
+				unsigned char* buffer = (unsigned char*)malloc(w * h * 4);
+				libyuv::I420ToARGB(decompressed, w, decompressed + w * h, w / 2, decompressed + w * h + w * h / 4, w / 2, buffer, w * 4, w, h);
+				fwrite(buffer, 1, w * h * 4, fp);
 				fclose(fp);
+				free(buffer);
 			}
 			if (m_CallbackPicture) {
 				m_CallbackPicture(m_InsId, file_path);
 			}
+			free(decompressed);
 		}
 	}
 		break;

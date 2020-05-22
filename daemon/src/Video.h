@@ -45,6 +45,7 @@ public:
 
 	void SetRenderWin(void* hWnd);
 	bool show(unsigned char* buffer, unsigned int len, bool is_show);
+	void yuv_show(unsigned char* buffer, int w, int h);
 
 	void SetOnEncoded(onEncode_fp fp);
 	void SetOnLockScreen(onLockScreen_fp fp);

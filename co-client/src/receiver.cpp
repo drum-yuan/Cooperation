@@ -121,10 +121,10 @@ int Receiver::start(const NodeInfo& node)
 
 void Receiver::stop(int ins_id)
 {
-	LOG_INFO("daemon stop %d", ins_id);
 	daemon_stop(ins_id);
 	m_DaemonMap.erase(ins_id);
-	m_WinThreadMap[ins_id] = NULL;
+	m_WinThreadMap.erase(ins_id);
+	LOG_INFO("daemon stop %d", ins_id);
 }
 
 void Receiver::start_operate(int ins_id)
@@ -260,7 +260,6 @@ void Receiver::recv_picture_callback(int id, const char* file_path)
 #ifdef WIN32
 	LOG_INFO("recv picture %s", file_path);
 	ShellExecute(NULL, "open", "mspaint", file_path, NULL, SW_SHOW);
-	stop_stream_callback(id);
 #else
 #endif
 }

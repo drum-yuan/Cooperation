@@ -29,9 +29,9 @@ void cap_stop_capture_screen()
 	if (s_pCapture != NULL) {
 		s_pCapture->stop();
 #ifdef WIN32
-                Sleep(1000);
+        Sleep(1000);
 #else
-                usleep(1000 * 1000);
+        usleep(1000 * 1000);
 #endif
 		delete s_pCapture;
 		s_pCapture = NULL;

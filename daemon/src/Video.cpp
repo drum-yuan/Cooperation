@@ -150,6 +150,23 @@ bool Video::show(unsigned char* buffer, unsigned int len, bool is_show)
 #endif
 }
 
+void Video::yuv_show(unsigned char* buffer, int w, int h)
+{
+	if (buffer == NULL) {
+		return;
+	}
+#ifdef WIN32
+	if (m_hD3DHandle == NULL) {
+		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, w, h, 0, 1, D3D_FORMAT_YV12);
+	}
+	RECT rcSrc = { 0, 0, w, h };
+	D3D_UpdateData(m_hD3DHandle, 0, buffer, w, h, &rcSrc, NULL);
+	RECT rcDst;
+	GetClientRect((HWND)m_hRenderWin, &rcDst);
+	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
+#endif
+}
+
 void Video::SetOnEncoded(onEncode_fp fp)
 {
 #ifdef HW_ENCODE
@@ -165,6 +182,7 @@ void Video::SetOnLockScreen(onLockScreen_fp fp)
 {
 	onLockScreen = fp;
 	m_bLockScreen = true;
+	cap_reset_sequence();
 }
 
 void Video::start()
@@ -563,15 +581,7 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 {
 	Video* video = (Video*)param;
 
-	if (video->m_bLockScreen) {
-		if (video->onLockScreen) {
-			video->onLockScreen((unsigned char*)frame->buffer, frame->length);
-		}
-		video->m_bLockScreen = false;
-		cap_stop_capture_screen();
-		return;
-	}
-
+	bool IsSizeChanging = false;
 	if (video->m_iFrameW != frame->width || video->m_iFrameH != frame->height || video->m_pYUVData == NULL) {
 		printf("onFrame change size: seq %d w %d h %d\n", cap_get_capture_sequence(), frame->width, frame->height);
 		video->CloseEncoder();
@@ -580,6 +590,7 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		video->m_pYUVData = new unsigned char[frame->width * frame->height * 3 / 2];
 		video->OpenEncoder(frame->width, frame->height);
 		cap_reset_sequence();
+		IsSizeChanging = true;
 	}
 
 	if (frame->bitcount == 8) {
@@ -595,10 +606,10 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 	}
 	else if (frame->bitcount == 32) {
 		//printf("capture 32bit len %d\n", frame->length);
-		int uv_stride = (video->m_iFrameW + 1) / 2;
+		int uv_stride = video->m_iFrameW / 2;
 		uint8_t* y = video->m_pYUVData;
 		uint8_t* u = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH;
-		uint8_t* v = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH + (video->m_iFrameH + 1) / 2 * uv_stride;
+		uint8_t* v = video->m_pYUVData + video->m_iFrameW * video->m_iFrameH + video->m_iFrameH / 2 * uv_stride;
 		libyuv::ARGBToI420((uint8_t*)frame->buffer, frame->line_stride, y, video->m_iFrameW, u, uv_stride, v, uv_stride, video->m_iFrameW, video->m_iFrameH);
 		/*static int cnt = 0;
 		if (cnt < 10) {
@@ -608,7 +619,15 @@ void Video::onFrame(CallbackFrameInfo* frame, void* param)
 		cnt++;
 		}*/
 	}
-	video->Encode();
+	if (video->m_bLockScreen && !IsSizeChanging) {
+		if (video->onLockScreen) {
+			video->onLockScreen(video->m_pYUVData, video->m_iFrameW * video->m_iFrameH * 3 / 2);
+		}
+		video->m_bLockScreen = false;
+	}
+	else {
+		video->Encode();
+	}
 }
 
 bool Video::OpenEncoder(int w, int h)
