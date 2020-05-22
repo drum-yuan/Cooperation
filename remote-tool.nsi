@@ -66,6 +66,8 @@ Section "MainSection" SEC01
   File "runtime\D3DRender.dll"
   File "runtime\daemon.dll"
   File "runtime\libeay32.dll"
+  File "runtime\mount_net_path.bat"
+  File "runtime\umount_net_path.bat"
   SetOutPath "$INSTDIR\platforms"
   File "runtime\platforms\qdirect2d.dll"
   File "runtime\platforms\qdirect2dd.dll"

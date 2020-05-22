@@ -128,7 +128,7 @@
     </widget>
     <widget class="QLineEdit" name="rdsh_url">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -144,7 +144,7 @@
     </widget>
     <widget class="QLineEdit" name="rdsh_domain">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -160,7 +160,7 @@
     </widget>
     <widget class="QLineEdit" name="rdsh_user">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -176,7 +176,7 @@
     </widget>
     <widget class="QLineEdit" name="rdsh_password">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -192,7 +192,7 @@
     </widget>
     <widget class="QLineEdit" name="app_alias">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -221,7 +221,7 @@
     </widget>
     <widget class="QPushButton" name="app_view">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>

@@ -24,6 +24,12 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->list->hide();
     ui->server_url->hide();
+    ui->rdsh_url->hide();
+    ui->rdsh_domain->hide();
+    ui->rdsh_user->hide();
+    ui->rdsh_password->hide();
+    ui->app_alias->hide();
+    ui->app_view->hide();
 
     setStyleSheet("QMainWindow{border-image: url(:/res/background.png)}");
     ui->publish->setStyleSheet("QPushButton{border-image: url(:/res/publish.png)}"
@@ -47,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->publish_type, SIGNAL(currentIndexChanged(QString)), this, SLOT(publish_type_changed(const QString&)));
     connect(ui->confirm, SIGNAL(clicked()), this, SLOT(button_confirm_clicked()));
     connect(ui->cancel, SIGNAL(clicked()), this, SLOT(button_cancel_clicked()));
+    connect(ui->app_view, SIGNAL(clicked()), this, SLOT(button_view_clicked()));
 
     QSettings setting(QCoreApplication::applicationDirPath() + "/server.ini", QSettings::IniFormat);
     setting.beginGroup("setting");
@@ -79,6 +86,7 @@ void MainWindow::query_request()
     ui->app_view->hide();
     ui->cancel->hide();
     ui->server_url->hide();
+    ui->confirm->setEnabled(true);
 
     ui->list->clear();
     QFont font("MicrosoftYaHei", 10, 75);
@@ -86,6 +94,9 @@ void MainWindow::query_request()
     QString showName;
     for (unsigned int i = 0; i < m_node_list.size(); i++) {
         if (m_node_list[i].app_name == "") {
+            if (m_node_list[i].host_name == get_local_host_name()) {
+                continue;
+            }
             showName = "桌面";
         } else {
             showName = m_node_list[i].app_name.c_str();
@@ -105,16 +116,14 @@ void MainWindow::publish_request()
 {
     m_mode = 0;
     ui->publish_type->show();
-    ui->rdsh_url->show();
-    ui->rdsh_domain->show();
-    ui->rdsh_user->show();
-    ui->rdsh_password->show();
-    ui->app_alias->show();
-    ui->app_view->show();
+    ui->publish_type->setCurrentIndex(0);
     ui->confirm->show();
     ui->cancel->show();
     ui->list->hide();
     ui->server_url->hide();
+    if (!m_app_guid.empty()) {
+        ui->confirm->setEnabled(false);
+    }
 }
 
 void MainWindow::config_request()
@@ -131,33 +140,34 @@ void MainWindow::config_request()
     ui->rdsh_password->hide();
     ui->app_alias->hide();
     ui->app_view->hide();
+    ui->confirm->setEnabled(true);
 }
 
 void MainWindow::publish_type_changed(const QString& text)
 {
     if (text == "本机桌面") {
-        ui->rdsh_url->setEnabled(false);
-        ui->rdsh_domain->setEnabled(false);
-        ui->rdsh_user->setEnabled(false);
-        ui->rdsh_password->setEnabled(false);
-        ui->app_alias->setEnabled(false);
-        ui->app_view->setEnabled(false);
+        ui->rdsh_url->hide();
+        ui->rdsh_domain->hide();
+        ui->rdsh_user->hide();
+        ui->rdsh_password->hide();
+        ui->app_alias->hide();
+        ui->app_view->hide();
     } else if (text == "本机应用") {
-        ui->rdsh_url->setEnabled(false);
-        ui->rdsh_domain->setEnabled(false);
-        ui->rdsh_user->setEnabled(true);
-        ui->rdsh_password->setEnabled(true);
-        ui->app_alias->setEnabled(true);
+        ui->rdsh_url->hide();
+        ui->rdsh_domain->hide();
+        ui->rdsh_user->show();
+        ui->rdsh_password->show();
+        ui->app_alias->show();
         ui->app_alias->setPlaceholderText("应用路径");
-        ui->app_view->setEnabled(true);
+        ui->app_view->show();
     } else {
-        ui->rdsh_url->setEnabled(true);
-        ui->rdsh_domain->setEnabled(true);
-        ui->rdsh_user->setEnabled(true);
-        ui->rdsh_password->setEnabled(true);
-        ui->app_alias->setEnabled(true);
+        ui->rdsh_url->show();
+        ui->rdsh_domain->show();
+        ui->rdsh_user->show();
+        ui->rdsh_password->show();
+        ui->app_alias->show();
         ui->app_alias->setPlaceholderText("应用别名");
-        ui->app_view->setEnabled(false);
+        ui->app_view->hide();
     }
 }
 
@@ -189,12 +199,6 @@ void MainWindow::button_confirm_clicked()
         if (ret) {
             ui->confirm->setEnabled(false);
             ui->publish_type->setEnabled(false);
-            ui->rdsh_url->setEnabled(false);
-            ui->rdsh_domain->setEnabled(false);
-            ui->rdsh_user->setEnabled(false);
-            ui->rdsh_password->setEnabled(false);
-            ui->app_alias->setEnabled(false);
-            ui->app_view->setEnabled(false);
         }
     }
         break;
