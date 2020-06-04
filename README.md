@@ -1,7 +1,7 @@
 # Cooperation
 
 #### Description
-共享屏幕相互协作
+可以分享自己的桌面、应用供他人远程使用，支持多人协作
 
 #### Software Architecture
 Software architecture description
