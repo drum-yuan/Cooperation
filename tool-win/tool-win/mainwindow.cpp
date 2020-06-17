@@ -10,6 +10,8 @@
 #include <windows.h>
 #include <Wtsapi32.h>
 
+#define APP_LIST_KEY "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Terminal Server\\TSAppAllowList"
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -183,8 +185,11 @@ void MainWindow::button_confirm_clicked()
         } else if (ui->publish_type->currentText() == "本机应用") {
             QString appPath = ui->app_alias->text();
             QString appExeFile = appPath.split('\\').last();
+            appExeFile = appExeFile.split('/').last();
             int pos = appExeFile.indexOf(".exe", 0, Qt::CaseInsensitive);
-            alias = appExeFile.left(pos).toStdString();
+            m_app_alias = appExeFile.left(pos);
+            alias = m_app_alias.toStdString();
+            publish_app();
             m_rdsh_info.user = ui->rdsh_user->text().toStdString();
             m_rdsh_info.password = ui->rdsh_password->text().toStdString();
             m_rdsh_info.rdsh_ip = std::string("localhost");
@@ -247,6 +252,7 @@ void MainWindow::button_cancel_clicked()
     case 0:
     {
         coclient_unregister_compute_node(m_app_guid);
+        clear_app();
         ui->confirm->setEnabled(true);
         ui->publish_type->setEnabled(true);
     }
@@ -304,4 +310,21 @@ void MainWindow::mount_net_path()
 void MainWindow::umount_net_path()
 {
     QProcess::startDetached("umount_net_path.bat");
+}
+
+void MainWindow::publish_app()
+{
+    QSettings settings(APP_LIST_KEY, QSettings::Registry64Format);
+    settings.setValue("fDisabledAllowList", 1);
+    settings.beginGroup(m_app_alias);
+    settings.setValue("Name", m_app_alias);
+    settings.setValue("Path", ui->app_alias->text());
+    settings.setValue("UserName", ui->rdsh_user->text());
+    settings.endGroup();
+}
+
+void MainWindow::clear_app()
+{
+    QSettings settings(APP_LIST_KEY, QSettings::Registry64Format);
+    settings.remove(m_app_alias);
 }

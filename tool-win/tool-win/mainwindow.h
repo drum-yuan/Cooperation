@@ -29,6 +29,8 @@ private:
     std::string get_local_host_name();
     void mount_net_path();
     void umount_net_path();
+    void publish_app();
+    void clear_app();
 
     Ui::MainWindow *ui;
     int m_mode;
@@ -36,5 +38,6 @@ private:
     RDSHInfo m_rdsh_info;
     std::string m_app_guid;
     QString m_server_url;
+    QString m_app_alias;
 };
 #endif // MAINWINDOW_H

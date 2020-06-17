@@ -33,6 +33,8 @@ win32 {
     LIBS += D:\Cooperation\tool-win\tool-win\deps\co-client.lib -lwtsapi32 -ladvapi32
 }
 
+QMAKE_LFLAGS += /MANIFESTUAC:\"level=\'requireAdministrator\' uiAccess=\'false\'\"
+
 DISTFILES +=
 
 RESOURCES += \
