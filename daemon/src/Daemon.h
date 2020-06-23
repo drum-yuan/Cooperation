@@ -31,6 +31,8 @@ public:
 	void set_keyboard_callback(KeyboardCallback on_keyboard);
 	void send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
 	void set_cursor_shape_callback(CursorShapeCallback on_cursor_shape);
+	void send_clipboard_data(int data_type, const string& data);
+	void set_clipboard_data_callback(ClipboardDataCallback on_clipboard_data);
 	UsersInfoInternal get_users_info();
 
 private:

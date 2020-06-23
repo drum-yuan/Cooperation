@@ -161,6 +161,16 @@ void Daemon::set_cursor_shape_callback(CursorShapeCallback on_cursor_shape)
 	m_McuClient.set_cursor_shape_callback(on_cursor_shape);
 }
 
+void Daemon::send_clipboard_data(int data_type, const string& data)
+{
+	m_McuClient.send_clipboard_data(data_type, data);
+}
+
+void Daemon::set_clipboard_data_callback(ClipboardDataCallback on_clipboard_data)
+{
+	m_McuClient.set_clipboard_data_callback(on_clipboard_data);
+}
+
 UsersInfoInternal Daemon::get_users_info()
 {
 	return m_McuClient.get_users_info();

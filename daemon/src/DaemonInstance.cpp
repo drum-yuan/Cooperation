@@ -221,3 +221,19 @@ void daemon_get_users_info(int id, UsersInfo* info)
 		info->operater = info_internal.operater;
 	}
 }
+
+void daemon_send_clipboard_data(int id, int data_type, const std::string& data)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->send_clipboard_data(data_type, data);
+	}
+}
+
+void daemon_set_clipboard_data_callback(int id, ClipboardDataCallback on_clipboard_data)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->set_clipboard_data_callback(on_clipboard_data);
+	}
+}

@@ -27,6 +27,7 @@ typedef void(*OperaterCallback)(int id, bool is_operater);
 typedef void(*MouseCallback)(unsigned int x, unsigned int y, unsigned int button_mask);
 typedef void(*KeyboardCallback)(unsigned int key_val, bool is_pressed);
 typedef void(*CursorShapeCallback)(int id, int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
+typedef void(*ClipboardDataCallback)(int id, int data_type, const std::string& data);
 class SocketsClient
 {
 public:
@@ -51,6 +52,7 @@ public:
 	void set_mouse_callback(MouseCallback on_mouse);
 	void set_keyboard_callback(KeyboardCallback on_keyboard);
 	void set_cursor_shape_callback(CursorShapeCallback on_cursor_shape);
+	void set_clipboard_data_callback(ClipboardDataCallback on_clipboard_data);
 	void handle_in(struct lws *wsi, const void* data, size_t len);
 
 	void send_connect();
@@ -65,6 +67,7 @@ public:
 	void send_keyboard_event(unsigned int key_val, bool is_pressed);
 	void send_audio_data(unsigned char* data, int len, unsigned int frams_num);
 	void send_cursor_shape(int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
+	void send_clipboard_data(int data_type, const string& data);
 	UsersInfoInternal get_users_info();
 
 	static int callback_client(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
@@ -100,5 +103,6 @@ private:
 	MouseCallback m_CallbackMouse;
 	KeyboardCallback m_CallbackKeyboard;
 	CursorShapeCallback m_CallbackCursorShape;
+	ClipboardDataCallback m_CallbackClipboardData;
 	UsersInfoInternal m_UsersInfo;
 };

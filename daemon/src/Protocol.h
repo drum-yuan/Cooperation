@@ -38,7 +38,8 @@ typedef enum tagMsgType
 	kMsgTypeCursorShape = 1014,
 	kMsgTypeAudioData = 1015,
 	kMsgTypeStreamOnly = 1016,
-	kMsgTypeStreamQuit = 1017
+	kMsgTypeStreamQuit = 1017,
+	kMsgTypeClipboardData = 1018
 } MsgType;
 
 #define Swap32IfLE(l) \

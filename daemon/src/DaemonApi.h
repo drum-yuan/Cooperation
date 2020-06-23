@@ -57,6 +57,10 @@ typedef void (*KeyboardCallback)(unsigned int key_val, bool is_pressed);
 	mask_bytes: 鼠标形状图阿尔法通道数据
 */
 typedef void (*CursorShapeCallback)(int id, int x, int y, int w, int h, const std::string& color_bytes, const std::string& mask_bytes);
+/* 收到剪贴板数据后的回调
+	data: 剪贴板数据
+*/
+typedef void(*ClipboardDataCallback)(int id, int data_type, const std::string& data);
 
 //创建daemon
 DAEMON_API int daemon_create();
@@ -108,5 +112,9 @@ DAEMON_API void daemon_send_cursor_shape(int id, int x, int y, int w, int h, con
 DAEMON_API void daemon_set_cursor_shape_callback(int id, CursorShapeCallback on_cursor_shape);
 //获取播放参与者信息
 DAEMON_API void daemon_get_users_info(int id, UsersInfo* info);
+//发送剪贴板数据
+DAEMON_API void daemon_send_clipboard_data(int id, int data_type, const std::string& data);
+//设置收到剪贴板数据后的回调
+DAEMON_API void daemon_set_clipboard_data_callback(int id, ClipboardDataCallback on_clipboard_data);
 
 

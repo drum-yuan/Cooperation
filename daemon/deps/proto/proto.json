@@ -65,6 +65,16 @@
         ["int", "mask_size", {"required": false}],
         ["std::string", "mask_bytes_base64", {"required": false}]
     ]
+},
+
+{
+    "name": "ClipboardData",
+    "namespace": "MCUProtocol",
+    "members":
+    [
+        ["int", "data_type", {"required": true}],
+        ["std::string", "data", {"required": true}]
+    ]
 }
 ]
 

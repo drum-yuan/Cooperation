@@ -294,6 +294,11 @@ void SocketsClient::set_cursor_shape_callback(CursorShapeCallback on_cursor_shap
 	m_CallbackCursorShape = on_cursor_shape;
 }
 
+void SocketsClient::set_clipboard_data_callback(ClipboardDataCallback on_clipboard_data)
+{
+	m_CallbackClipboardData = on_clipboard_data;
+}
+
 void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 {
 	WebSocketHeader* pWebHeader = (WebSocketHeader*)in;
@@ -553,6 +558,20 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 		}
 		if (m_CallbackCursorShape) {
 			m_CallbackCursorShape(m_InsId, tCursorShape.xhot, tCursorShape.yhot, tCursorShape.width, tCursorShape.height, tCursorShape.color_bytes_base64, tCursorShape.mask_bytes_base64);
+		}
+	}
+		break;
+	case kMsgTypeClipboardData:
+	{
+		ClipboardData tData;
+		const char* pPayload = (const char*)in + sizeof(WebSocketHeader);
+		autojsoncxx::ParsingResult result;
+		if (!autojsoncxx::from_json_string(pPayload, tData, result)) {
+			printf("parser json string fail %s\n", pPayload);
+			break;
+		}
+		if (m_CallbackClipboardData) {
+			m_CallbackClipboardData(m_InsId, tData.data_type, tData.data);
 		}
 	}
 		break;
@@ -833,6 +852,23 @@ void SocketsClient::send_cursor_shape(int x, int y, int w, int h, const string& 
 	header.version = 1;
 	header.magic = 0;
 	header.type = Swap16IfLE(kMsgTypeCursorShape);
+	header.length = Swap32IfLE(str.size());
+	m_SendBuf->append(&header, sizeof(WebSocketHeader));
+	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
+	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
+	m_SendBuf->reset();
+}
+
+void SocketsClient::send_clipboard_data(int data_type, const string& data)
+{
+	ClipboardData tData;
+	tData.data_type = data_type;
+	tData.data = data;
+	string str = autojsoncxx::to_json_string(tData);
+	WebSocketHeader header;
+	header.version = 1;
+	header.magic = 0;
+	header.type = Swap16IfLE(kMsgTypeClipboardData);
 	header.length = Swap32IfLE(str.size());
 	m_SendBuf->append(&header, sizeof(WebSocketHeader));
 	m_SendBuf->append((unsigned char*)str.c_str(), str.size());
