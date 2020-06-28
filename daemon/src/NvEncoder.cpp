@@ -25,7 +25,6 @@ Encoder::Encoder()
     , m_bUseMappedResource(false)
     , m_dwWidth(0)
     , m_dwHeight(0)
-    , m_dwFrameCount(0)
     , m_dwMaxBufferSize(0)
     , m_dwEncodeGUIDCount(0)
     , m_stEncodeGUID(NV_ENC_CODEC_H264_GUID)
@@ -124,7 +123,7 @@ HRESULT Encoder::SetupEncoder(unsigned int dwWidth, unsigned int dwHeight, unsig
     //! Validate basic configuration
     if (FAILED(hr = ValidateParams()))
     {
-        fprintf(stderr, __FUNCTION__": Failed to find a valid encoder configuration.\n");
+        fprintf(stdout, __FUNCTION__": Failed to find a valid encoder configuration.\n");
         return hr;
     }
 
@@ -169,7 +168,7 @@ HRESULT Encoder::SetupEncoder(unsigned int dwWidth, unsigned int dwHeight, unsig
     status = m_pEncodeAPI->nvEncGetEncodePresetConfig(m_hEncoder, m_stEncodeGUID, m_stPresetGUID, &m_stPresetConfig);
     if (status != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Failed to fetch preset encoder config.\n");
+        fprintf(stdout, __FUNCTION__": Failed to fetch preset encoder config.\n");
         return E_FAIL;
     }
 
@@ -239,7 +238,7 @@ HRESULT Encoder::SetupEncoder(unsigned int dwWidth, unsigned int dwHeight, unsig
     status = m_pEncodeAPI->nvEncInitializeEncoder(m_hEncoder, &m_stInitEncParams);
     if (status != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Failed to initialize encoder.\n");
+        fprintf(stdout, __FUNCTION__": Failed to initialize encoder.\n");
         return E_FAIL;
     }
 
@@ -261,28 +260,29 @@ HRESULT Encoder::SetupEncoder(unsigned int dwWidth, unsigned int dwHeight, unsig
                 status = m_pEncodeAPI->nvEncRegisterResource(m_hEncoder, &param);
                 if (status != NV_ENC_SUCCESS)
                 {
-                    fprintf(stderr, __FUNCTION__": Failed to register resource with encoder.\n");
+                    fprintf(stdout, __FUNCTION__": Failed to register resource with encoder.\n");
                     return E_FAIL;
                 }
+				printf("register resource %p\n", param.registeredResource);
                 m_stInputSurface[i].hRegisteredHandle = param.registeredResource;
             }
             else
             {
-                fprintf(stderr, __FUNCTION__": No input resources provided. Quitting.\n");
+                fprintf(stdout, __FUNCTION__": No input resources provided. Quitting.\n");
                 return E_POINTER;
             }
         }
     }
     else
     {
-        fprintf(stderr, __FUNCTION__": No input resources provided. Quitting.\n");
+        fprintf(stdout, __FUNCTION__": No input resources provided. Quitting.\n");
         return E_POINTER;
     }
 
     // Allocate IO Buffers
     if (FAILED(hr = AllocateOPBufs()))
     {
-        fprintf(stderr, __FUNCTION__": Failed to allocate IO buffers.\n");
+        fprintf(stdout, __FUNCTION__": Failed to allocate IO buffers.\n");
         return hr;
     }
     return S_OK;
@@ -310,10 +310,9 @@ HRESULT Encoder::Reconfigure(unsigned int dwWidth, unsigned int dwHeight, unsign
     status = m_pEncodeAPI->nvEncReconfigureEncoder(m_hEncoder, &m_stReconfigureParam);
     if (status != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Failed to reconfigure the encoder.\n");
+        fprintf(stdout, __FUNCTION__": Failed to reconfigure the encoder.\n");
         return E_FAIL;
     }
-	m_dwFrameCount = 0;
     return S_OK;
 }
 
@@ -326,7 +325,7 @@ HRESULT Encoder::LaunchEncode(unsigned int i)
 
     if (m_stInputSurface[i].hRegisteredHandle == NULL)
     {
-        fprintf(stderr, __FUNCTION__": No input resources registered. Quitting.\n");
+        fprintf(stdout, __FUNCTION__": No input resources registered. Quitting.\n");
         return E_FAIL;
     }
 
@@ -335,10 +334,11 @@ HRESULT Encoder::LaunchEncode(unsigned int i)
         NV_ENC_MAP_INPUT_RESOURCE mapParam = { 0 };
         mapParam.version = NV_ENC_MAP_INPUT_RESOURCE_VER;
         mapParam.registeredResource = m_stInputSurface[i].hRegisteredHandle;
+		mapParam.mappedBufferFmt = NV_ENC_BUFFER_FORMAT_NV12;
         status = m_pEncodeAPI->nvEncMapInputResource(m_hEncoder, &mapParam);
         if (status != NV_ENC_SUCCESS)
         {
-            fprintf(stderr, __FUNCTION__": Failed to map resource with encoder.\n");
+            fprintf(stdout, __FUNCTION__": Failed to map resource with encoder.\n");
             return E_FAIL;
         }
 
@@ -371,7 +371,7 @@ HRESULT Encoder::LaunchEncode(unsigned int i)
     status = m_pEncodeAPI->nvEncEncodePicture(m_hEncoder, &m_stEncodePicParams);
     if (status != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Failed to encode input\n");
+        fprintf(stdout, __FUNCTION__": Failed to encode input\n");
     }
 
     return S_OK;
@@ -390,19 +390,6 @@ HRESULT Encoder::GetBitstream(unsigned int i)
         nvStatus = m_pEncodeAPI->nvEncUnmapInputResource(m_hEncoder, m_stInputSurface[i].hInputSurface);
         m_stInputSurface[i].hInputSurface = NULL;
     }
-    /*if (m_dwFrameCount == 0)
-    {
-        unsigned char buf[1024] = { '\0' };
-        unsigned int size = 0;
-        NV_ENC_SEQUENCE_PARAM_PAYLOAD param = { 0 };
-        param.version = NV_ENC_SEQUENCE_PARAM_PAYLOAD_VER;
-        param.inBufferSize = 1024;
-        param.spsppsBuffer = (void *)buf;
-        param.outSPSPPSPayloadSize = &size;
-		nvStatus = m_pEncodeAPI->nvEncGetSequenceParams(m_hEncoder, &param);
-		printf("GetSequenceParams %d size %d\n", nvStatus, size);
-    }
-    m_dwFrameCount++;*/
     // Fetch encoded bitstream
     NV_ENC_LOCK_BITSTREAM lockBitstreamData = { 0 };
     lockBitstreamData.version = NV_ENC_LOCK_BITSTREAM_VER;
@@ -412,7 +399,7 @@ HRESULT Encoder::GetBitstream(unsigned int i)
     nvStatus = m_pEncodeAPI->nvEncLockBitstream(m_hEncoder, &lockBitstreamData);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Failed to lock bitstream.\n");
+        fprintf(stdout, __FUNCTION__": Failed to lock bitstream.\n");
     }
 	if (onEncoded) {
 		onEncoded(&lockBitstreamData);
@@ -421,7 +408,7 @@ HRESULT Encoder::GetBitstream(unsigned int i)
     nvStatus = m_pEncodeAPI->nvEncUnlockBitstream(m_hEncoder, m_stBitstreamBuffer[i].hBitstreamBuffer);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Failed to unlock bitstream.\n");
+        fprintf(stdout, __FUNCTION__": Failed to unlock bitstream.\n");
     }
 
     return S_OK;
@@ -449,7 +436,7 @@ HRESULT Encoder::AllocateOPBufs()
 
         if (status != NV_ENC_SUCCESS)
         {
-            fprintf(stderr, __FUNCTION__": Failed to allocate output buffers.\n");
+            fprintf(stdout, __FUNCTION__": Failed to allocate output buffers.\n");
             return E_OUTOFMEMORY;
         }
         m_stBitstreamBuffer[i].hBitstreamBuffer    = stAllocBitstream.bitstreamBuffer;
@@ -548,13 +535,13 @@ HRESULT Encoder::LoadEncAPI()
             else
             {
                 //bEncodeAPIFound = false;
-                fprintf(stderr, __FUNCTION__": Error  - out of memory");
+                fprintf(stdout, __FUNCTION__": Error  - out of memory");
                 return E_OUTOFMEMORY;
             }
         }
         else
         {
-            fprintf(stderr, __FUNCTION__": failed to find NvEncodeAPICreateInstance");
+            fprintf(stdout, __FUNCTION__": failed to find NvEncodeAPICreateInstance");
         }
     }
     else
@@ -562,11 +549,11 @@ HRESULT Encoder::LoadEncAPI()
         //bEncodeAPIFound = false;
         if (Is64Bit())
         {
-            fprintf(stderr, __FUNCTION__": failed to load %s!", __NVEncodeLibName64);
+            fprintf(stdout, __FUNCTION__": failed to load %s!", __NVEncodeLibName64);
         }
         else
         {
-            fprintf(stderr, __FUNCTION__": failed to load %s!", __NVEncodeLibName32);
+            fprintf(stdout, __FUNCTION__": failed to load %s!", __NVEncodeLibName32);
         }
     }
     return E_FAIL;
@@ -588,7 +575,7 @@ HRESULT Encoder::ValidateParams()
     status = m_pEncodeAPI->nvEncGetEncodeGUIDCount(m_hEncoder, &m_dwEncodeGUIDCount);
     if (status != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Could not fetch encoder guid count.\n");
+        fprintf(stdout, __FUNCTION__": Could not fetch encoder guid count.\n");
         return E_FAIL;
     }
 
@@ -596,7 +583,7 @@ HRESULT Encoder::ValidateParams()
     status = m_pEncodeAPI->nvEncGetEncodeGUIDs(m_hEncoder, pEncGUIDs, m_dwEncodeGUIDCount, &tempCount);
     if (status != NV_ENC_SUCCESS)
     {
-        fprintf(stderr, __FUNCTION__": Could not fetch encoder guid list.\n");
+        fprintf(stdout, __FUNCTION__": Could not fetch encoder guid list.\n");
         return E_FAIL;
     }
 
@@ -608,7 +595,7 @@ HRESULT Encoder::ValidateParams()
             status = m_pEncodeAPI->nvEncGetEncodePresetCount(m_hEncoder, m_stEncodeGUID, &m_dwPresetGUIDCount);
             if (status != NV_ENC_SUCCESS)
             {
-                fprintf(stderr, __FUNCTION__": Could not fetch preset guid count.\n");
+                fprintf(stdout, __FUNCTION__": Could not fetch preset guid count.\n");
                 break;
             }
 
@@ -616,7 +603,7 @@ HRESULT Encoder::ValidateParams()
             status = m_pEncodeAPI->nvEncGetEncodePresetGUIDs(m_hEncoder, m_stEncodeGUID, pPresetGUIDs, m_dwPresetGUIDCount, &tempCount);
             if (status != NV_ENC_SUCCESS)
             {
-                fprintf(stderr, __FUNCTION__": Could not fetch preset guid list.\n");
+                fprintf(stdout, __FUNCTION__": Could not fetch preset guid list.\n");
                 break;
             }
 

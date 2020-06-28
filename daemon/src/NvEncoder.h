@@ -86,7 +86,6 @@ public:
     unsigned int                                         m_dwHeight;
     bool                                                 m_bUseMappedResource;
     unsigned int                                         m_dwMaxBufferSize;
-    unsigned int                                         m_dwFrameCount;
     unsigned int                                         m_dwMaxWidth;
     unsigned int                                         m_dwMaxHeight;
 	bool                                                 m_bIsYUV444;

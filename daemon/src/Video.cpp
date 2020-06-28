@@ -25,6 +25,7 @@ typedef struct DXVA2DevicePriv {
 Video::Video():m_iFrameW(0),
 				m_iFrameH(0),
 				m_iFrameRate(30),
+				m_iFrameInterval(30),
 				m_Bitrate(ENCODER_BITRATE),
 				m_bPublisher(false),
 				m_bResetSequence(false),
@@ -113,6 +114,7 @@ bool Video::show(unsigned char* buffer, unsigned int len, bool is_show)
 #ifdef HW_DECODE
 	int status = 0;
 
+	printf("show buffer len %u-%d\n", len, is_show);
 	av_init_packet(&m_AVPacket);
 	m_AVPacket.data = (uint8_t*)buffer;
 	m_AVPacket.size = len;
@@ -182,20 +184,24 @@ void Video::SetOnLockScreen(onLockScreen_fp fp)
 {
 	onLockScreen = fp;
 	m_bLockScreen = true;
+#ifndef HW_ENCODE
 	cap_reset_sequence();
+#endif
 }
 
 void Video::start()
 {
+	printf("video start\n");
 	m_bPublisher = true;
 #ifdef HW_ENCODE
 	m_bQuit = false;
 	if (m_pNvFBCDX9) {
+		printf("new capture loop thread\n");
 		m_pCaptureID = new std::thread(&Video::CaptureLoopProc, this);
 	}
 #else
 	cap_start_capture_screen(1, Video::onFrame, this);
-	cap_set_drop_interval(30);
+	cap_set_drop_interval(m_iFrameInterval);
 	cap_set_frame_rate(m_iFrameRate);
 #endif
 }
@@ -289,15 +295,13 @@ unsigned int Video::get_frame_type(NV_ENC_PIC_TYPE type)
 	return frame_type;
 }
 
-void Video::CaptureLoopProc(void* param)
+void Video::CaptureLoopProc()
 {
-	Video* video = (Video*)param;
-
 	LARGE_INTEGER counter;
 	LARGE_INTEGER frameBegin;
 	LARGE_INTEGER frameEnd;
 	QueryPerformanceFrequency(&counter);
-	LONGLONG sleepMsec = 1000 / video->m_iFrameRate;
+	LONGLONG sleepMsec = 1000 / m_iFrameRate;
 
 	NVFBC_TODX9VID_GRAB_FRAME_PARAMS fbcDX9GrabParams = { 0 };
 	NVFBCRESULT fbcRes = NVFBC_ERROR_GENERIC;
@@ -306,88 +310,88 @@ void Video::CaptureLoopProc(void* param)
 	fbcDX9GrabParams.eGMode = NVFBC_TODX9VID_SOURCEMODE_SCALE;
 	fbcDX9GrabParams.dwTargetWidth = MAX_FRAME_WIDTH;
 	fbcDX9GrabParams.dwTargetHeight = MAX_FRAME_HEIGHT;
-	fbcDX9GrabParams.pNvFBCFrameGrabInfo = &(video->m_frameGrabInfo);
+	fbcDX9GrabParams.pNvFBCFrameGrabInfo = &m_frameGrabInfo;
 
-	while (!video->m_bQuit) {
+	while (!m_bQuit) {
 		QueryPerformanceCounter(&frameBegin);
-		if (video->m_bPause) {
+		if (m_bPause) {
 			Sleep(50);
 			continue;
 		}
-		if (video->m_uCaptureSeq - video->m_uAckSeq >= 25) {
+		if (m_uCaptureSeq - m_uAckSeq >= m_iFrameInterval) {
 			Sleep(1);
 			continue;
 		}
-		unsigned int frameIndex = video->m_uCaptureSeq % MAX_BUF_QUEUE;
-		if (video->m_pNvFBCDX9) {
-			fbcRes = video->m_pNvFBCDX9->NvFBCToDx9VidGrabFrame(&fbcDX9GrabParams);
+		unsigned int frameIndex = m_uCaptureSeq % MAX_BUF_QUEUE;
+		if (m_pNvFBCDX9) {
+			fbcRes = m_pNvFBCDX9->NvFBCToDx9VidGrabFrame(&fbcDX9GrabParams);
 		}
-		if (fbcRes == NVFBC_SUCCESS && video->m_pEncoder)
+		if (fbcRes == NVFBC_SUCCESS && m_pEncoder)
 		{
-			if (video->m_iFrameW == 0 && video->m_iFrameH == 0) {
-				if (S_OK != video->m_pEncoder->SetupEncoder(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, m_Bitrate,
-					video->m_maxDisplayW, video->m_maxDisplayH, 0, video->m_apD3D9RGB8Surf, false, false, false, NULL, false, 48))
+			if (m_iFrameW == 0 && m_iFrameH == 0) {
+				if (S_OK != m_pEncoder->SetupEncoder(MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT, m_Bitrate,
+					m_maxDisplayW, m_maxDisplayH, 0, m_apD3D9RGB8Surf, false, false, false, NULL, true, 24))
 				{
 					printf("Failed when calling Encoder::SetupEncoder()\n");
 				}
 				printf("Setup encoder\n");
-				video->m_iFrameW = MAX_FRAME_WIDTH;
-				video->m_iFrameH = MAX_FRAME_HEIGHT;
+				m_iFrameW = MAX_FRAME_WIDTH;
+				m_iFrameH = MAX_FRAME_HEIGHT;
 			}
-			if ((video->m_iFrameW != video->m_frameGrabInfo.dwBufferWidth) || (video->m_iFrameH != video->m_frameGrabInfo.dwHeight) || video->m_bForceKeyframe)
+			if ((m_iFrameW != m_frameGrabInfo.dwBufferWidth) || (m_iFrameH != m_frameGrabInfo.dwHeight) || m_bForceKeyframe)
 			{
-				printf("Encoder reset %d\n", video->m_bForceKeyframe);
-				video->m_pEncoder->Reconfigure(video->m_frameGrabInfo.dwWidth, video->m_frameGrabInfo.dwHeight, m_Bitrate);
-				video->m_iFrameW = video->m_frameGrabInfo.dwBufferWidth;
-				video->m_iFrameH = video->m_frameGrabInfo.dwHeight;
-				if (video->m_bForceKeyframe) {
-					video->m_bForceKeyframe = false;
+				printf("Encoder reset %d w=%d h=%d\n", m_bForceKeyframe, m_frameGrabInfo.dwWidth, m_frameGrabInfo.dwHeight);
+				m_pEncoder->Reconfigure(m_frameGrabInfo.dwWidth, m_frameGrabInfo.dwHeight, m_Bitrate);
+				m_iFrameW = m_frameGrabInfo.dwBufferWidth;
+				m_iFrameH = m_frameGrabInfo.dwHeight;
+				if (m_bForceKeyframe) {
+					m_bForceKeyframe = false;
 				}
 			}
 
-			if (video->m_bLockScreen) {
-				if (video->onLockScreen) {
+			if (m_bLockScreen) {
+				if (onLockScreen) {
 					D3DLOCKED_RECT lockedRect;
 					RECT rect = { 0, 0, 1, 1 };
-					if (FAILED(video->m_apD3D9RGB8Surf[frameIndex]->LockRect(&lockedRect, &rect, 0))) {
+					if (FAILED(m_apD3D9RGB8Surf[frameIndex]->LockRect(&lockedRect, &rect, 0))) {
 						printf("LockRect() failed.\n");
 					}
-					video->m_apD3D9RGB8Surf[frameIndex]->UnlockRect();
+					m_apD3D9RGB8Surf[frameIndex]->UnlockRect();
 
-					if (FAILED(video->m_apD3D9RGB8Surf[frameIndex]->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))) {
+					if (FAILED(m_apD3D9RGB8Surf[frameIndex]->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))) {
 						printf("LockRect() D3DLOCK_READONLY failed.\n");
 					}
 					D3DSURFACE_DESC desc;
-					video->m_apD3D9RGB8Surf[frameIndex]->GetDesc(&desc);
-					unsigned char* pData = new unsigned char[video->m_iFrameW * video->m_iFrameH * 4];
-					for (int i = 0; i < video->m_iFrameH; i++) {
-						memcpy(pData + video->m_iFrameW * 4 * i, (unsigned char*)lockedRect.pBits + lockedRect.Pitch * i, video->m_iFrameW * 4);
+					m_apD3D9RGB8Surf[frameIndex]->GetDesc(&desc);
+					unsigned char* pData = new unsigned char[m_iFrameW * m_iFrameH * 4];
+					for (int i = 0; i < m_iFrameH; i++) {
+						memcpy(pData + m_iFrameW * 4 * i, (unsigned char*)lockedRect.pBits + lockedRect.Pitch * i, m_iFrameW * 4);
 					}
-					video->m_apD3D9RGB8Surf[frameIndex]->UnlockRect();
-					video->onLockScreen(pData, video->m_iFrameW * video->m_iFrameH * 4);
+					m_apD3D9RGB8Surf[frameIndex]->UnlockRect();
+					onLockScreen(pData, m_iFrameW * m_iFrameH * 4);
 					delete[] pData;
 				}
-				video->m_bLockScreen = false;
+				m_bLockScreen = false;
 				return;
 			}
 
 			HRESULT hr = E_FAIL;
 			//! Start encoding
-			hr = video->m_pEncoder->LaunchEncode(frameIndex);
+			hr = m_pEncoder->LaunchEncode(frameIndex);
 			if (hr != S_OK)
 			{
-				printf("Failed encoding via LaunchEncode frame %d\n", video->m_uCaptureSeq);
+				printf("Failed encoding via LaunchEncode frame %d\n", m_uCaptureSeq);
 				return;
 			}
 
 			//! Fetch encoded bitstream
-			hr = video->m_pEncoder->GetBitstream(frameIndex);
+			hr = m_pEncoder->GetBitstream(frameIndex);
 			if (hr != S_OK)
 			{
-				printf("Failed encoding via GetBitstream frame %d\n", video->m_uCaptureSeq);
+				printf("Failed encoding via GetBitstream frame %d\n", m_uCaptureSeq);
 				return;
 			}
-			video->m_uCaptureSeq++;
+			m_uCaptureSeq++;
 			QueryPerformanceCounter(&frameEnd);
 			LONGLONG dt = (frameEnd.QuadPart - frameBegin.QuadPart) * 1000 / counter.QuadPart;
 			//printf("capture&encode cost %lld ms\n", dt);
@@ -400,8 +404,8 @@ void Video::CaptureLoopProc(void* param)
 			printf("Grab frame failed\n");
 		}
 	}
-	video->m_iFrameW = 0;
-	video->m_iFrameH = 0;
+	m_uCaptureSeq = 0;
+	m_uAckSeq = 0;
 	printf("CaptureLoopProc end\n");
 }
 
@@ -912,8 +916,6 @@ void Video::DXVA2Render()
 	if (ret < 0) {
 		printf("GetBackBuffer failed\n");
 	}
-	//RECT rcRender;
-	//GetClientRect((HWND)m_hRenderWin, &rcRender);
 	ret = priv->d3d9device->StretchRect(surface, NULL, backBuffer, NULL, D3DTEXF_LINEAR);
 	if (ret < 0) {
 		printf("StretchRect failed\n");
@@ -1014,6 +1016,7 @@ enum AVPixelFormat Video::get_hw_format(AVCodecContext *ctx, const enum AVPixelF
 void Video::Render(SBufferInfo* pInfo)
 {
 	if (pInfo == NULL || pInfo->iBufferStatus != 1 || m_hRenderWin == NULL) {
+		printf("can not render\n");
 		return;
 	}
 

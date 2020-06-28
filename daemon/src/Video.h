@@ -75,7 +75,7 @@ public:
 private:
 #ifdef HW_ENCODE
 	void InitNvfbcEncoder();
-	void CaptureLoopProc(void* param);
+	void CaptureLoopProc();
 	HRESULT InitD3D9(unsigned int deviceID);
 	HRESULT InitD3D9Surfaces();
 	void CleanupNvfbcEncoder();
@@ -121,6 +121,7 @@ private:
 	int m_iFrameW;
 	int m_iFrameH;
 	int m_iFrameRate;
+	int m_iFrameInterval;
 	int m_Bitrate;
 	bool m_bPublisher;
 	bool m_bOperater;
