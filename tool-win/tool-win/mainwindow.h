@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include "co-interface.h"
+#include "toolbar.h"
 #include <QMainWindow>
 
 namespace Ui {
@@ -39,5 +40,6 @@ private:
     std::string m_app_guid;
     QString m_server_url;
     QString m_app_alias;
+    toolbar m_toolbar;
 };
 #endif // MAINWINDOW_H

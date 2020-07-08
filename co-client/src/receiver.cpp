@@ -581,10 +581,10 @@ void Receiver::CreateWndInThread(int id)
 	UpdateWindow(hwnd);
 	ImmDisableIME(0);
 
-	if (m_DaemonMap[id].is_fullscreen) {
+	/*if (m_DaemonMap[id].is_fullscreen) {
 		FloatBar* floatbar = new FloatBar(hwnd, this);
 		floatbar->floatbar_window_create();
-	}
+	}*/
 
 	m_DaemonMap[id].hwnd = hwnd;
 	daemon_show_stream(id, hwnd);

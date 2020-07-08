@@ -13,5 +13,6 @@
         <file>res/query-hover.png</file>
         <file>res/view.png</file>
         <file>res/view-hover.png</file>
+        <file>res/toolbar-bg.png</file>
     </qresource>
 </RCC>

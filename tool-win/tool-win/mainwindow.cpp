@@ -224,6 +224,8 @@ void MainWindow::button_confirm_clicked()
                         coclient_start_operate(ins_id);
                     }
                 }
+                m_toolbar.show();
+                hide();
                 break;
             }
         }
