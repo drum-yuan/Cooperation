@@ -31,9 +31,10 @@ Video::Video():m_iFrameW(0),
 				m_bResetSequence(false),
 				m_bForceKeyframe(false),
 				m_bLockScreen(false),
-				m_bShow(true)
+				m_bShow(true),
+				m_bUseNvEnc(false)
 {
-#ifdef HW_ENCODE
+#ifdef WIN32
 	m_pNVFBCLib = NULL;
 	m_pNvFBCDX9 = NULL;
 	m_pD3DEx = NULL;
@@ -51,11 +52,11 @@ Video::Video():m_iFrameW(0),
 	m_uCaptureSeq = 0;
 	m_uAckSeq = 0;
 	InitNvfbcEncoder();
-#else
-	m_pEncoder = NULL;
+#endif
+	m_pSVCEncoder = NULL;
 	onEncoded = NULL;
 	m_pYUVData = NULL;
-#endif
+
 	onLockScreen = NULL;
 	m_hRenderWin = NULL;
 #ifdef HW_DECODE
@@ -83,11 +84,14 @@ Video::Video():m_iFrameW(0),
 
 Video::~Video()
 {
-#ifdef HW_ENCODE
-	CleanupNvfbcEncoder();
-#else
-	CloseEncoder();
+	if (m_bUseNvEnc) {
+#ifdef WIN32
+		CleanupNvfbcEncoder();
 #endif
+	}
+	else {
+		CloseEncoder();
+	}
 	CloseDecoder();
 	delete[] m_pRenderData;
 }
@@ -171,76 +175,91 @@ void Video::yuv_show(unsigned char* buffer, int w, int h)
 
 void Video::SetOnEncoded(onEncode_fp fp)
 {
-#ifdef HW_ENCODE
-	if (m_pEncoder) {
-		m_pEncoder->SetOnEncoded(fp);
-	}
-#else
-	onEncoded = fp;
+	if (m_bUseNvEnc) {
+#ifdef WIN32
+		if (m_pEncoder) {
+			m_pEncoder->SetOnEncoded(fp);
+		}
 #endif
+	}
+	else {
+		onEncoded = fp;
+	}
 }
 
 void Video::SetOnLockScreen(onLockScreen_fp fp)
 {
 	onLockScreen = fp;
 	m_bLockScreen = true;
-#ifndef HW_ENCODE
-	cap_reset_sequence();
-#endif
+	if (!m_bUseNvEnc) {
+		cap_reset_sequence();
+	}
 }
 
 void Video::start()
 {
 	printf("video start\n");
 	m_bPublisher = true;
-#ifdef HW_ENCODE
-	m_bQuit = false;
-	if (m_pNvFBCDX9) {
-		printf("new capture loop thread\n");
-		m_pCaptureID = new std::thread(&Video::CaptureLoopProc, this);
-	}
-#else
-	cap_start_capture_screen(1, Video::onFrame, this);
-	cap_set_drop_interval(m_iFrameInterval);
-	cap_set_frame_rate(m_iFrameRate);
+
+	if (m_bUseNvEnc) {
+#ifdef WIN32
+		m_bQuit = false;
+		if (m_pNvFBCDX9) {
+			printf("new capture loop thread\n");
+			m_pCaptureID = new std::thread(&Video::CaptureLoopProc, this);
+		}
 #endif
+	}
+	else {
+		cap_start_capture_screen(1, Video::onFrame, this);
+		cap_set_drop_interval(m_iFrameInterval);
+		cap_set_frame_rate(m_iFrameRate);
+	}
 }
 
 void Video::stop()
 {
 	printf("video stop\n");
 	m_bPublisher = false;
-#ifdef HW_ENCODE
-	m_bQuit = true;
-	if (m_pCaptureID) {
-		if (m_pCaptureID->joinable()) {
-			m_pCaptureID->join();
-			delete m_pCaptureID;
+	if (m_bUseNvEnc) {
+#ifdef WIN32
+		m_bQuit = true;
+		if (m_pCaptureID) {
+			if (m_pCaptureID->joinable()) {
+				m_pCaptureID->join();
+				delete m_pCaptureID;
+			}
+			m_pCaptureID = NULL;
 		}
-		m_pCaptureID = NULL;
-	}
-#else
-	cap_stop_capture_screen();
 #endif
+	} else {
+		cap_stop_capture_screen();
+	}
 }
 
 void Video::pause()
 {
-#ifdef HW_ENCODE
-	m_bPause = true;
-#else
-	cap_pause_capture_screen();
+	if (m_bUseNvEnc) {
+#ifdef WIN32
+		m_bPause = true;
 #endif
+	}
+	else {
+		cap_pause_capture_screen();
+	}
 	m_bShow = false;
 }
 
 void Video::resume()
 {
-#ifdef HW_ENCODE
-	m_bPause = false;
-#else
-	cap_resume_capture_screen();
+	if (m_bUseNvEnc) {
+#ifdef WIN32
+		m_bPause = false;
 #endif
+	}
+	else {
+		cap_resume_capture_screen();
+	}
 	m_bShow = true;
 }
 
@@ -248,15 +267,23 @@ void Video::reset_keyframe(bool reset_ack)
 {
 	m_bForceKeyframe = true;
 	if (reset_ack) {
-#ifdef HW_ENCODE
-		m_uAckSeq = m_uCaptureSeq;
-#else
-		cap_reset_sequence();
+		if (m_bUseNvEnc) {
+#ifdef WIN32
+			m_uAckSeq = m_uCaptureSeq;
 #endif
+		}
+		else {
+			cap_reset_sequence();
+		}
 	}
 }
 
-#ifdef HW_ENCODE
+bool Video::IsUseNvEnc()
+{
+	return m_bUseNvEnc;
+}
+
+#ifdef WIN32
 void Video::set_ack_seq(unsigned int seq)
 {
 	if (seq > m_uAckSeq) {
@@ -412,7 +439,11 @@ void Video::CaptureLoopProc()
 void Video::InitNvfbcEncoder()
 {
 	m_pNVFBCLib = new NvFBCLibrary();
-	m_pNVFBCLib->load();
+	if (!m_pNVFBCLib || !m_pNVFBCLib->load()) {
+		printf("NVFBCLib load fail\n");
+		CleanupNvfbcEncoder();
+		return;
+	}
 	if (!SUCCEEDED(InitD3D9(0)))
 	{
 		printf("Unable to create a D3D9Ex Device\n");
@@ -463,6 +494,7 @@ void Video::InitNvfbcEncoder()
 		CleanupNvfbcEncoder();
 		return;
 	}
+	m_bUseNvEnc = true;
 }
 
 HRESULT Video::InitD3D9(unsigned int deviceID)
@@ -568,16 +600,17 @@ void Video::CleanupNvfbcEncoder()
 		delete m_pNVFBCLib;
 		m_pNVFBCLib = NULL;
 	}
+	m_bUseNvEnc = false;
 }
+#endif
 
-#else
 void Video::increase_encoder_bitrate(int delta_bitrate)
 {
-	if (m_pEncoder && ((m_Bitrate > 500000 && delta_bitrate < 0) || (m_Bitrate < 4000000 && delta_bitrate > 0))) {
+	if (m_pSVCEncoder && ((m_Bitrate > 500000 && delta_bitrate < 0) || (m_Bitrate < 4000000 && delta_bitrate > 0))) {
 		SBitrateInfo info;
 		info.iLayer = SPATIAL_LAYER_ALL;
 		info.iBitrate = m_Bitrate + delta_bitrate;
-		m_pEncoder->SetOption(ENCODER_OPTION_BITRATE, &info);
+		m_pSVCEncoder->SetOption(ENCODER_OPTION_BITRATE, &info);
 	}
 }
 
@@ -639,18 +672,18 @@ bool Video::OpenEncoder(int w, int h)
 	m_iFrameW = w;
 	m_iFrameH = h;
 	printf("OpenEncoder w=%d h=%d\n", m_iFrameW, m_iFrameH);
-	if (!m_pEncoder)
+	if (!m_pSVCEncoder)
 	{
-		if (WelsCreateSVCEncoder(&m_pEncoder) || (NULL == m_pEncoder))
+		if (WelsCreateSVCEncoder(&m_pSVCEncoder) || (NULL == m_pSVCEncoder))
 		{
 			printf("Create encoder failed, this = %p", this);
 			return false;
 		}
 
 		SEncParamExt tSvcParam;
-		m_pEncoder->GetDefaultParams(&tSvcParam);
+		m_pSVCEncoder->GetDefaultParams(&tSvcParam);
 		FillSpecificParameters(tSvcParam);
-		int nRet = m_pEncoder->InitializeExt(&tSvcParam);
+		int nRet = m_pSVCEncoder->InitializeExt(&tSvcParam);
 		if (nRet != 0)
 		{
 			printf("init encoder failed, this = %p, error = %d", this, nRet);
@@ -662,10 +695,10 @@ bool Video::OpenEncoder(int w, int h)
 
 void Video::CloseEncoder()
 {
-	if (m_pEncoder)
+	if (m_pSVCEncoder)
 	{
-		WelsDestroySVCEncoder(m_pEncoder);
-		m_pEncoder = NULL;
+		WelsDestroySVCEncoder(m_pSVCEncoder);
+		m_pSVCEncoder = NULL;
 	}
 }
 
@@ -708,11 +741,11 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 void Video::Encode()
 {
 	if (m_bForceKeyframe) {
-		m_pEncoder->ForceIntraFrame(true);
+		m_pSVCEncoder->ForceIntraFrame(true);
 		m_bForceKeyframe = false;
 	}
 
-	if (!m_pEncoder)
+	if (!m_pSVCEncoder)
 		return;
 	SSourcePicture tSrcPic;
 
@@ -730,7 +763,7 @@ void Video::Encode()
 	tSrcPic.pData[2] = tSrcPic.pData[1] + (m_iFrameW * m_iFrameH / 4);
 
 	SFrameBSInfo tFbi;
-	int iEncFrames = m_pEncoder->EncodeFrame(&tSrcPic, &tFbi);
+	int iEncFrames = m_pSVCEncoder->EncodeFrame(&tSrcPic, &tFbi);
 	if (iEncFrames == cmResultSuccess)
 	{
 		tFbi.uiTimeStamp = uTimeStamp;
@@ -742,7 +775,6 @@ void Video::Encode()
 		printf("encodeVideo failed\n");
 	}
 }
-#endif
 
 bool Video::OpenDecoder()
 {

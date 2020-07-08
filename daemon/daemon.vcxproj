@@ -92,7 +92,7 @@
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalIncludeDirectories>./deps/capture;./deps/libwebsockets;./deps/openh264;./deps/yuv;./deps/d3drender;./deps/proto;./deps/ffmpeg/include;./deps/lz4;./deps/nvfbc;./deps/opus</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;HW_ENCODE;HW_DECODE;USE_D3D;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;HW_DECODE;USE_D3D;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

@@ -76,7 +76,7 @@ private:
 	void NotifyForceExit();
 	void SetConnectState(int connstate);
 	int RunWebSocketClient();
-	unsigned int CalcFrameSize(void* data);
+	unsigned int CalcSVCFrameSize(void* data);
 
 	int m_InsId;
 	bool m_Exit;

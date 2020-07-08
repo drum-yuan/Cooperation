@@ -383,11 +383,15 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			break;
 		}
 		unsigned int sequence = tVideoAck.sequence;
-#ifdef HW_ENCODE
-		m_pVideo->set_ack_seq(sequence);
-#else
-		cap_set_ack_sequence(sequence);
+
+		if (m_pVideo->IsUseNvEnc()) {
+#ifdef WIN32
+			m_pVideo->set_ack_seq(sequence);
 #endif
+		}
+		else {
+			cap_set_ack_sequence(sequence);
+		}
 	}
 		break;
 	case kMsgTypeRequestKeyFrame:
@@ -642,70 +646,72 @@ void SocketsClient::send_video_data(void* data)
 		printf("send data null\n");
 		return;
 	}
-#ifdef HW_ENCODE
-	NV_ENC_LOCK_BITSTREAM* lockBitstreamData = (NV_ENC_LOCK_BITSTREAM*)data;
-	printf("bitstreamdata len %d\n", lockBitstreamData->bitstreamSizeInBytes);
+	if (m_pVideo->IsUseNvEnc()) {
+#ifdef WIN32
+		NV_ENC_LOCK_BITSTREAM* lockBitstreamData = (NV_ENC_LOCK_BITSTREAM*)data;
+		printf("bitstreamdata len %d\n", lockBitstreamData->bitstreamSizeInBytes);
 
-	WebSocketHeader header;
-	header.version = 1;
-	header.magic = 0;
-	header.length = Swap32IfLE(sizeof(VideoDataHeader) + lockBitstreamData->bitstreamSizeInBytes);
-	header.type = Swap16IfLE(kMsgTypeVideoData);
-	m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
+		WebSocketHeader header;
+		header.version = 1;
+		header.magic = 0;
+		header.length = Swap32IfLE(sizeof(VideoDataHeader) + lockBitstreamData->bitstreamSizeInBytes);
+		header.type = Swap16IfLE(kMsgTypeVideoData);
+		m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
 
-	VideoDataHeader videoheader;
-	unsigned int frame_type = m_pVideo->get_frame_type(lockBitstreamData->pictureType);
-	videoheader.eFrameType = Swap32IfLE(frame_type);
-	unsigned int sequence = m_pVideo->get_capture_seq();
-	videoheader.sequence = Swap32IfLE(sequence);
-	videoheader.option = 0;
-	m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
-	m_SendBuf->append((unsigned char*)lockBitstreamData->bitstreamBufferPtr, lockBitstreamData->bitstreamSizeInBytes);
-#else
-	int iFrameSize = CalcFrameSize(data);
-	if (!iFrameSize) {
-		printf("frame size 0\n");
-		cap_set_capture_sequence(cap_get_capture_sequence() - 1);
-		return;
-	}
-
-	WebSocketHeader header;
-	header.version = 1;
-	header.magic = 0;
-	header.length = Swap32IfLE(sizeof(VideoDataHeader) + iFrameSize);
-	header.type = Swap16IfLE(kMsgTypeVideoData);
-	m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
-
-	SFrameBSInfo* sFbi = (SFrameBSInfo*)data;
-	VideoDataHeader videoheader;
-	videoheader.eFrameType = Swap32IfLE(sFbi->eFrameType);
-	unsigned int sequence = cap_get_capture_sequence();
-	videoheader.sequence = Swap32IfLE(sequence);
-	videoheader.option = 0;
-	m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
-
-	int iLayer = 0;
-	while (iLayer < sFbi->iLayerNum) {
-		SLayerBSInfo* pLayerBsInfo = &(sFbi->sLayerInfo[iLayer]);
-		if (pLayerBsInfo != NULL) {
-			int iLayerSize = 0;
-			int iNalIdx = pLayerBsInfo->iNalCount - 1;
-			do {
-				iLayerSize += pLayerBsInfo->pNalLengthInByte[iNalIdx];
-				--iNalIdx;
-			} while (iNalIdx >= 0);
-
-			if (iLayerSize)
-			{
-				m_SendBuf->append((unsigned char*)pLayerBsInfo->pBsBuf, iLayerSize);
-			}
-		}
-		++iLayer;
-	}
+		VideoDataHeader videoheader;
+		unsigned int frame_type = m_pVideo->get_frame_type(lockBitstreamData->pictureType);
+		videoheader.eFrameType = Swap32IfLE(frame_type);
+		unsigned int sequence = m_pVideo->get_capture_seq();
+		videoheader.sequence = Swap32IfLE(sequence);
+		videoheader.option = 0;
+		m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
+		m_SendBuf->append((unsigned char*)lockBitstreamData->bitstreamBufferPtr, lockBitstreamData->bitstreamSizeInBytes);
 #endif
+	}
+	else {
+		int iFrameSize = CalcSVCFrameSize(data);
+		if (!iFrameSize) {
+			printf("frame size 0\n");
+			cap_set_capture_sequence(cap_get_capture_sequence() - 1);
+			return;
+		}
+
+		WebSocketHeader header;
+		header.version = 1;
+		header.magic = 0;
+		header.length = Swap32IfLE(sizeof(VideoDataHeader) + iFrameSize);
+		header.type = Swap16IfLE(kMsgTypeVideoData);
+		m_SendBuf->append((void*)&header, sizeof(WebSocketHeader));
+
+		SFrameBSInfo* sFbi = (SFrameBSInfo*)data;
+		VideoDataHeader videoheader;
+		videoheader.eFrameType = Swap32IfLE(sFbi->eFrameType);
+		unsigned int sequence = cap_get_capture_sequence();
+		videoheader.sequence = Swap32IfLE(sequence);
+		videoheader.option = 0;
+		m_SendBuf->append((unsigned char*)&videoheader, sizeof(VideoDataHeader));
+
+		int iLayer = 0;
+		while (iLayer < sFbi->iLayerNum) {
+			SLayerBSInfo* pLayerBsInfo = &(sFbi->sLayerInfo[iLayer]);
+			if (pLayerBsInfo != NULL) {
+				int iLayerSize = 0;
+				int iNalIdx = pLayerBsInfo->iNalCount - 1;
+				do {
+					iLayerSize += pLayerBsInfo->pNalLengthInByte[iNalIdx];
+					--iNalIdx;
+				} while (iNalIdx >= 0);
+
+				if (iLayerSize)
+				{
+					m_SendBuf->append((unsigned char*)pLayerBsInfo->pBsBuf, iLayerSize);
+				}
+			}
+			++iLayer;
+		}
+	}
 	send_msg((unsigned char*)m_SendBuf->getbuf(), m_SendBuf->getdatalength());
 	m_SendBuf->reset();
-	//printf("send video data seq %d\n", sequence);
 }
 
 void SocketsClient::send_video_ack(unsigned int sequence)
@@ -923,12 +929,9 @@ int SocketsClient::callback_client(struct lws *wsi, enum lws_callback_reasons re
 	return 0;
 }
 
-unsigned int SocketsClient::CalcFrameSize(void* data)
+unsigned int SocketsClient::CalcSVCFrameSize(void* data)
 {
 	int iFrameSize = 0;
-#ifdef HW_ENCODE
-
-#else
 	int iLayer = 0;
 
 	if (!data) {
@@ -954,6 +957,5 @@ unsigned int SocketsClient::CalcFrameSize(void* data)
 		}
 		++iLayer;
 	}
-#endif
 	return iFrameSize;
 }

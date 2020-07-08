@@ -9,30 +9,24 @@ extern "C" {
 #include <d3d9.h>
 #endif
 #endif
-#ifdef HW_ENCODE
-#include "NvFBCLibrary.h"
-#include "NvFBC/NvFBCToDx9vid.h"
-#include "NvEncoder.h"
-#include <thread>
-#else
 #include "CaptureApi.h"
 #include "wels/codec_def.h"
 #include "wels/codec_app_def.h"
 #include "wels/codec_api.h"
-#endif
-#ifndef WIN32
+#ifdef WIN32
+#include "NvFBCLibrary.h"
+#include "NvFBC/NvFBCToDx9vid.h"
+#include "NvEncoder.h"
+#else
 #include <X11/Xlib.h>
 #include <X11/extensions/Xvlib.h>
 #endif
 #include <functional>
+#include <thread>
 
-#ifdef HW_ENCODE
 #define MAX_FRAME_WIDTH		1920
 #define MAX_FRAME_HEIGHT	1080
-#else
-#define MAX_FRAME_WIDTH		4096
-#define MAX_FRAME_HEIGHT	2160
-#endif
+
 #define ENCODER_BITRATE		2000000
 
 typedef std::function<void(void* data)> onEncode_fp;
@@ -60,44 +54,43 @@ public:
 	void pause();
 	void resume();
 	void reset_keyframe(bool reset_ack);
-#ifdef HW_ENCODE
+	bool IsUseNvEnc();
+#ifdef WIN32
 	void set_ack_seq(unsigned int seq);
 	unsigned int get_capture_seq();
 	unsigned int get_frame_type(NV_ENC_PIC_TYPE type);
-#else
+#endif
 	void increase_encoder_bitrate(int delta_bitrate);
 	static void onFrame(CallbackFrameInfo* frame, void* param);
-#endif
 #ifdef HW_DECODE
 	static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
 #endif
 
 private:
-#ifdef HW_ENCODE
+#ifdef WIN32
 	void InitNvfbcEncoder();
 	void CaptureLoopProc();
 	HRESULT InitD3D9(unsigned int deviceID);
 	HRESULT InitD3D9Surfaces();
 	void CleanupNvfbcEncoder();
 #else
+	int XVAutoDetectPort();
+#endif
 	void FillSpecificParameters(SEncParamExt &sParam);
 	bool OpenEncoder(int w, int h);
 	void CloseEncoder();
 	void Encode();
-#endif
 	bool OpenDecoder();
 	void CloseDecoder();
 	void WriteYUVBuffer(int iStride[2], int iWidth, int iHeight, int iFormat);
-#ifndef WIN32
-    int XVAutoDetectPort();
-#endif
+
 #ifdef HW_DECODE
 	void DXVA2Render();
 #else
 	void Render(SBufferInfo* pInfo);
 #endif
 
-#ifdef HW_ENCODE
+#ifdef WIN32
 	NvFBCFrameGrabInfo m_frameGrabInfo;
 	NvFBCLibrary *m_pNVFBCLib;
 	NvFBCToDx9Vid *m_pNvFBCDX9;
@@ -112,11 +105,11 @@ private:
 	unsigned long m_maxDisplayH;
 	unsigned int m_uCaptureSeq;
 	unsigned int m_uAckSeq;
-#else
-	ISVCEncoder* m_pEncoder;
+#endif
+	ISVCEncoder* m_pSVCEncoder;
 	onEncode_fp onEncoded;
 	unsigned char* m_pYUVData;
-#endif
+
 	onLockScreen_fp onLockScreen;
 	int m_iFrameW;
 	int m_iFrameH;
@@ -129,6 +122,7 @@ private:
 	bool m_bForceKeyframe;
 	bool m_bLockScreen;
 	bool m_bShow;
+	bool m_bUseNvEnc;
 
 	void* m_hRenderWin;
 #ifdef HW_DECODE
