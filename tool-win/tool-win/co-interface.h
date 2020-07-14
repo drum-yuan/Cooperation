@@ -53,3 +53,5 @@ CO_API void coclient_get_users_info(int ins_id, CoUsersInfo& users_info);
 CO_API void coclient_start_operate(int ins_id);
 
 CO_API void coclient_send_picture();
+
+CO_API std::vector<int> coclient_get_current_receiver();

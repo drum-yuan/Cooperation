@@ -119,8 +119,11 @@ int Receiver::start(const NodeInfo& node)
 	return ins_id;
 }
 
-void Receiver::stop(int ins_id)
+void Receiver::stop(int ins_id, bool close_win)
 {
+	if (close_win) {
+		PostQuitMessage(0);
+	}
 	daemon_stop(ins_id);
 	m_DaemonMap.erase(ins_id);
 	m_WinThreadMap.erase(ins_id);
@@ -149,6 +152,15 @@ void Receiver::get_users_info(int ins_id, CoUsersInfo& users_info)
 	users_info.user_list = info.user_list;
 	users_info.publisher = info.publisher;
 	users_info.operater = info.operater;
+}
+
+vector<int> Receiver::get_current_receiver()
+{
+	vector<int> ins_id_list;
+	for (auto &it : m_DaemonMap) {
+		ins_id_list.push_back(it.first);
+	}
+	return ins_id_list;
 }
 
 void Receiver::set_cursor_shape()

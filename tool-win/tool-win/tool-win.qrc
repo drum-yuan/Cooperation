@@ -14,5 +14,11 @@
         <file>res/view.png</file>
         <file>res/view-hover.png</file>
         <file>res/toolbar-bg.png</file>
+        <file>res/close_all.png</file>
+        <file>res/close_all-hover.png</file>
+        <file>res/close_all-press.png</file>
+        <file>res/operate.png</file>
+        <file>res/operate-hover.png</file>
+        <file>res/operate-press.png</file>
     </qresource>
 </RCC>

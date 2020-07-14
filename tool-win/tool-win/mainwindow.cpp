@@ -46,7 +46,8 @@ MainWindow::MainWindow(QWidget *parent) :
                                "QPushButton:hover{border-image: url(:/res/cancel-hover.png)}");
     ui->app_view->setStyleSheet("QPushButton{border-image: url(:/res/view.png)}"
                                "QPushButton:hover{border-image: url(:/res/view-hover.png)}");
-
+    ui->publish_type->setStyleSheet("QComboBox QAbstractItemView::item {min-height: 40px;}");
+    ui->publish_type->setView(new QListView());
     m_mode = 0;
 
     connect(ui->query, SIGNAL(clicked()), this, SLOT(query_request()));
@@ -109,6 +110,7 @@ void MainWindow::query_request()
             radio->setEnabled(false);
         }
         QListWidgetItem* item = new QListWidgetItem();
+        item->setSizeHint(QSize(700, 40));
         ui->list->addItem(item);
         ui->list->setItemWidget(item, radio);
     }
@@ -218,6 +220,12 @@ void MainWindow::button_confirm_clicked()
                     coclient_start_compute_node(m_node_list[i].app_name, m_rdsh_info);
                 } else {
                     ins_id = coclient_start_receiver(m_node_list[i]);
+                    std::vector<int> receiver_list = coclient_get_current_receiver();
+                    QVector<int> qt_receiver_list;
+                    for (auto &it : receiver_list) {
+                        qt_receiver_list.push_back(it);
+                    }
+                    m_toolbar.set_receiver_list(qt_receiver_list);
                     CoUsersInfo users_info;
                     coclient_get_users_info(ins_id, users_info);
                     if (users_info.operater.empty() || users_info.operater == get_local_host_name()) {

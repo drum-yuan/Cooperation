@@ -26,10 +26,11 @@ public:
 
 	int get_compute_node_list(vector<NodeInfo>& node_list);
 	int start(const NodeInfo& node);
-	void stop(int ins_id);
+	void stop(int ins_id, bool close_win = false);
 	void start_operate(int ins_id);
 	void set_fullscreen(int ins_id);
 	void get_users_info(int ins_id, CoUsersInfo& users_info);
+	vector<int> get_current_receiver();
 
 	void set_cursor_shape();
 	string get_guid_from_daemon_map(HWND hwnd);

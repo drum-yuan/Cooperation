@@ -90,7 +90,7 @@ int coclient_start_receiver(const NodeInfo& node)
 void coclient_stop_receiver(int ins_id)
 {
 	if (_Receiver) {
-		_Receiver->stop(ins_id);
+		_Receiver->stop(ins_id, true);
 	}
 }
 
@@ -113,4 +113,13 @@ void coclient_send_picture()
 	if (_Sender) {
 		_Sender->send_picture();
 	}
+}
+
+vector<int> coclient_get_current_receiver()
+{
+	vector<int> receiver_list;
+	if (_Receiver) {
+		receiver_list = _Receiver->get_current_receiver(); 
+	}
+	return receiver_list;
 }
