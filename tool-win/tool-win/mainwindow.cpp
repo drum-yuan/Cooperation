@@ -216,23 +216,25 @@ void MainWindow::button_confirm_clicked()
             QRadioButton* radio = (QRadioButton*)ui->list->itemWidget(item);
             int ins_id = -1;
             if (radio->isChecked()) {
+                m_toolbar = new toolbar();
+                connect(m_toolbar, SIGNAL(sig_show_panel()), this, SLOT(show()));
                 if (m_node_list[i].host_name == get_local_host_name() && !m_node_list[i].app_name.empty()) {
                     coclient_start_compute_node(m_node_list[i].app_name, m_rdsh_info);
-                } else {
+                } else {                   
                     ins_id = coclient_start_receiver(m_node_list[i]);
                     std::vector<int> receiver_list = coclient_get_current_receiver();
                     QVector<int> qt_receiver_list;
                     for (auto &it : receiver_list) {
                         qt_receiver_list.push_back(it);
                     }
-                    m_toolbar.set_receiver_list(qt_receiver_list);
+                    m_toolbar->set_receiver_list(qt_receiver_list);
                     CoUsersInfo users_info;
                     coclient_get_users_info(ins_id, users_info);
                     if (users_info.operater.empty() || users_info.operater == get_local_host_name()) {
                         coclient_start_operate(ins_id);
                     }
                 }
-                m_toolbar.show();
+                m_toolbar->show();
                 hide();
                 break;
             }

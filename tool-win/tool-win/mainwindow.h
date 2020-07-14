@@ -40,6 +40,6 @@ private:
     std::string m_app_guid;
     QString m_server_url;
     QString m_app_alias;
-    toolbar m_toolbar;
+    toolbar* m_toolbar;
 };
 #endif // MAINWINDOW_H

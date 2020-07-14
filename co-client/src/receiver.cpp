@@ -122,12 +122,14 @@ int Receiver::start(const NodeInfo& node)
 void Receiver::stop(int ins_id, bool close_win)
 {
 	if (close_win) {
-		PostQuitMessage(0);
+		PostMessage(m_DaemonMap[ins_id].hwnd, WM_CLOSE, 0, 0);
 	}
-	daemon_stop(ins_id);
-	m_DaemonMap.erase(ins_id);
-	m_WinThreadMap.erase(ins_id);
-	LOG_INFO("daemon stop %d", ins_id);
+	else {
+		daemon_stop(ins_id);
+		m_DaemonMap.erase(ins_id);
+		m_WinThreadMap.erase(ins_id);
+		LOG_INFO("daemon stop %d", ins_id);
+	}
 }
 
 void Receiver::start_operate(int ins_id)

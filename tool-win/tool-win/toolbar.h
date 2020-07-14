@@ -27,6 +27,9 @@ public slots:
     void button_close_all_clicked();
     void button_operate_clicked();
 
+signals:
+    void sig_show_panel();
+
 private:
     QLabel *m_bg;
     QPushButton *m_close_all;

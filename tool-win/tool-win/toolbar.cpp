@@ -67,7 +67,7 @@ void toolbar::set_receiver_list(QVector<int> receiver_list)
 {
     m_receiver_list->clear();
     for (auto &it : receiver_list) {
-        m_receiver_list->addItem(QString("远程桌面%1").arg(it));
+        m_receiver_list->insertItem(it, QString("远程桌面%1").arg(it));
     }
 }
 
@@ -145,6 +145,11 @@ void toolbar::button_close_all_clicked()
     qDebug() << "ins id " << ins_id;
     if (ins_id >= 0) {
         coclient_stop_receiver(ins_id);
+        m_receiver_list->removeItem(ins_id);
+    }
+    if (m_receiver_list->count() == 0) {
+        close();
+        emit sig_show_panel();
     }
 }
 
