@@ -132,6 +132,16 @@ void Receiver::stop(int ins_id, bool close_win)
 	}
 }
 
+void Receiver::show(int ins_id)
+{
+	ShowWindow(m_DaemonMap[ins_id].hwnd, SW_SHOW);
+}
+
+void Receiver::hide(int ins_id)
+{
+	ShowWindow(m_DaemonMap[ins_id].hwnd, SW_HIDE);
+}
+
 void Receiver::start_operate(int ins_id)
 {
 	LOG_INFO("daemon start operate %d", ins_id);

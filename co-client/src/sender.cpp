@@ -508,7 +508,7 @@ void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 void Sender::recv_vapp_start_callback()
 {
 #ifdef WIN32
-	if (_instance->m_AppName == "") {
+	if (_instance->m_AppName == "" || _instance->m_AppName.substr(0, 4).compare("uuid") == 0) {
 		daemon_start_stream(_instance->m_DaemonId);
 	}
 	else {
@@ -527,7 +527,7 @@ void Sender::recv_vapp_start_callback()
 void Sender::recv_vapp_stop_callback()
 {
 #ifdef WIN32
-	if (_instance->m_AppName != "") {
+	if (_instance->m_AppName != "" && _instance->m_AppName.substr(0, 4).compare("uuid") != 0) {
 		system("taskkill /IM xtapp.exe /F");
 	}
 	LOG_INFO("daemon stop stream %d", _instance->m_DaemonId);

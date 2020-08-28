@@ -48,6 +48,10 @@ CO_API int coclient_start_receiver(const NodeInfo& node);
 
 CO_API void coclient_stop_receiver(int ins_id);
 
+CO_API void coclient_show_receiver(int ins_id);
+
+CO_API void coclient_hide_receiver(int ins_id);
+
 CO_API void coclient_get_users_info(int ins_id, CoUsersInfo& users_info);
 
 CO_API void coclient_start_operate(int ins_id);

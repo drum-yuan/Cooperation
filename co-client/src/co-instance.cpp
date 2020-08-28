@@ -94,6 +94,20 @@ void coclient_stop_receiver(int ins_id)
 	}
 }
 
+void coclient_show_receiver(int ins_id)
+{
+	if (_Receiver) {
+		_Receiver->show(ins_id);
+	}
+}
+
+void coclient_hide_receiver(int ins_id)
+{
+	if (_Receiver) {
+		_Receiver->hide(ins_id);
+	}
+}
+
 void coclient_get_users_info(int ins_id, CoUsersInfo& users_info)
 {
 	if (_Receiver) {

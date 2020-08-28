@@ -438,9 +438,6 @@ void SocketsClient::handle_in(struct lws *wsi, const void* in, size_t len)
 			int decompressed_len = LZ4_decompress_safe((char*)m_PicBuffer, (char*)decompressed, m_PicPos, w * h * 3 / 2);
 			free(m_PicBuffer);
 			m_PicBuffer = NULL;
-			/*if (m_pVideo) {
-				m_pVideo->yuv_show(decompressed, w, h);
-			}*/
 
             char file_path[256];
 #ifdef WIN32

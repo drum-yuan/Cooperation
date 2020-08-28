@@ -4,7 +4,9 @@
 #include "Video.h"
 #include "libyuv.h"
 #ifdef WIN32
+#ifndef USE_D3D
 #include "D3DRenderAPI.h"
+#endif
 #else
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
@@ -153,23 +155,6 @@ bool Video::show(unsigned char* buffer, unsigned int len, bool is_show)
 		printf("decode frame failed 0x%x\n", state);
 		return false;
 	}
-#endif
-}
-
-void Video::yuv_show(unsigned char* buffer, int w, int h)
-{
-	if (buffer == NULL) {
-		return;
-	}
-#ifdef WIN32
-	if (m_hD3DHandle == NULL) {
-		D3D_Initial(&m_hD3DHandle, (HWND)m_hRenderWin, w, h, 0, 1, D3D_FORMAT_YV12);
-	}
-	RECT rcSrc = { 0, 0, w, h };
-	D3D_UpdateData(m_hD3DHandle, 0, buffer, w, h, &rcSrc, NULL);
-	RECT rcDst;
-	GetClientRect((HWND)m_hRenderWin, &rcDst);
-	D3D_Render(m_hD3DHandle, (HWND)m_hRenderWin, 1, &rcDst);
 #endif
 }
 
@@ -920,12 +905,11 @@ void Video::DXVA2Render()
 	if (m_hRenderWin == NULL) {
 		return;
 	}
-	AVFrame* avVideoFrame = m_AVVideoFrame;
-	if (!m_Hwctx) {
-		goto COMMON_RENDER;
-	}
 
 #ifdef USE_D3D
+	if (!m_Hwctx) {
+		return;
+	}
 	IDirect3DSurface9* backBuffer = NULL;
 	LPDIRECT3DSURFACE9 surface = (LPDIRECT3DSURFACE9)m_HwVideoFrame->data[3];
 	AVHWDeviceContext* ctx = (AVHWDeviceContext*)m_Hwctx->data;
@@ -962,23 +946,23 @@ void Video::DXVA2Render()
 	}
 	LeaveCriticalSection(&m_Cs);
 	backBuffer->Release();
-	return;
 #else
-	if (m_HwVideoFrame->format == m_HwPixFmt) {
-		m_AVVideoFrame->width = m_HwVideoFrame->width;
-		m_AVVideoFrame->height = m_HwVideoFrame->height;
-		printf("transfer data from gpu to cpu %d-%d\n", m_AVVideoFrame->width, m_AVVideoFrame->height);
-		if (av_hwframe_transfer_data(m_AVVideoFrame, m_HwVideoFrame, 0) < 0) {
-			printf("transfer data failed!\n");
-			return;
+	AVFrame* avVideoFrame = m_AVVideoFrame;
+	if (m_Hwctx) {
+		if (m_HwVideoFrame->format == m_HwPixFmt) {
+			m_AVVideoFrame->width = m_HwVideoFrame->width;
+			m_AVVideoFrame->height = m_HwVideoFrame->height;
+			printf("transfer data from gpu to cpu %d-%d\n", m_AVVideoFrame->width, m_AVVideoFrame->height);
+			if (av_hwframe_transfer_data(m_AVVideoFrame, m_HwVideoFrame, 0) < 0) {
+				printf("transfer data failed!\n");
+				return;
+			}
+		}
+		else {
+			avVideoFrame = m_HwVideoFrame;
 		}
 	}
-	else {
-		avVideoFrame = m_HwVideoFrame;
-	}
-#endif
 
-COMMON_RENDER:
 	int iStride[2];
 	if (avVideoFrame->format == AV_PIX_FMT_YUV420P) {
 		m_pDecData[0] = avVideoFrame->data[0];
@@ -1028,6 +1012,7 @@ COMMON_RENDER:
     gtk_widget_get_size_request((GtkWidget*)m_hRenderWin, &dst_w, &dst_h);
     XvPutImage(m_Display, m_XvPortID, m_Xwindow, m_XvGC, xv_image, 0, 0, width, height, 0, 0, dst_w, dst_h);
     XFree(xv_image);
+#endif
 #endif
 }
 
