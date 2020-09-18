@@ -1,4 +1,4 @@
-
+﻿
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QSettings>
@@ -19,9 +19,9 @@ MainWindow::MainWindow(QWidget *parent) :
     setFocusPolicy(Qt::NoFocus);
     setWindowFlags(Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
     ui->setupUi(this);
-    ui->publish_type->addItem("本机桌面");
-    ui->publish_type->addItem("本机应用");
-    ui->publish_type->addItem("远程应用");
+    ui->publish_type->addItem(QString::fromLocal8Bit("本机桌面"));
+    ui->publish_type->addItem(QString::fromLocal8Bit("本机应用"));
+    ui->publish_type->addItem(QString::fromLocal8Bit("远程应用"));
     ui->publish_type->setCurrentIndex(0);
 
     ui->list->hide();
@@ -89,7 +89,6 @@ void MainWindow::query_request()
     ui->app_view->hide();
     ui->cancel->hide();
     ui->server_url->hide();
-    ui->confirm->setEnabled(true);
 
     ui->list->clear();
     QFont font("MicrosoftYaHei", 10, 75);
@@ -100,7 +99,7 @@ void MainWindow::query_request()
             if (m_node_list[i].host_name == get_local_host_name()) {
                 continue;
             }
-            showName = "桌面";
+            showName = QString::fromLocal8Bit("桌面");
         } else {
             showName = m_node_list[i].app_name.c_str();
         }
@@ -126,7 +125,7 @@ void MainWindow::publish_request()
     ui->list->hide();
     ui->server_url->hide();
     if (!m_app_guid.empty()) {
-        ui->confirm->setEnabled(false);
+        ui->confirm->hide();
     }
 }
 
@@ -144,25 +143,24 @@ void MainWindow::config_request()
     ui->rdsh_password->hide();
     ui->app_alias->hide();
     ui->app_view->hide();
-    ui->confirm->setEnabled(true);
 }
 
 void MainWindow::publish_type_changed(const QString& text)
 {
-    if (text == "本机桌面") {
+    if (text == QString::fromLocal8Bit("本机桌面")) {
         ui->rdsh_url->hide();
         ui->rdsh_domain->hide();
         ui->rdsh_user->hide();
         ui->rdsh_password->hide();
         ui->app_alias->hide();
         ui->app_view->hide();
-    } else if (text == "本机应用") {
+    } else if (text == QString::fromLocal8Bit("本机应用")) {
         ui->rdsh_url->hide();
         ui->rdsh_domain->hide();
         ui->rdsh_user->show();
         ui->rdsh_password->show();
         ui->app_alias->show();
-        ui->app_alias->setPlaceholderText("应用路径");
+        ui->app_alias->setPlaceholderText(QString::fromLocal8Bit("应用路径"));
         ui->app_view->show();
     } else {
         ui->rdsh_url->show();
@@ -170,7 +168,7 @@ void MainWindow::publish_type_changed(const QString& text)
         ui->rdsh_user->show();
         ui->rdsh_password->show();
         ui->app_alias->show();
-        ui->app_alias->setPlaceholderText("应用别名");
+        ui->app_alias->setPlaceholderText(QString::fromLocal8Bit("应用别名"));
         ui->app_view->hide();
     }
 }
@@ -182,9 +180,9 @@ void MainWindow::button_confirm_clicked()
     {
         std::string alias;
         bool ret = false;
-        if (ui->publish_type->currentText() == "本机桌面") {
+        if (ui->publish_type->currentText() == QString::fromLocal8Bit("本机桌面")) {
             alias = "";
-        } else if (ui->publish_type->currentText() == "本机应用") {
+        } else if (ui->publish_type->currentText() == QString::fromLocal8Bit("本机应用")) {
             QString appPath = ui->app_alias->text();
             QString appExeFile = appPath.split('\\').last();
             appExeFile = appExeFile.split('/').last();
@@ -204,7 +202,7 @@ void MainWindow::button_confirm_clicked()
         }
         ret = coclient_register_compute_node(alias, m_rdsh_info, m_app_guid);
         if (ret) {
-            ui->confirm->setEnabled(false);
+            ui->confirm->hide();
             ui->publish_type->setEnabled(false);
         }
     }
@@ -243,6 +241,9 @@ void MainWindow::button_confirm_clicked()
         break;
     case 2:
     {
+        coclient_destroy();
+        ui->publish_type->setEnabled(true);
+        m_app_guid.clear();
         m_server_url = ui->server_url->text();
         QSettings setting(QCoreApplication::applicationDirPath() + "/server.ini", QSettings::IniFormat);
         setting.beginGroup("setting");
@@ -264,8 +265,9 @@ void MainWindow::button_cancel_clicked()
     case 0:
     {
         coclient_unregister_compute_node(m_app_guid);
+        m_app_guid.clear();
         clear_app();
-        ui->confirm->setEnabled(true);
+        ui->confirm->show();
         ui->publish_type->setEnabled(true);
     }
         break;

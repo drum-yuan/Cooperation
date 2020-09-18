@@ -8,10 +8,9 @@ static Receiver* _Receiver = NULL;
 
 void coclient_create(const std::string& server_url)
 {
-	char buffer[256];
-	GetTempPath(sizeof(buffer), buffer);
-	string log_path = string(buffer) + "/co-client.log";
-	log_file.open(log_path, ios_base::out | ios_base::app);
+	if (!log_file.is_open()) {
+		log_file.open("co-client.log", ios_base::out | ios_base::app);
+	}
 
 	if (server_url.length() == 0) {
 		LOG_ERROR("server url null");
@@ -21,14 +20,17 @@ void coclient_create(const std::string& server_url)
 	LOG_INFO("server url %s", server_url.c_str());
 	_Sender = new Sender(server_url);
 	_Receiver = new Receiver(server_url);
+	LOG_INFO("co-client created");
 }
 
 void coclient_destroy()
 {
 	LOG_INFO("coclient destroy");
 	delete _Sender;
+	_Sender = NULL;
 	delete _Receiver;
-	log_file.close();
+	_Receiver = NULL;
+	//log_file.close();
 }
 
 bool coclient_register_compute_node(const std::string& app_name, const RDSHInfo& rdsh_info, std::string& app_guid)
@@ -37,6 +39,7 @@ bool coclient_register_compute_node(const std::string& app_name, const RDSHInfo&
 		return _Sender->register_compute_node(app_name, rdsh_info, app_guid);
 	}
 	else {
+		LOG_ERROR("Sender is null");
 		return false;
 	}
 }
