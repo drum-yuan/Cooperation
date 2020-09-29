@@ -80,7 +80,9 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 {
 	if (m_DaemonId != -1) {
 		LOG_ERROR("this compute node is already registered");
-		return false;
+		m_VappQuit = true;
+		daemon_stop(m_DaemonId);
+		m_DaemonId = -1;
 	}
 	m_AppName = app_name;
 	m_RDSHInfo = rdsh_info;
@@ -190,6 +192,11 @@ void Sender::send_picture()
 {
 	LOG_INFO("send picture");
 	daemon_send_picture(m_DaemonId);
+}
+
+void Sender::set_disconnect_callback(SenderDisconnectCallback on_sender_disconnect)
+{
+	daemon_set_publisher_disconnect_callback(m_DaemonId, on_sender_disconnect);
 }
 
 void Sender::monitor_thread()
@@ -314,25 +321,25 @@ void Sender::switch_input_desktop()
 {
 #ifdef WIN32
 	TCHAR desktop_name[MAX_PATH];
-	HDESK hdesk;
-
-	hdesk = OpenInputDesktop(0, FALSE, GENERIC_ALL);
-	if (!hdesk) {
+	
+	if (m_hdesk) {
+		CloseDesktop(m_hdesk);
+	}
+	m_hdesk = OpenInputDesktop(0, FALSE, GENERIC_ALL);
+	if (!m_hdesk) {
 		LOG_ERROR("OpenInputDesktop() failed: %lu", GetLastError());
 		return;
 	}
-	if (!SetThreadDesktop(hdesk)) {
+	if (!SetThreadDesktop(m_hdesk)) {
 		LOG_ERROR("SetThreadDesktop failed %lu", GetLastError());
-		CloseDesktop(hdesk);
 		return;
 	}
-	if (GetUserObjectInformation(hdesk, UOI_NAME, desktop_name, sizeof(desktop_name), NULL)) {
+	if (GetUserObjectInformation(m_hdesk, UOI_NAME, desktop_name, sizeof(desktop_name), NULL)) {
 		LOG_INFO("Desktop: %s", desktop_name);
 	}
 	else {
 		LOG_ERROR("GetUserObjectInformation failed %lu", GetLastError());
-	}
-	CloseDesktop(hdesk);
+	}	
 	m_DesktopSwitch = false;
 #endif
 }
@@ -353,10 +360,6 @@ static int get_buttons_change(unsigned int last_buttons_state, unsigned int new_
 void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask)
 {
 #ifdef WIN32
-	if (_instance->m_DesktopSwitch) {
-		_instance->switch_input_desktop();
-	}
-
 	DWORD mouse_move = 0;
 	DWORD buttons_change = 0;
 	DWORD mouse_wheel = 0;
@@ -400,6 +403,9 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 		mouse_wheel | buttons_change;
 
 	if ((mouse_move && GetTickCount() - _dwInputTime > 20) || buttons_change || mouse_wheel) {
+		if (_instance->m_DesktopSwitch) {
+			_instance->switch_input_desktop();
+		}
 		UINT hr = SendInput(1, &input, sizeof(INPUT));
 		if (!hr) {
 			LOG_INFO("send input mouse fail, %u", GetLastError());
@@ -497,6 +503,9 @@ void Sender::recv_keyboard_event_callback(unsigned int key_val, bool is_pressed)
 		break;
 	}
 
+	if (_instance->m_DesktopSwitch) {
+		_instance->switch_input_desktop();
+	}
 	UINT hr = SendInput(1, &input, sizeof(INPUT));
 	if (!hr) {
 		LOG_INFO("send input key %u-%d fail, %u", key_val, is_pressed, GetLastError());

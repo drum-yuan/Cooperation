@@ -20,6 +20,7 @@ public:
 	bool start_compute_node(const string& app_name, const RDSHInfo& rdsh_info);
 	void stop_compute_node();
 	void send_picture();
+	void set_disconnect_callback(SenderDisconnectCallback on_sender_disconnect);
 
 	static void recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned int button_mask);
 	static void recv_keyboard_event_callback(unsigned int key_val, bool is_pressed);
@@ -44,6 +45,7 @@ private:
 	bool m_EventRunning;
 	bool m_DesktopSwitch;
 	HCURSOR m_hCursor;
+	HDESK m_hdesk;
 	RDSHInfo m_RDSHInfo;
 	string m_AppName;
 	string m_SiriusUrl;

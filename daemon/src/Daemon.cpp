@@ -171,6 +171,11 @@ void Daemon::set_clipboard_data_callback(ClipboardDataCallback on_clipboard_data
 	m_McuClient.set_clipboard_data_callback(on_clipboard_data);
 }
 
+void Daemon::set_publisher_disconnect_callback(PublisherDisconnectCallback on_publisher_disconnect)
+{
+	m_CallbackPublisherDisconnect = on_publisher_disconnect;
+}
+
 UsersInfoInternal Daemon::get_users_info()
 {
 	return m_McuClient.get_users_info();
@@ -237,5 +242,8 @@ void Daemon::HeartbeatThread()
 #else
         usleep(100 * 1000);
 #endif
+	}
+	if (m_IsPublisher) {
+		m_CallbackPublisherDisconnect();
 	}
 }

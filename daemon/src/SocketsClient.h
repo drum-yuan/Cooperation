@@ -28,6 +28,7 @@ typedef void(*MouseCallback)(unsigned int x, unsigned int y, unsigned int button
 typedef void(*KeyboardCallback)(unsigned int key_val, bool is_pressed);
 typedef void(*CursorShapeCallback)(int id, int x, int y, int w, int h, const string& color_bytes, const string& mask_bytes);
 typedef void(*ClipboardDataCallback)(int id, int data_type, const std::string& data);
+typedef void(*PublisherDisconnectCallback)();
 class SocketsClient
 {
 public:

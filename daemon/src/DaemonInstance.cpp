@@ -237,3 +237,11 @@ void daemon_set_clipboard_data_callback(int id, ClipboardDataCallback on_clipboa
 		pDaemon->set_clipboard_data_callback(on_clipboard_data);
 	}
 }
+
+void daemon_set_publisher_disconnect_callback(int id, PublisherDisconnectCallback on_publisher_disconnect)
+{
+	Daemon* pDaemon = vecDaemon[id];
+	if (pDaemon != NULL) {
+		pDaemon->set_publisher_disconnect_callback(on_publisher_disconnect);
+	}
+}

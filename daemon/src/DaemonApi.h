@@ -61,6 +61,9 @@ typedef void (*CursorShapeCallback)(int id, int x, int y, int w, int h, const st
 	data: 剪贴板数据
 */
 typedef void(*ClipboardDataCallback)(int id, int data_type, const std::string& data);
+/* 发布者和中转服务断开后回调
+*/
+typedef void(*PublisherDisconnectCallback)();
 
 //创建daemon
 DAEMON_API int daemon_create();
@@ -116,5 +119,7 @@ DAEMON_API void daemon_get_users_info(int id, UsersInfo* info);
 DAEMON_API void daemon_send_clipboard_data(int id, int data_type, const std::string& data);
 //设置收到剪贴板数据后的回调
 DAEMON_API void daemon_set_clipboard_data_callback(int id, ClipboardDataCallback on_clipboard_data);
+//设置发布者与中转服务断开的回调
+DAEMON_API void daemon_set_publisher_disconnect_callback(int id, PublisherDisconnectCallback on_publisher_disconnect);
 
 

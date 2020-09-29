@@ -135,6 +135,7 @@ void Receiver::stop(int ins_id, bool close_win)
 void Receiver::show(int ins_id)
 {
 	ShowWindow(m_DaemonMap[ins_id].hwnd, SW_SHOW);
+	daemon_show_stream(ins_id, m_DaemonMap[ins_id].hwnd);
 }
 
 void Receiver::hide(int ins_id)

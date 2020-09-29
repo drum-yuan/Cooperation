@@ -1,4 +1,4 @@
-#ifndef TOOLBAR_H
+﻿#ifndef TOOLBAR_H
 #define TOOLBAR_H
 
 #include <QLabel>
@@ -20,7 +20,6 @@ public:
 public slots:
     void raise_time_out();
     void hide_time_out();
-    void show_time_out();
     void enterEvent(QEvent *event);
     void leaveEvent(QEvent *event);
 
@@ -38,10 +37,7 @@ private:
 
     QTimer m_raise_timer;
     QTimer m_hide_timer;
-    QTimer m_show_timer;
     int hide_y;
-    int show_y;
-    int cur_y;
 
     QVector<int> m_insid_list;
 };

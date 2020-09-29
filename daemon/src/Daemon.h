@@ -33,6 +33,7 @@ public:
 	void set_cursor_shape_callback(CursorShapeCallback on_cursor_shape);
 	void send_clipboard_data(int data_type, const string& data);
 	void set_clipboard_data_callback(ClipboardDataCallback on_clipboard_data);
+	void set_publisher_disconnect_callback(PublisherDisconnectCallback on_publisher_disconnect);
 	UsersInfoInternal get_users_info();
 
 private:
@@ -48,4 +49,5 @@ private:
 	thread* m_pHeartbeatID;
 	bool m_IsPublisher;
 	bool m_bQuit;
+	PublisherDisconnectCallback m_CallbackPublisherDisconnect;
 };

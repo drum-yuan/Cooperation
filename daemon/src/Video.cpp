@@ -725,15 +725,14 @@ void Video::FillSpecificParameters(SEncParamExt &sParam)
 
 void Video::Encode()
 {
-	if (m_bForceKeyframe) {
-		m_pSVCEncoder->ForceIntraFrame(true);
-		m_bForceKeyframe = false;
-	}
-
 	if (!m_pSVCEncoder)
 		return;
-	SSourcePicture tSrcPic;
 
+	if (m_bForceKeyframe) {
+		m_pSVCEncoder->ForceIntraFrame(true);
+	}
+
+	SSourcePicture tSrcPic;
 	unsigned int uTimeStamp = clock();
 	tSrcPic.uiTimeStamp = uTimeStamp;
 	tSrcPic.iColorFormat = videoFormatI420;
@@ -754,6 +753,7 @@ void Video::Encode()
 		tFbi.uiTimeStamp = uTimeStamp;
 		if (onEncoded) {
 			onEncoded(&tFbi);
+			m_bForceKeyframe = false;
 		}
 	}
 	else {

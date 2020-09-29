@@ -266,7 +266,9 @@ void MainWindow::button_cancel_clicked()
     {
         coclient_unregister_compute_node(m_app_guid);
         m_app_guid.clear();
-        clear_app();
+        if (!m_app_alias.isEmpty()) {
+            clear_app();
+        }
         ui->confirm->show();
         ui->publish_type->setEnabled(true);
     }

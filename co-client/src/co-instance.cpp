@@ -140,3 +140,10 @@ vector<int> coclient_get_current_receiver()
 	}
 	return receiver_list;
 }
+
+void coclient_set_sender_disconnect_callback(SenderDisconnectCallback on_sender_disconnect)
+{
+	if (_Sender) {
+		_Sender->set_disconnect_callback(on_sender_disconnect);
+	}
+}
