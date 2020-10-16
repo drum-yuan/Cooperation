@@ -263,8 +263,8 @@ void Receiver::recv_cursor_shape_callback(int id, int x, int y, int w, int h, co
 	info.fIcon = FALSE;
 	info.xHotspot = x;
 	info.yHotspot = y;
-	info.hbmMask = CreateBitmap(w, h, 1, 1, mask_bytes.c_str());
-	info.hbmColor = CreateBitmap(w, h, 1, 32, color_bytes.c_str());
+	info.hbmMask = CreateBitmap(w, h, 1, 1, mask_bytes.data());
+	info.hbmColor = CreateBitmap(w, h, 1, 32, color_bytes.data());
 	_instance->m_hCursor = CreateIconIndirect(&info);
 #else
 	HWND hwnd = _instance->get_hwnd_from_ins_id(id);

@@ -117,7 +117,6 @@ private:
 	int m_Bitrate;
 	bool m_bPublisher;
 	bool m_bOperater;
-	bool m_bResetSequence;
 	bool m_bForceKeyframe;
 	bool m_bLockScreen;
 	bool m_bShow;

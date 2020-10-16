@@ -240,6 +240,7 @@ void Sender::monitor_thread()
 				delete[]color_buffer;
 			}
 			m_hCursor = cursor_info.hCursor;
+			LOG_DEBUG("send cursor shape size=%d, x=%d, y=%d, w=%d, h=%d", color_bytes.size() + mask_bytes.size(), x, y, bmMask.bmWidth, bmMask.bmHeight);
 			daemon_send_cursor_shape(m_DaemonId, x, y, bmMask.bmWidth, bmMask.bmHeight, color_bytes, mask_bytes);
 		}
 	}
@@ -409,7 +410,7 @@ void Sender::recv_mouse_event_callback(unsigned int x, unsigned int y, unsigned 
 		UINT hr = SendInput(1, &input, sizeof(INPUT));
 		if (!hr) {
 			LOG_INFO("send input mouse fail, %u", GetLastError());
-
+			_instance->m_DesktopSwitch = true;
 		}
 		_dwInputTime = GetTickCount();
 	}
