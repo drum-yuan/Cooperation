@@ -59,7 +59,10 @@ void CCapture::start()
 
 void CCapture::stop()
 {
-	m_hMessageWnd = NULL;
+	if (m_hMessageWnd) {
+		PostMessage((HWND)m_hMessageWnd, WM_CLOSE, 0, 0);
+		m_hMessageWnd = NULL;
+	}
 	m_Quit = TRUE;
 }
 
