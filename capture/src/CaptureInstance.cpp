@@ -19,7 +19,6 @@ void cap_start_capture_screen(int monitor_id, FrameCallback on_frame, void* para
 #endif
 		delete s_pCapture;
 	}
-	printf("new Capture\n");
 	s_pCapture = new CCapture(monitor_id, on_frame, param);
 	s_pCapture->start();
 }

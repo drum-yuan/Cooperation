@@ -115,6 +115,7 @@ public:
 	static LRESULT CALLBACK xDispWindowProc(HWND hwnd, UINT uMsg, WPARAM  wParam, LPARAM lParam);
 
 private:
+	void switch_input_desktop();
 	void capture_mirror();
 	void capture_dxgi();
 	void capture_gdi();
@@ -123,7 +124,7 @@ private:
 	BOOL init_directx(BOOL is_init);
 	BOOL init_gdi(BOOL is_init);
 
-	HWND CreateMsgWnd();
+	HWND create_messsage_window();
 	void change_display(int w, int h, int bits);
 #ifdef DMF_MIRROR
 	void map_and_unmap_buffer(const char* dev_name, BOOL is_map, GETCHANGESBUF* p_buf);
@@ -160,6 +161,7 @@ private:
 	HANDLE           m_hThread;
 	HANDLE           m_hEvent;
 	__tbuf_t         m_tArr[2];
+	HDESK            m_hdesk;
 
 	unsigned int	 m_IntervalCnt;
 	unsigned int	 m_AckSeq;
@@ -170,6 +172,8 @@ private:
 	LARGE_INTEGER	 m_Counter;
 	LARGE_INTEGER	 m_FrameBegin;
 	LARGE_INTEGER	 m_FrameEnd;
+
+	FILE*            m_fLog;
 };
 
 //Ð¡¾ØÐÎ¿é

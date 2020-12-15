@@ -28,10 +28,12 @@ CCapture::CCapture(int id, FrameCallback on_frame, void* param)
 	m_hMessageWnd = NULL;
 	m_hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	m_hThread = NULL;
+	m_hdesk = NULL;
 
 	m_IntervalCnt = 5;
 	m_AckSeq = 0;
 	m_CaptureSeq = 0;
+	m_fLog = NULL;
 
 	QueryPerformanceFrequency(&m_Counter);
 }
@@ -42,6 +44,8 @@ CCapture::~CCapture()
 
 void CCapture::start()
 {
+	m_fLog = fopen("capture.log", "wb");
+
 	DWORD tid;
 	m_hThread = CreateThread(NULL, 10 * 1024 * 1024, LoopMsgProc, this, 0, &tid);
 
@@ -64,6 +68,9 @@ void CCapture::stop()
 		m_hMessageWnd = NULL;
 	}
 	m_Quit = TRUE;
+	if (m_fLog) {
+		fclose(m_fLog);
+	}
 }
 
 void CCapture::pause()
@@ -81,44 +88,47 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 	CCapture* capture = (CCapture*)param;
 	::CoInitialize(0);
 
-	int m_GrabType = capture->m_GrabType;
-	BOOL is_ok = FALSE;
-	if (m_GrabType == GRAB_TYPE_AUTO) {
-		is_ok = capture->init_mirror(TRUE);
-		if (is_ok) m_GrabType = GRAB_TYPE_MIRROR;
+	int grabType = capture->m_GrabType;
+	BOOL success = FALSE;
+	if (grabType == GRAB_TYPE_AUTO) {
+		success = capture->init_mirror(TRUE);
+		if (success) grabType = GRAB_TYPE_MIRROR;
 		else {
-			is_ok = capture->init_directx(TRUE);
-			if (is_ok) m_GrabType = GRAB_TYPE_DIRECTX;
+			success = capture->init_directx(TRUE);
+			if (success) grabType = GRAB_TYPE_DIRECTX;
 			else {
-				is_ok = capture->init_gdi(TRUE);
-				if (is_ok) m_GrabType = GRAB_TYPE_GDI;
+				success = capture->init_gdi(TRUE);
+				if (success) grabType = GRAB_TYPE_GDI;
 			}
 		}
-		capture->m_GrabType = m_GrabType;
+		capture->m_GrabType = grabType;
 	}
-	else if (m_GrabType == GRAB_TYPE_MIRROR) {
-		is_ok = capture->init_mirror(TRUE);
+	else if (grabType == GRAB_TYPE_MIRROR) {
+		success = capture->init_mirror(TRUE);
 	}
-	else if (m_GrabType == GRAB_TYPE_DIRECTX) {
-		is_ok = capture->init_directx(TRUE);
+	else if (grabType == GRAB_TYPE_DIRECTX) {
+		success = capture->init_directx(TRUE);
 	}
-	else if (m_GrabType == GRAB_TYPE_GDI) {
-		is_ok = capture->init_gdi(TRUE);
+	else if (grabType == GRAB_TYPE_GDI) {
+		success = capture->init_gdi(TRUE);
 	}
 
-	if (!is_ok) {
-		printf("Can not init capture screen type=%d\n", m_GrabType);
+	if (!success) {
+		fprintf(capture->m_fLog, "Can not init capture screen. type=%d\n", grabType);
 		capture->m_hMessageWnd = NULL;
 		SetEvent(capture->m_hEvent);
 		CoUninitialize();
 		return 0;
 	}
+	else {
+		fprintf(capture->m_fLog, "init capture screen success. type=%d\n", grabType);
+	}
 
-	HWND hwnd = capture->CreateMsgWnd();
+	HWND hwnd = capture->create_messsage_window();
 	HANDLE hEvt = capture->m_hEvent;
 
 	if (!hwnd) {
-		switch (m_GrabType) {
+		switch (grabType) {
 		case GRAB_TYPE_MIRROR:  capture->init_mirror(FALSE);  break;
 		case GRAB_TYPE_DIRECTX: capture->init_directx(FALSE); break;
 		case GRAB_TYPE_GDI:     capture->init_gdi(FALSE);     break;
@@ -154,13 +164,13 @@ DWORD CALLBACK CCapture::LoopMsgProc(void* param)
 				goto End;
 			}
 
-			if (m_GrabType == GRAB_TYPE_MIRROR) {
+			if (grabType == GRAB_TYPE_MIRROR) {
 				capture->capture_mirror();
 			}
-			else if (m_GrabType == GRAB_TYPE_DIRECTX) {
+			else if (grabType == GRAB_TYPE_DIRECTX) {
 				capture->capture_dxgi();
 			}
-			else if (m_GrabType == GRAB_TYPE_GDI) {
+			else if (grabType == GRAB_TYPE_GDI) {
 				capture->capture_gdi();
 			}
 			if (capture->m_CaptureSeq > last_capture_seq) {
@@ -199,7 +209,6 @@ LRESULT CALLBACK CCapture::xDispWindowProc(HWND hwnd, UINT uMsg, WPARAM  wParam,
 	{
 	case WM_DISPLAYCHANGE:
 	{
-		printf("WM_DISPLAYCHANGE\n");
 		CCapture* dp = (CCapture*)GetProp(hwnd, "xDispData");
 		if (dp) {
 			if (dp->m_GrabType == GRAB_TYPE_MIRROR) {
@@ -208,7 +217,6 @@ LRESULT CALLBACK CCapture::xDispWindowProc(HWND hwnd, UINT uMsg, WPARAM  wParam,
 			else if (dp->m_GrabType == GRAB_TYPE_DIRECTX) {
 				dp->init_directx(FALSE);
 				dp->init_directx(TRUE);
-				printf("directx restart\n");
 			}
 			else if (dp->m_GrabType == GRAB_TYPE_GDI) {
 				dp->init_gdi(FALSE);
@@ -225,7 +233,7 @@ LRESULT CALLBACK CCapture::xDispWindowProc(HWND hwnd, UINT uMsg, WPARAM  wParam,
 	return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-HWND CCapture::CreateMsgWnd()
+HWND CCapture::create_messsage_window()
 {
 	HMODULE hmod = GetModuleHandle(NULL);
 
@@ -241,7 +249,7 @@ HWND CCapture::CreateMsgWnd()
 	HWND hwnd = CreateWindow(cls_name, "", WS_OVERLAPPEDWINDOW, 0, 0, 1, 1, NULL, NULL, hmod, NULL);
 	m_hMessageWnd = hwnd;
 	if (!hwnd) {
-		printf("NULL Message Window.\n");
+		fprintf(m_fLog, "NULL Message Window.\n");
 	}
 	SetProp(hwnd, "xDispData", this);
 
@@ -250,7 +258,7 @@ HWND CCapture::CreateMsgWnd()
 
 void CCapture::change_display(int w, int h, int bits)
 {
-	printf("change new width=%d, heigt=%d, bitcount=%d\n", w, h, bits);
+	fprintf(m_fLog, "change new width=%d, heigt=%d, bitcount=%d\n", w, h, bits);
 #ifdef DMF_MIRROR
 	if (m_Mirror.buffer.Userbuffer) {
 #else
@@ -278,7 +286,7 @@ void CCapture::change_display(int w, int h, int bits)
 	devmode.dmBitsPerPel = bits;
 
 	INT code = ChangeDisplaySettingsEx(m_Mirror.disp.DeviceName, &devmode, NULL, CDS_UPDATEREGISTRY, NULL);
-	printf("Change_display Update Registry on device mode: %s\n", GetDispCode(code));
+	fprintf(m_fLog, "Change_display Update Registry on device mode: %s\n", GetDispCode(code));
 }
 
 void CCapture::set_drop_interval(unsigned int count)
@@ -325,7 +333,7 @@ void CCapture::set_frame_rate(unsigned int rate)
 #ifdef DMF_MIRROR
 void CCapture::map_and_unmap_buffer(const char* dev_name, BOOL is_map, GETCHANGESBUF* p_buf)
 {
-	printf("buffer map %d\n", is_map);
+	fprintf(m_fLog, "buffer map %d\n", is_map);
 	DWORD code = dmf_esc_usm_pipe_unmap;
 	if (is_map) {
 		code = dmf_esc_usm_pipe_map;
@@ -341,7 +349,7 @@ void CCapture::map_and_unmap_buffer(const char* dev_name, BOOL is_map, draw_buff
 
 	HDC hdc = CreateDC(NULL, dev_name, NULL, NULL);
 	if (!hdc) {
-		printf("CreateDC err=%d\n", GetLastError());
+		fprintf(m_fLog, "CreateDC err=%d\n", GetLastError());
 		return;
 	}
 
@@ -349,7 +357,7 @@ void CCapture::map_and_unmap_buffer(const char* dev_name, BOOL is_map, draw_buff
 	int ret;
 	if (is_map) {
 		ret = ExtEscape(hdc, code, 0, NULL, sizeof(GETCHANGESBUF), (LPSTR)p_buf);
-		printf("Map ExtEscape ret=%d, err=%d\n", ret, GetLastError());
+		fprintf(m_fLog, "Map ExtEscape ret=%d, err=%d\n", ret, GetLastError());
 		if (ret <= 0) {
 			
 			DeleteDC(hdc);
@@ -358,7 +366,7 @@ void CCapture::map_and_unmap_buffer(const char* dev_name, BOOL is_map, draw_buff
 	}
 	else {
 		ret = ExtEscape(hdc, code, sizeof(GETCHANGESBUF), (LPCSTR)p_buf, 0, NULL);
-		printf("UnMap ExtEscape ret=%d, err=%d\n", ret, GetLastError());
+		fprintf(m_fLog, "UnMap ExtEscape ret=%d, err=%d\n", ret, GetLastError());
 		if (ret <= 0) {
 			
 			DeleteDC(hdc);
@@ -439,12 +447,12 @@ BOOL CCapture::find_display_device(PDISPLAY_DEVICE disp, PDEVMODE mode, BOOL is_
 		bRet = EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, mode);
 	}
 	if (!bRet) {
-		printf("not get current display information\n");
+		fprintf(m_fLog, "not get current display information\n");
 		return FALSE;
 	}
 
 	*disp = dispDevice;
-	printf("Found devName=[%s], desc=[%s], id=[%s], key[%s], flags=0x%X\n", 
+	fprintf(m_fLog, "Found devName=[%s], desc=[%s], id=[%s], key[%s], flags=0x%X\n", 
 		dispDevice.DeviceName, dispDevice.DeviceString, dispDevice.DeviceID, dispDevice.DeviceKey, dispDevice.StateFlags);
 	return TRUE;
 }
@@ -462,7 +470,7 @@ BOOL CCapture::active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp)
 	if (is_active || !dp) {
 		BOOL b = find_display_device(&dispDevice, &devmode, FALSE, -1);
 		if (!b) {
-			printf("not found Mirror Driver maybe not install.\n");
+			fprintf(m_fLog, "not found Mirror Driver maybe not install.\n");
 			return FALSE;
 		}
 		disp = &dispDevice;
@@ -481,7 +489,7 @@ BOOL CCapture::active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp)
 	char keystr[1024];
 	char* sep = strstr(disp->DeviceKey, "\\{");
 	if (!sep) {
-		printf("invalid EnumDisplaySettings param.\n");
+		fprintf(m_fLog, "invalid EnumDisplaySettings param.\n");
 		return FALSE;
 	}
 
@@ -503,7 +511,7 @@ BOOL CCapture::active_mirror_driver(BOOL is_active, PDISPLAY_DEVICE dp)
 
 	const char* DeviceName = disp->DeviceName;
 	INT code = ChangeDisplaySettingsEx(DeviceName, &devmode, NULL, CDS_UPDATEREGISTRY, NULL);
-	printf("Active_mirror Update Registry on device mode: %s\n", GetDispCode(code));
+	fprintf(m_fLog, "Active_mirror Update Registry on device mode: %s\n", GetDispCode(code));
 
 	if (dp && disp != dp) {
 		*dp = *disp;
@@ -574,7 +582,7 @@ void CCapture::combine_rectangle(byte* primary_buffer, byte* second_buffer, int 
 					HRGN n_rgn = CreateRectRgn(x, y, x2, y2);
 					if (n_rgn) {
 						if (CombineRgn(region, region, n_rgn, RGN_OR) == NULLREGION) { //矩形框可能有重叠，因此首先组成HRGN区域，然后再计算出合并之后的矩形框
-							printf("CombineRgn [%d, %d, %d, %d} err=%d\n", x, y, x2, y2, GetLastError());
+							fprintf(m_fLog, "CombineRgn [%d, %d, %d, %d} err=%d\n", x, y, x2, y2, GetLastError());
 							DeleteObject(region);
 							region = NULL;
 						}
@@ -628,6 +636,26 @@ void CCapture::region_to_rectangle(HRGN region, byte* dst_buf, int line_stride,
 	}
 	*p_rc_array = rc;
 	*p_rc_count = idx;
+}
+
+void CCapture::switch_input_desktop()
+{
+	TCHAR desktopName[MAX_PATH] = { 0 };
+	if (m_hdesk) {
+		CloseDesktop(m_hdesk);
+	}
+	m_hdesk = OpenInputDesktop(0, FALSE, GENERIC_ALL);
+	if (!m_hdesk) {
+		fprintf(m_fLog, "OpenInputDesktop() failed: %lu", GetLastError());
+		return;
+	}
+	if (GetUserObjectInformation(m_hdesk, UOI_NAME, desktopName, sizeof(desktopName), NULL)) {
+		fprintf(m_fLog, "current desktop name %s\n", desktopName);
+		//m_hdesk = OpenDesktop(desktopName, 0, FALSE, MAXIMUM_ALLOWED);
+	}
+	if (!SetThreadDesktop(m_hdesk)) {
+		fprintf(m_fLog, "SetThreadDesktop failed %lu", GetLastError());
+	}
 }
 
 void CCapture::capture_mirror()
@@ -698,6 +726,7 @@ void CCapture::capture_dxgi()
 	hr = m_Directx.dxgi_dup->AcquireNextFrame(0, &FrameInfo, &DesktopResource);
 	if (FAILED(hr)) {   
 		if (hr == _HRESULT_TYPEDEF_(0x887A0026L) || hr == _HRESULT_TYPEDEF_(0x887A0001L)) {
+			fprintf(m_fLog, "directx reset\n");
 			init_directx(FALSE);
 			init_directx(TRUE);
 			return;
@@ -713,7 +742,7 @@ void CCapture::capture_dxgi()
 	hr = DesktopResource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&image2d);
 	SAFE_RELEASE(DesktopResource);
 	if (FAILED(hr)) {
-		printf("Query Texture2D err=0x%X\n", hr);
+		fprintf(m_fLog, "Query Texture2D err=0x%X\n", hr);
 		return;
 	}
 
@@ -730,19 +759,19 @@ void CCapture::capture_dxgi()
 		frameDescriptor.SampleDesc.Count = 1;
 		hr = m_Directx.d11dev->CreateTexture2D(&frameDescriptor, NULL, &m_Directx.dxgi_text2d);
 		if (FAILED(hr)) {
-			printf("CreateTexture2D err=0x%X\n", hr);
+			fprintf(m_fLog, "CreateTexture2D err=0x%X\n", hr);
 			return;
 		}
 		m_Directx.dxgi_text2d->SetEvictionPriority(DXGI_RESOURCE_PRIORITY_MAXIMUM);
 		hr = m_Directx.dxgi_text2d->QueryInterface(__uuidof(IDXGISurface), (void**)&m_Directx.dxgi_surf);
 		if (FAILED(hr)) {
 			SAFE_RELEASE(m_Directx.dxgi_text2d);
-			printf("QueryInterface dxgi_surf err=0x%X\n", hr);
+			fprintf(m_fLog, "QueryInterface dxgi_surf err=0x%X\n", hr);
 			return;
 		}
 		hr = m_Directx.dxgi_surf->Map(&mappedRect, DXGI_MAP_READ);
 		if (FAILED(hr)) {
-			printf("Map Data buffer error\n");
+			fprintf(m_fLog, "Map Data buffer error\n");
 			SAFE_RELEASE(m_Directx.dxgi_surf);
 			SAFE_RELEASE(m_Directx.dxgi_text2d);
 			return;
@@ -774,7 +803,11 @@ void CCapture::capture_gdi()
 	if (!m_GDI.buffer || !m_GDI.hbmp)return;
 
 	HDC hdc = CreateDC(NULL, m_DispName, NULL, NULL);
-	BitBlt(m_GDI.memdc, 0, 0, m_GDI.cx, m_GDI.cy, hdc, 0, 0, SRCCOPY | CAPTUREBLT);
+	BOOL ret = BitBlt(m_GDI.memdc, 0, 0, m_GDI.cx, m_GDI.cy, hdc, 0, 0, SRCCOPY | CAPTUREBLT);
+	if (!ret) {
+		fprintf(m_fLog, "gdi bitblt fail %lu\n", GetLastError());
+		return;
+	}
 	ReleaseDC(NULL, hdc);
 
 	HRGN region = NULL;
@@ -820,7 +853,7 @@ BOOL CCapture::init_mirror(BOOL is_init)
 		m_Mirror.is_active = FALSE;
 		r = active_mirror_driver(TRUE, &m_Mirror.disp);
 		if (!r) {
-			printf("Active Mirror Driver Error\n");
+			fprintf(m_fLog, "Active Mirror Driver Error\n");
 		}
 		else {
 			m_Mirror.is_active = TRUE;
@@ -842,8 +875,8 @@ BOOL CCapture::init_mirror(BOOL is_init)
 		m_Mirror.is_active = FALSE;
 		m_Mirror.index = -1;
 		r = active_mirror_driver(FALSE, &m_Mirror.disp);
-		printf("unload mirror driver ret=%d\n", r);
-		return TRUE;
+		fprintf(m_fLog, "unload mirror driver ret=%d\n", r);
+		return r;
 	}
 }
 
@@ -854,7 +887,7 @@ BOOL CCapture::init_dxgi()
 	if (!hmod)hmod = LoadLibrary("d3d11.dll");
 	fnD3D11CreateDevice fn = (fnD3D11CreateDevice)GetProcAddress(hmod, "D3D11CreateDevice");
 	if (!fn) {
-		printf("DXGI init :Not Load [D3D11CreateDevice] function \n");
+		fprintf(m_fLog, "DXGI init :Not Load [D3D11CreateDevice] function \n");
 		return FALSE;
 	}
 	D3D_DRIVER_TYPE DriverTypes[] =
@@ -879,14 +912,14 @@ BOOL CCapture::init_dxgi()
 		if (SUCCEEDED(hr))break;
 	}
 	if (FAILED(hr)) {
-		printf("DXGI Init: D3D11CreateDevice Return hr=0x%X\n", hr);
+		fprintf(m_fLog, "DXGI Init: D3D11CreateDevice Return hr=0x%X\n", hr);
 		return FALSE;
 	}
 	IDXGIDevice* dxdev = 0;
 	hr = m_Directx.d11dev->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxdev);
 	if (FAILED(hr)) {
 		init_directx(FALSE); 
-		printf("DXGI init: IDXGIDevice Error hr=0x%X\n", hr);
+		fprintf(m_fLog, "DXGI init: IDXGIDevice Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	IDXGIAdapter* DxgiAdapter = 0;
@@ -894,7 +927,7 @@ BOOL CCapture::init_dxgi()
 	SAFE_RELEASE(dxdev);
 	if (FAILED(hr)) {
 		init_directx(FALSE); 
-		printf("DXGI init: IDXGIAdapter Error hr=0x%X\n", hr);
+		fprintf(m_fLog, "DXGI init: IDXGIAdapter Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	INT nOutput = m_MonitorID;
@@ -903,7 +936,7 @@ BOOL CCapture::init_dxgi()
 	SAFE_RELEASE(DxgiAdapter);
 	if (FAILED(hr)) {
 		init_directx(FALSE);
-		printf("DXGI init: IDXGIOutput Error hr=0x%X\n", hr);
+		fprintf(m_fLog, "DXGI init: IDXGIOutput Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	DxgiOutput->GetDesc(&m_Directx.dxgi_desc);
@@ -912,14 +945,14 @@ BOOL CCapture::init_dxgi()
 	SAFE_RELEASE(DxgiOutput);
 	if (FAILED(hr)) {
 		init_directx(FALSE); 
-		printf("DXGI init: IDXGIOutput1 Error hr=0x%X\n", hr);
+		fprintf(m_fLog, "DXGI init: IDXGIOutput1 Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	hr = DxgiOutput1->DuplicateOutput(m_Directx.d11dev, &m_Directx.dxgi_dup);
 	SAFE_RELEASE(DxgiOutput1);
 	if (FAILED(hr)) {
 		init_directx(FALSE);
-		printf("DXGI init: IDXGIOutputDuplication Error hr=0x%X\n", hr);
+		fprintf(m_fLog, "DXGI init: IDXGIOutputDuplication Error hr=0x%X\n", hr);
 		return FALSE;
 	}
 	return TRUE;
