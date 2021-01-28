@@ -30,6 +30,8 @@ struct CoUsersInfo {
 	std::string operater;
 };
 
+typedef void(*SenderDisconnectCallback)();
+
 CO_API void coclient_create(const std::string& server_url);
 
 CO_API void coclient_destroy();
@@ -48,6 +50,10 @@ CO_API int coclient_start_receiver(const NodeInfo& node);
 
 CO_API void coclient_stop_receiver(int ins_id);
 
+CO_API void coclient_show_receiver(int ins_id);
+
+CO_API void coclient_hide_receiver(int ins_id);
+
 CO_API void coclient_get_users_info(int ins_id, CoUsersInfo& users_info);
 
 CO_API void coclient_start_operate(int ins_id);
@@ -55,3 +61,5 @@ CO_API void coclient_start_operate(int ins_id);
 CO_API void coclient_send_picture();
 
 CO_API std::vector<int> coclient_get_current_receiver();
+
+CO_API void coclient_set_sender_disconnect_callback(SenderDisconnectCallback on_sender_disconnect);

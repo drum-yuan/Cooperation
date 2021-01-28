@@ -64,7 +64,7 @@ void toolbar::set_receiver_list(QVector<int> receiver_list)
 {
     m_receiver_list->clear();
     for (auto &it : receiver_list) {
-        m_receiver_list->insertItem(it, QString::fromLocal8Bit("远程桌面%1").arg(it));
+        m_receiver_list->addItem(QString::fromLocal8Bit("远程桌面%1").arg(it), it);
     }
 }
 
@@ -72,11 +72,10 @@ void toolbar::raise_time_out()
 {
     int screen_width = QApplication::desktop()->width();
     QPoint pt = QCursor::pos();
-    if (!isActiveWindow() &&
-            pt.ry() < height() && pt.rx() > (screen_width - width()) / 2 && pt.rx() < (screen_width + width()) / 2)
+    if (pt.ry() < height() && pt.rx() > (screen_width - width()) / 2 && pt.rx() < (screen_width + width()) / 2)
     {
         m_hide_timer.stop();
-        m_bg->setGeometry(0, 0, width(), height());
+        m_bg->move(0, 0);
     }
 }
 
@@ -85,21 +84,13 @@ void toolbar::hide_time_out()
     if (hide_y < height())
     {
         hide_y++;
-        m_bg->setGeometry(0, -hide_y, width(), height());
+        m_bg->move(0, -hide_y);
     }
     else
     {
         if (m_hide_timer.isActive())
             m_hide_timer.stop();
     }
-}
-
-void toolbar::enterEvent(QEvent *event)
-{
-    m_hide_timer.stop();
-    m_bg->setGeometry(0, 0, width(), height());
-
-    return QWidget::enterEvent(event);
 }
 
 void toolbar::leaveEvent(QEvent *event)
@@ -115,11 +106,11 @@ void toolbar::leaveEvent(QEvent *event)
 
 void toolbar::button_close_all_clicked()
 {
-    int ins_id = m_receiver_list->currentIndex();
+    int ins_id = m_receiver_list->currentData().toInt();
     qDebug() << "ins id " << ins_id;
     if (ins_id >= 0) {
         coclient_stop_receiver(ins_id);
-        m_receiver_list->removeItem(ins_id);
+        m_receiver_list->removeItem(m_receiver_list->currentIndex());
     }
     if (m_receiver_list->count() == 0) {
         close();
@@ -129,7 +120,7 @@ void toolbar::button_close_all_clicked()
 
 void toolbar::button_operate_clicked()
 {
-    int ins_id = m_receiver_list->currentIndex();
+    int ins_id = m_receiver_list->currentData().toInt();
     qDebug() << "ins id " << ins_id;
     if (ins_id >= 0) {
         coclient_start_operate(ins_id);

@@ -20,7 +20,6 @@ public:
 public slots:
     void raise_time_out();
     void hide_time_out();
-    void enterEvent(QEvent *event);
     void leaveEvent(QEvent *event);
 
     void button_close_all_clicked();
