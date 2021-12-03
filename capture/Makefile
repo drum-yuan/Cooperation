@@ -27,7 +27,7 @@ LIB_RELEASE = $(LIB)
 LDFLAGS_RELEASE = $(LDFLAGS) -s
 OBJDIR_RELEASE = obj/Release
 DEP_RELEASE = 
-OUT_RELEASE = ../../deps/libCapture.so
+OUT_RELEASE = ./libCapture.so
 
 OBJ_RELEASE = $(OBJDIR_RELEASE)/src/CaptureInstance.o $(OBJDIR_RELEASE)/src/CaptureLinux.o
 

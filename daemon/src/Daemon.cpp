@@ -7,6 +7,7 @@ Daemon::Daemon()
 	m_pHeartbeatID = NULL;
 	m_IsPublisher = false;
 	m_bQuit = true;
+	m_CallbackPublisherDisconnect = NULL;
 }
 
 Daemon::~Daemon()
@@ -243,7 +244,7 @@ void Daemon::HeartbeatThread()
         usleep(100 * 1000);
 #endif
 	}
-	if (m_IsPublisher) {
+	if (m_IsPublisher && m_CallbackPublisherDisconnect) {
 		m_CallbackPublisherDisconnect();
 	}
 }

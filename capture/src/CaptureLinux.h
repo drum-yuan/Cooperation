@@ -18,6 +18,7 @@ public:
 	void resume();
 	void set_drop_interval(unsigned int count);
 	void set_ack_sequence(unsigned int seq);
+	unsigned int get_ack_sequence();
 	unsigned int get_capture_sequence();
 	void set_capture_sequence(unsigned int seq);
 	void reset_sequence();

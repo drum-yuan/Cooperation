@@ -69,6 +69,11 @@ void CCapture::set_ack_sequence(unsigned int seq)
 	}
 }
 
+unsigned int CCapture::get_ack_sequence()
+{
+	return ack_seq;
+}
+
 unsigned int CCapture::get_capture_sequence()
 {
 	return capture_seq;
@@ -214,7 +219,7 @@ bool CCapture::xshm_reset()
 		printf("XShmCreateImage failed\n");
 		return false;
 	}
-    fb_shm_info.shmid = shmget(IPC_PRIVATE, fb_image->bytes_per_line * fb_image->height, IPC_CREAT | 0600);
+	fb_shm_info.shmid = shmget(IPC_PRIVATE, fb_image->bytes_per_line * fb_image->height, IPC_CREAT | 0600);
 	if (fb_shm_info.shmid == -1) {
 		printf("shmget failed\n");
 		return false;
@@ -279,7 +284,6 @@ void CCapture::capture_xshm()
     }
 
     CallbackFrameInfo frame;
-    frame.grab_type = 1;
 	frame.width = width;
 	frame.height = height;
 	frame.line_bytes = fb_image->bytes_per_line;

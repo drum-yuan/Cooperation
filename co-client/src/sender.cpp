@@ -132,6 +132,7 @@ bool Sender::register_compute_node(const string& app_name, const RDSHInfo& rdsh_
 	}
 	daemon_start_publish(ins_id);
 	m_DaemonId = ins_id;
+	LOG_INFO("daemon start id %d", m_DaemonId);
 	if (m_DesktopEventThread == NULL) {
 		m_DesktopEventThread = new thread(&Sender::desktop_event_thread, _instance);
 	}
@@ -155,10 +156,12 @@ void Sender::unregister_compute_node(const string& app_guid)
 		LOG_ERROR("response status code %d", response->get_status_code());
 		return;
 	}
-
 	m_VappQuit = true;
-	daemon_stop(m_DaemonId);
-	m_DaemonId = -1;
+	LOG_INFO("daemon stop id %d", m_DaemonId);
+	if (m_DaemonId >= 0) {
+		daemon_stop(m_DaemonId);
+		m_DaemonId = -1;
+	}
 	LOG_INFO("daemon stopped");
 }
 
