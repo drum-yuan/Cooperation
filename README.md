@@ -2,12 +2,19 @@
 
 #### Description
 可以分享自己的桌面、应用供他人远程使用，支持多人协作
+
 capture: 包含windows和linux平台的桌面采集
+
 daemon: 包含编解码和网络传输部分
+
 co-client: 包含和中心服务器通讯部分
+
 co-start: 以系统服务权限启动
+
 tool-win: QT开发的UI界面
+
 GtkClient、MFCClient: 测试用demo
+
 runtime: 运行时所需组件
 
 #### Software Architecture
